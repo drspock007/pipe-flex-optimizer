@@ -1,50 +1,43 @@
 
 
-# Corriger le mode "Find L" et ameliorer le feedback utilisateur
+# Fix Critical Unit Error in Calculation Engine
 
-## Probleme identifie
+## Problem
 
-L'algorithme de recherche binaire pour trouver la longueur maximale L ne fonctionne pas car la contrainte sigma(L) n'est **pas monotone**. Elle a une forme en U :
-- Pour les petits L : le moment de tassement (6EIh/L^2) domine --> contrainte elevee
-- Pour les grands L : le moment de poids propre (qL^2/12) domine --> contrainte elevee
-- Il existe un L optimal ou la contrainte est minimale
+There is a unit mismatch in the linear weight `q` calculation. The code computes `q` in **N/m** but then uses it in formulas where span length is in **mm**, which expects `q` in **N/mm**. This makes the self-weight contribution **1000x too large**, corrupting all results.
 
-La recherche binaire actuelle suppose que la contrainte augmente avec L, ce qui est faux.
+## Root Cause
 
-## Solution technique
-
-### 1. Corriger `calculateMaxL` dans `src/lib/calculations.ts`
-
-Remplacer la recherche binaire simple par une approche en deux etapes :
-
-1. **Trouver le L optimal** (contrainte minimale) par recherche ternaire ou Golden Section sur l'intervalle [0.1, 1000] m
-2. **Verifier** que la contrainte minimale est inferieure a la contrainte admissible. Si non, aucune solution n'existe (retourner `undefined`)
-3. **Recherche binaire** de L_max depuis le L optimal vers la borne superieure (la ou la contrainte redevient trop elevee)
-
-L'algorithme :
+Line 155 of `src/lib/calculations.ts`:
 ```
-1. Golden section search pour trouver L_min_stress (le L ou sigma est minimal)
-2. Si sigma(L_min_stress) > allowable --> pas de solution, computedL = undefined
-3. Sinon, binary search entre L_min_stress et 1000m pour trouver le max L ou sigma <= allowable
+q = density * g * A * 1e-6
+```
+- density (kg/m3) x g (m/s2) x A (mm2) x 1e-6 (mm2 to m2) = N/m
+- But `computeStressForSpan` multiplies `q * span_mm^2`, requiring q in N/mm
+
+## Fix
+
+**File: `src/lib/calculations.ts`** (1 line change)
+
+Change the conversion factor from `1e-6` to `1e-9` on line 155:
+```
+const q = includeSelfWeight ? density * g * section.A * 1e-9 : 0;
 ```
 
-### 2. Modifier le type `CalculationResults`
+This converts A from mm2 to m2 (1e-6) AND q from N/m to N/mm (1e-3), total factor = 1e-9.
 
-Changer `computedL` et `computedH` en `number | undefined` pour gerer le cas "pas de solution"
+### Verification with default values
+- Do=114.3mm, t=6.02mm, A~2048 mm2
+- q = 7850 x 9.81 x 2048 x 1e-9 = **0.158 N/mm** (correct, ~16 kg/m pipe)
+- Previously: 158 N/mm (equivalent to ~16,000 kg/m -- clearly wrong)
 
-### 3. Ameliorer le feedback dans `GeometryCard.tsx`
+## Impact
 
-- Quand `computedL` est `undefined` : afficher "Aucune solution" en rouge dans le champ L (au lieu de 0.1)
-- Quand une valeur est trouvee : afficher clairement la valeur avec le style orange actuel
+This single fix corrects:
+- Standard mode: correct number of supports needed
+- Find L mode: realistic maximum pipe lengths
+- Find H mode: realistic maximum settlement values
+- Stress chart: accurate stress distribution curve
 
-### 4. Ameliorer le feedback dans `ResultsPanel.tsx`
-
-- Quand `computedL` ou `computedH` est `undefined` : afficher un message d'avertissement "Aucune longueur/settlement admissible pour ces parametres"
-- Utiliser un style rouge/destructif pour le message d'erreur
-
-## Fichiers modifies
-
-- `src/lib/calculations.ts` : corriger `calculateMaxL` avec golden section + binary search, gerer `undefined`
-- `src/components/GeometryCard.tsx` : afficher "N/A" ou "Aucune solution" quand pas de resultat
-- `src/components/ResultsPanel.tsx` : afficher un avertissement quand pas de solution
+No other files need changes.
 
