@@ -152,7 +152,7 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   const allowableStress = yieldStrength * (allowablePercent / 100);
   const E_mpa = E * 1000;
   const g = 9.81;
-  const q = includeSelfWeight ? density * g * section.A * 1e-6 : 0;
+  const q = includeSelfWeight ? density * g * section.A * 1e-9 : 0; // N/mm
 
   let L = inputs.L;
   let h = inputs.h;
