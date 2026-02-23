@@ -20,6 +20,8 @@ const Index = () => {
     allowablePercent: 80,
     includeSelfWeight: true,
     density: 7850,
+    calcMode: "standard",
+    targetSupports: 0,
   });
 
   const update = (field: string, value: string | number | boolean) => {
@@ -33,11 +35,14 @@ const Index = () => {
       <Header />
       <main className="container px-4 py-6 space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Input Panel */}
           <div className="space-y-4">
             <GeometryCard
               Do={inputs.Do} t={inputs.t} L={inputs.L} h={inputs.h}
               section={results.section}
+              calcMode={inputs.calcMode}
+              targetSupports={inputs.targetSupports}
+              computedL={results.computedL}
+              computedH={results.computedH}
               onChange={update}
             />
             <MaterialCard
@@ -58,8 +63,6 @@ const Index = () => {
               onChange={update}
             />
           </div>
-
-          {/* Chart + Results */}
           <div className="lg:col-span-2 space-y-4">
             <StressChart results={results} />
             <ResultsPanel results={results} />
