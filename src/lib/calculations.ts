@@ -35,8 +35,9 @@ export interface CalculationResults {
   governingSpan: number;
   stressData: { x: number; stress: number }[];
   supportPositions: number[]; // m
-  computedL?: number;        // m (findL mode)
-  computedH?: number;        // mm (findH mode)
+  calcMode: CalcMode;
+  computedL?: number;        // m (findL mode), undefined = no solution
+  computedH?: number;        // mm (findH mode), undefined = no solution
 }
 
 const GRADES: Record<string, number> = {
@@ -71,19 +72,58 @@ function computeStressForSpan(q: number, E_mpa: number, I: number, c: number, sp
   return (M_max * c) / I;
 }
 
-function calculateMaxL(inputs: PipeInputs, section: SectionProperties, q: number, E_mpa: number, allowableStress: number): number {
+function stressAtL(L_m: number, q: number, E_mpa: number, I: number, c: number, h_mm: number, numSpans: number): number {
+  const span_mm = (L_m * 1000) / numSpans;
+  const h_span = h_mm / numSpans;
+  return computeStressForSpan(q, E_mpa, I, c, span_mm, h_span);
+}
+
+function calculateMaxL(inputs: PipeInputs, section: SectionProperties, q: number, E_mpa: number, allowableStress: number): number | undefined {
   const { h, targetSupports } = inputs;
   const h_mm = h;
   const numSpans = targetSupports + 1;
 
-  let lo = 0.1, hi = 1000;
-  for (let i = 0; i < 50; i++) {
+  const stress = (L_m: number) => stressAtL(L_m, q, E_mpa, section.I, section.c, h_mm, numSpans);
+
+  // Step 1: Golden section search to find L with minimum stress
+  const phi = (1 + Math.sqrt(5)) / 2;
+  const resphi = 2 - phi;
+  let a = 0.1, b = 1000;
+  let x1 = a + resphi * (b - a);
+  let x2 = b - resphi * (b - a);
+  let f1 = stress(x1);
+  let f2 = stress(x2);
+
+  for (let i = 0; i < 100; i++) {
+    if (f1 < f2) {
+      b = x2;
+      x2 = x1;
+      f2 = f1;
+      x1 = a + resphi * (b - a);
+      f1 = stress(x1);
+    } else {
+      a = x1;
+      x1 = x2;
+      f1 = f2;
+      x2 = b - resphi * (b - a);
+      f2 = stress(x2);
+    }
+    if (Math.abs(b - a) < 1e-6) break;
+  }
+
+  const L_opt = (a + b) / 2;
+  const minStress = stress(L_opt);
+
+  // Step 2: If minimum stress exceeds allowable, no solution exists
+  if (minStress > allowableStress) return undefined;
+
+  // Step 3: Binary search from L_opt upward for max L where stress <= allowable
+  let lo = L_opt, hi = 1000;
+  for (let i = 0; i < 100; i++) {
     const mid = (lo + hi) / 2;
-    const span_mm = (mid * 1000) / numSpans;
-    const h_span = h_mm / numSpans;
-    const stress = computeStressForSpan(q, E_mpa, section.I, section.c, span_mm, h_span);
-    if (stress <= allowableStress) lo = mid;
+    if (stress(mid) <= allowableStress) lo = mid;
     else hi = mid;
+    if (Math.abs(hi - lo) < 1e-6) break;
   }
   return lo;
 }
@@ -121,10 +161,10 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
 
   if (calcMode === "findL") {
     computedL = calculateMaxL(inputs, section, q, E_mpa, allowableStress);
-    L = computedL;
+    L = computedL ?? inputs.L; // fallback to input L if no solution
   } else if (calcMode === "findH") {
     computedH = calculateMaxH(inputs, section, q, E_mpa, allowableStress);
-    h = computedH;
+    h = computedH ?? inputs.h;
   }
 
   const L_mm = L * 1000;
@@ -174,7 +214,7 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   return {
     section, yieldStrength, allowableStress, q, maxStress, isSafe,
     numSupports, spanLength, governingSpan, stressData, supportPositions,
-    computedL, computedH,
+    calcMode, computedL, computedH,
   };
 };
 

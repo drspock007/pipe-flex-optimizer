@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CalculationResults } from "@/lib/calculations";
-import { BarChart3, CircleCheck, CircleX } from "lucide-react";
+import { BarChart3, CircleCheck, CircleX, AlertTriangle } from "lucide-react";
 
 interface Props {
   results: CalculationResults;
@@ -53,17 +54,33 @@ const ResultsPanel = ({ results }: Props) => {
         </div>
 
         {/* Computed values (reverse modes) */}
-        {computedL != null && (
+        {results.calcMode === "findL" && computedL != null && (
           <div className="rounded-md border border-primary bg-primary/10 p-2.5 space-y-1">
             <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Computed Max Length</p>
             <p className="text-lg font-mono font-bold text-primary">{computedL.toFixed(2)} m</p>
           </div>
         )}
-        {computedH != null && (
+        {results.calcMode === "findL" && computedL == null && (
+          <Alert variant="destructive" className="py-2">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="text-xs">
+              Aucune longueur admissible pour ces paramètres
+            </AlertDescription>
+          </Alert>
+        )}
+        {results.calcMode === "findH" && computedH != null && (
           <div className="rounded-md border border-primary bg-primary/10 p-2.5 space-y-1">
             <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Computed Max Settlement</p>
             <p className="text-lg font-mono font-bold text-primary">{computedH.toFixed(2)} mm</p>
           </div>
+        )}
+        {results.calcMode === "findH" && computedH == null && (
+          <Alert variant="destructive" className="py-2">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="text-xs">
+              Aucun tassement admissible pour ces paramètres
+            </AlertDescription>
+          </Alert>
         )}
 
         {/* Support info */}
