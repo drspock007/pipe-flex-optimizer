@@ -40,7 +40,6 @@ const Index = () => {
               Do={inputs.Do} t={inputs.t} L={inputs.L} h={inputs.h}
               section={results.section}
               calcMode={inputs.calcMode}
-              targetSupports={inputs.targetSupports}
               computedL={results.computedL}
               computedH={results.computedH}
               onChange={update}
