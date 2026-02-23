@@ -1,89 +1,50 @@
 
 
-# Add Calculation Modes: Solve for L or Solve for h
+# Corriger le mode "Find L" et ameliorer le feedback utilisateur
 
-Currently the app only runs in "direct" mode: given L and h, it calculates stress and required supports. This plan adds two reverse calculation modes accessible via a mode selector in the Geometry Card.
+## Probleme identifie
 
----
+L'algorithme de recherche binaire pour trouver la longueur maximale L ne fonctionne pas car la contrainte sigma(L) n'est **pas monotone**. Elle a une forme en U :
+- Pour les petits L : le moment de tassement (6EIh/L^2) domine --> contrainte elevee
+- Pour les grands L : le moment de poids propre (qL^2/12) domine --> contrainte elevee
+- Il existe un L optimal ou la contrainte est minimale
 
-## Calculation Modes
+La recherche binaire actuelle suppose que la contrainte augmente avec L, ce qui est faux.
 
-1. **Standard (current)** -- Given L and h, calculate stress and supports
-2. **Find L** -- Given h and a target number of supports (0 by default), find the maximum allowable pipe length L so that stress stays within allowable limits
-3. **Find h** -- Given L and a target number of supports (0 by default), find the maximum allowable settlement h so that stress stays within allowable limits
+## Solution technique
 
----
+### 1. Corriger `calculateMaxL` dans `src/lib/calculations.ts`
 
-## Engineering Logic
+Remplacer la recherche binaire simple par une approche en deux etapes :
 
-### Find max L (h known)
-From the governing equation at a single span (no supports):
+1. **Trouver le L optimal** (contrainte minimale) par recherche ternaire ou Golden Section sur l'intervalle [0.1, 1000] m
+2. **Verifier** que la contrainte minimale est inferieure a la contrainte admissible. Si non, aucune solution n'existe (retourner `undefined`)
+3. **Recherche binaire** de L_max depuis le L optimal vers la borne superieure (la ou la contrainte redevient trop elevee)
 
-M_max = qL^2/12 + 6EIh/L^2, and sigma = M_max * c / I <= allowable
-
-This is solved numerically (binary search on L) since q*L^2 and h/L^2 create opposing trends. The solver finds the largest L where sigma <= allowable_stress.
-
-### Find max h (L known)
-From M_max = qL^2/12 + 6EIh/L^2:
-
-The settlement term is linear in h, so we can solve directly:
-h_max = (allowable_stress * I/c - qL^2/12) * L^2 / (6EI)
-
-If the self-weight alone already exceeds allowable, h_max = 0.
-
----
-
-## Changes
-
-### 1. `src/lib/calculations.ts`
-- Add `calcMode` field to `PipeInputs`: `"standard" | "findL" | "findH"`
-- Add `targetSupports` field to `PipeInputs` (number, default 0)
-- Add `calculateMaxL()` function -- binary search for max L given h
-- Add `calculateMaxH()` function -- direct solve for max h given L
-- Extend `CalculationResults` with `computedL?: number` and `computedH?: number`
-- Update `calculate()` to dispatch based on `calcMode`, updating L or h before running the standard calculation
-
-### 2. `src/components/GeometryCard.tsx`
-- Add a 3-option radio group or segmented toggle at the top: "Standard", "Find L", "Find h"
-- In "Find L" mode: L input becomes read-only (shows computed result), h remains editable
-- In "Find h" mode: h input becomes read-only (shows computed result), L remains editable
-- Add an optional "Target supports" input field (shown in Find L / Find h modes)
-- Highlight the computed value with a distinct style (e.g., orange border or background)
-
-### 3. `src/pages/Index.tsx`
-- Add `calcMode` and `targetSupports` to the initial state
-- Pass them through to GeometryCard and the calculation engine
-
-### 4. `src/components/ResultsPanel.tsx`
-- Show the computed L or h value prominently when in reverse mode
-
----
-
-## Technical Details
-
-### Binary search for max L
+L'algorithme :
 ```
-lo = 0.1, hi = 1000 (meters)
-iterate 50 times:
-  mid = (lo + hi) / 2
-  compute stress at mid with given h and targetSupports
-  if stress <= allowable: lo = mid
-  else: hi = mid
-result = lo
+1. Golden section search pour trouver L_min_stress (le L ou sigma est minimal)
+2. Si sigma(L_min_stress) > allowable --> pas de solution, computedL = undefined
+3. Sinon, binary search entre L_min_stress et 1000m pour trouver le max L ou sigma <= allowable
 ```
 
-### Direct solve for max h
-```
-For numSpans = targetSupports + 1:
-  span_mm = L_mm / numSpans
-  M_self = q * span_mm^2 / 12
-  M_allowable = allowable_stress * I / c
-  M_available = M_allowable - M_self
-  if M_available <= 0: h = 0
-  else: h_span = M_available * span_mm^2 / (6 * E * I)
-        h = h_span * numSpans
-```
+### 2. Modifier le type `CalculationResults`
 
-### UI mode selector
-Uses the existing Radix `ToggleGroup` component with 3 items: "Standard", "Find L", "Find h". Compact, fits inside the Geometry Card header area.
+Changer `computedL` et `computedH` en `number | undefined` pour gerer le cas "pas de solution"
+
+### 3. Ameliorer le feedback dans `GeometryCard.tsx`
+
+- Quand `computedL` est `undefined` : afficher "Aucune solution" en rouge dans le champ L (au lieu de 0.1)
+- Quand une valeur est trouvee : afficher clairement la valeur avec le style orange actuel
+
+### 4. Ameliorer le feedback dans `ResultsPanel.tsx`
+
+- Quand `computedL` ou `computedH` est `undefined` : afficher un message d'avertissement "Aucune longueur/settlement admissible pour ces parametres"
+- Utiliser un style rouge/destructif pour le message d'erreur
+
+## Fichiers modifies
+
+- `src/lib/calculations.ts` : corriger `calculateMaxL` avec golden section + binary search, gerer `undefined`
+- `src/components/GeometryCard.tsx` : afficher "N/A" ou "Aucune solution" quand pas de resultat
+- `src/components/ResultsPanel.tsx` : afficher un avertissement quand pas de solution
 
