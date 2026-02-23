@@ -16,9 +16,6 @@ interface Props {
 }
 
 const GeometryCard = ({ Do, t, L, h, section, calcMode, targetSupports, computedL, computedH, onChange }: Props) => {
-  const displayL = calcMode === "findL" && computedL != null ? computedL : L;
-  const displayH = calcMode === "findH" && computedH != null ? computedH : h;
-
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -50,12 +47,18 @@ const GeometryCard = ({ Do, t, L, h, section, calcMode, targetSupports, computed
           <div>
             <Label className="text-xs">L (m)</Label>
             {calcMode === "findL" ? (
-              <Input
-                type="number"
-                value={Math.round(displayL * 100) / 100}
-                readOnly
-                className="h-8 text-sm border-primary bg-primary/10 font-semibold"
-              />
+              computedL == null ? (
+                <div className="h-8 text-sm border border-destructive bg-destructive/10 rounded-md flex items-center px-3 font-semibold text-destructive">
+                  Aucune solution
+                </div>
+              ) : (
+                <Input
+                  type="number"
+                  value={Math.round(computedL * 100) / 100}
+                  readOnly
+                  className="h-8 text-sm border-primary bg-primary/10 font-semibold"
+                />
+              )
             ) : (
               <Input type="number" value={L} onChange={e => onChange("L", +e.target.value)} className="h-8 text-sm" />
             )}
@@ -63,12 +66,18 @@ const GeometryCard = ({ Do, t, L, h, section, calcMode, targetSupports, computed
           <div>
             <Label className="text-xs">h (mm)</Label>
             {calcMode === "findH" ? (
-              <Input
-                type="number"
-                value={Math.round(displayH * 100) / 100}
-                readOnly
-                className="h-8 text-sm border-primary bg-primary/10 font-semibold"
-              />
+              computedH == null ? (
+                <div className="h-8 text-sm border border-destructive bg-destructive/10 rounded-md flex items-center px-3 font-semibold text-destructive">
+                  Aucune solution
+                </div>
+              ) : (
+                <Input
+                  type="number"
+                  value={Math.round(computedH * 100) / 100}
+                  readOnly
+                  className="h-8 text-sm border-primary bg-primary/10 font-semibold"
+                />
+              )
             ) : (
               <Input type="number" value={h} onChange={e => onChange("h", +e.target.value)} className="h-8 text-sm" />
             )}
