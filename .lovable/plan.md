@@ -1,85 +1,89 @@
 
 
-# Pipe Settlement Flexibility Optimizer
+# Add Calculation Modes: Solve for L or Solve for h
 
-A professional engineering SaaS tool for calculating bending stress in steel pipes under self-weight and imposed settlement, with automatic support optimization.
-
----
-
-## 1. Application Layout & Theme
-
-- **Header** with app name, logo area, and orange (#ff8e04) accent branding
-- **Subtle grid/dot background** for engineering aesthetic
-- **Card-based layout** with clean sections for inputs, results, and chart
-- **Responsive design** — works on desktop and tablet
-- **Dark/light mode** support
+Currently the app only runs in "direct" mode: given L and h, it calculates stress and required supports. This plan adds two reverse calculation modes accessible via a mode selector in the Geometry Card.
 
 ---
 
-## 2. Input Panel (Left Side)
+## Calculation Modes
 
-### Geometry Card
-- Input fields for **Do**, **t**, **L**, **h** with default example values (114.3mm, 6.02mm, 30m, 2500mm)
-- Auto-calculated display of **Di**, **A**, **I**, **c** — shown as read-only computed values
-
-### Material Card
-- Dropdown for **API 5L grades** (X52, X60, X65, X70, Custom)
-- Editable **Young's modulus** field (default 210 GPa)
-- Custom yield strength input when "Custom" is selected
-
-### Allowable Stress Card
-- Slider/input for **allowable percentage** (default 80%)
-- Display of computed **yield strength**, **percentage**, and **allowable stress**
-
-### Load Card
-- Checkbox to **include self-weight** (default checked)
-- Editable **density** field (default 7850 kg/m³)
-- Display of computed **linear weight q**
+1. **Standard (current)** -- Given L and h, calculate stress and supports
+2. **Find L** -- Given h and a target number of supports (0 by default), find the maximum allowable pipe length L so that stress stays within allowable limits
+3. **Find h** -- Given L and a target number of supports (0 by default), find the maximum allowable settlement h so that stress stays within allowable limits
 
 ---
 
-## 3. Engineering Calculation Engine
+## Engineering Logic
 
-- Fixed-fixed beam model: **M_max = qL²/12 + 6EIh/L²**
-- Bending stress: **σ_max = M_max × c / I**
-- **Automatic iterative support optimization**: if stress exceeds allowable, add simple supports at equal spacing, recalculate per span, repeat until safe
-- All calculations run **in real-time** as inputs change — no submit button needed
+### Find max L (h known)
+From the governing equation at a single span (no supports):
 
----
+M_max = qL^2/12 + 6EIh/L^2, and sigma = M_max * c / I <= allowable
 
-## 4. Interactive Stress Chart
+This is solved numerically (binary search on L) since q*L^2 and h/L^2 create opposing trends. The solver finds the largest L where sigma <= allowable_stress.
 
-- **Recharts-based** interactive graph
-- X-axis: position along pipe length
-- Y-axis: bending stress (MPa)
-- **Orange stress curve** (#ff8e04), **red dashed allowable line**, **green safe shading**
-- **Vertical markers** at support positions
-- **Highlight** of maximum stress location
-- Smooth transitions on recalculation
+### Find max h (L known)
+From M_max = qL^2/12 + 6EIh/L^2:
+
+The settlement term is linear in h, so we can solve directly:
+h_max = (allowable_stress * I/c - qL^2/12) * L^2 / (6EI)
+
+If the self-weight alone already exceeds allowable, h_max = 0.
 
 ---
 
-## 5. Output/Results Panel (Right Side)
+## Changes
 
-- **Maximum bending stress** and **allowable stress** with comparison
-- **Safety status badge** — green "SAFE" or red "NOT SAFE"
-- **Number of intermediate supports required**
-- **Final span length** between supports
-- **Governing span** identification
-- **Section properties summary** (A, I, weight/m)
+### 1. `src/lib/calculations.ts`
+- Add `calcMode` field to `PipeInputs`: `"standard" | "findL" | "findH"`
+- Add `targetSupports` field to `PipeInputs` (number, default 0)
+- Add `calculateMaxL()` function -- binary search for max L given h
+- Add `calculateMaxH()` function -- direct solve for max h given L
+- Extend `CalculationResults` with `computedL?: number` and `computedH?: number`
+- Update `calculate()` to dispatch based on `calcMode`, updating L or h before running the standard calculation
+
+### 2. `src/components/GeometryCard.tsx`
+- Add a 3-option radio group or segmented toggle at the top: "Standard", "Find L", "Find h"
+- In "Find L" mode: L input becomes read-only (shows computed result), h remains editable
+- In "Find h" mode: h input becomes read-only (shows computed result), L remains editable
+- Add an optional "Target supports" input field (shown in Find L / Find h modes)
+- Highlight the computed value with a distinct style (e.g., orange border or background)
+
+### 3. `src/pages/Index.tsx`
+- Add `calcMode` and `targetSupports` to the initial state
+- Pass them through to GeometryCard and the calculation engine
+
+### 4. `src/components/ResultsPanel.tsx`
+- Show the computed L or h value prominently when in reverse mode
 
 ---
 
-## 6. Export Features
+## Technical Details
 
-- **PDF report** generation with all inputs, results, and chart
-- **Excel export** of calculation data
-- **Shareable URL** encoding all parameters in query string
+### Binary search for max L
+```
+lo = 0.1, hi = 1000 (meters)
+iterate 50 times:
+  mid = (lo + hi) / 2
+  compute stress at mid with given h and targetSupports
+  if stress <= allowable: lo = mid
+  else: hi = mid
+result = lo
+```
 
----
+### Direct solve for max h
+```
+For numSpans = targetSupports + 1:
+  span_mm = L_mm / numSpans
+  M_self = q * span_mm^2 / 12
+  M_allowable = allowable_stress * I / c
+  M_available = M_allowable - M_self
+  if M_available <= 0: h = 0
+  else: h_span = M_available * span_mm^2 / (6 * E * I)
+        h = h_span * numSpans
+```
 
-## 7. Unit Toggle
-
-- **SI / Imperial** toggle switch
-- Automatic conversion of all displayed values
+### UI mode selector
+Uses the existing Radix `ToggleGroup` component with 3 items: "Standard", "Find L", "Find h". Compact, fits inside the Geometry Card header area.
 
