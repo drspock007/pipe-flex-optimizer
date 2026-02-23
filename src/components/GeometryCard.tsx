@@ -9,13 +9,12 @@ interface Props {
   Do: number; t: number; L: number; h: number;
   section: SectionProperties;
   calcMode: CalcMode;
-  targetSupports: number;
   computedL?: number;
   computedH?: number;
   onChange: (field: string, value: number | string) => void;
 }
 
-const GeometryCard = ({ Do, t, L, h, section, calcMode, targetSupports, computedL, computedH, onChange }: Props) => {
+const GeometryCard = ({ Do, t, L, h, section, calcMode, computedL, computedH, onChange }: Props) => {
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -83,19 +82,6 @@ const GeometryCard = ({ Do, t, L, h, section, calcMode, targetSupports, computed
             )}
           </div>
         </div>
-
-        {calcMode !== "standard" && (
-          <div>
-            <Label className="text-xs">Target Supports</Label>
-            <Input
-              type="number"
-              min={0}
-              value={targetSupports}
-              onChange={e => onChange("targetSupports", Math.max(0, +e.target.value))}
-              className="h-8 text-sm"
-            />
-          </div>
-        )}
 
         <div className="rounded-md bg-muted p-2.5 space-y-1">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Computed</p>
