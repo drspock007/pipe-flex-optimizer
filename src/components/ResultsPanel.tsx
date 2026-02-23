@@ -8,7 +8,7 @@ interface Props {
 }
 
 const ResultsPanel = ({ results }: Props) => {
-  const { maxStress, allowableStress, isSafe, numSupports, spanLength, section } = results;
+  const { maxStress, allowableStress, isSafe, numSupports, spanLength, section, computedL, computedH } = results;
   const ratio = maxStress / allowableStress;
 
   return (
@@ -51,6 +51,20 @@ const ResultsPanel = ({ results }: Props) => {
           </div>
           <p className="text-[10px] text-muted-foreground text-right">Utilization: {(ratio * 100).toFixed(1)}%</p>
         </div>
+
+        {/* Computed values (reverse modes) */}
+        {computedL != null && (
+          <div className="rounded-md border border-primary bg-primary/10 p-2.5 space-y-1">
+            <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Computed Max Length</p>
+            <p className="text-lg font-mono font-bold text-primary">{computedL.toFixed(2)} m</p>
+          </div>
+        )}
+        {computedH != null && (
+          <div className="rounded-md border border-primary bg-primary/10 p-2.5 space-y-1">
+            <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Computed Max Settlement</p>
+            <p className="text-lg font-mono font-bold text-primary">{computedH.toFixed(2)} mm</p>
+          </div>
+        )}
 
         {/* Support info */}
         <div className="rounded-md bg-muted p-2.5 space-y-1">

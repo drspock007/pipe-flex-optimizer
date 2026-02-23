@@ -1,3 +1,5 @@
+export type CalcMode = "standard" | "findL" | "findH";
+
 export interface PipeInputs {
   Do: number; // mm
   t: number;  // mm
@@ -9,6 +11,8 @@ export interface PipeInputs {
   allowablePercent: number;
   includeSelfWeight: boolean;
   density: number; // kg/m³
+  calcMode: CalcMode;
+  targetSupports: number;
 }
 
 export interface SectionProperties {
@@ -31,6 +35,8 @@ export interface CalculationResults {
   governingSpan: number;
   stressData: { x: number; stress: number }[];
   supportPositions: number[]; // m
+  computedL?: number;        // m (findL mode)
+  computedH?: number;        // mm (findH mode)
 }
 
 const GRADES: Record<string, number> = {
@@ -58,63 +64,105 @@ export const calcSectionProperties = (Do: number, t: number, density: number): S
   return { Di, A, I, c, weightPerMeter };
 };
 
+function computeStressForSpan(q: number, E_mpa: number, I: number, c: number, span_mm: number, h_span: number): number {
+  const M_self = (q * span_mm * span_mm) / 12;
+  const M_settlement = (6 * E_mpa * I * h_span) / (span_mm * span_mm);
+  const M_max = M_self + M_settlement;
+  return (M_max * c) / I;
+}
+
+function calculateMaxL(inputs: PipeInputs, section: SectionProperties, q: number, E_mpa: number, allowableStress: number): number {
+  const { h, targetSupports } = inputs;
+  const h_mm = h;
+  const numSpans = targetSupports + 1;
+
+  let lo = 0.1, hi = 1000;
+  for (let i = 0; i < 50; i++) {
+    const mid = (lo + hi) / 2;
+    const span_mm = (mid * 1000) / numSpans;
+    const h_span = h_mm / numSpans;
+    const stress = computeStressForSpan(q, E_mpa, section.I, section.c, span_mm, h_span);
+    if (stress <= allowableStress) lo = mid;
+    else hi = mid;
+  }
+  return lo;
+}
+
+function calculateMaxH(inputs: PipeInputs, section: SectionProperties, q: number, E_mpa: number, allowableStress: number): number {
+  const { L, targetSupports } = inputs;
+  const L_mm = L * 1000;
+  const numSpans = targetSupports + 1;
+  const span_mm = L_mm / numSpans;
+
+  const M_self = (q * span_mm * span_mm) / 12;
+  const M_allowable = (allowableStress * section.I) / section.c;
+  const M_available = M_allowable - M_self;
+
+  if (M_available <= 0) return 0;
+
+  const h_span = (M_available * span_mm * span_mm) / (6 * E_mpa * section.I);
+  return h_span * numSpans;
+}
+
 export const calculate = (inputs: PipeInputs): CalculationResults => {
-  const { Do, t, L, h, grade, customYield, E, allowablePercent, includeSelfWeight, density } = inputs;
-  
+  const { Do, t, grade, customYield, E, allowablePercent, includeSelfWeight, density, calcMode, targetSupports } = inputs;
+
   const section = calcSectionProperties(Do, t, density);
   const yieldStrength = getYieldStrength(grade, customYield);
   const allowableStress = yieldStrength * (allowablePercent / 100);
-
-  // Convert units for calculation
-  const E_mpa = E * 1000;       // GPa → MPa
-  const L_mm = L * 1000;        // m → mm
-  const h_mm = h;               // already mm
-
-  // Linear weight q in N/mm
+  const E_mpa = E * 1000;
   const g = 9.81;
-  const q = includeSelfWeight ? density * g * section.A * 1e-6 : 0; // N/mm
+  const q = includeSelfWeight ? density * g * section.A * 1e-6 : 0;
 
-  // Iterative support optimization
-  let numSupports = 0;
+  let L = inputs.L;
+  let h = inputs.h;
+  let computedL: number | undefined;
+  let computedH: number | undefined;
+
+  if (calcMode === "findL") {
+    computedL = calculateMaxL(inputs, section, q, E_mpa, allowableStress);
+    L = computedL;
+  } else if (calcMode === "findH") {
+    computedH = calculateMaxH(inputs, section, q, E_mpa, allowableStress);
+    h = computedH;
+  }
+
+  const L_mm = L * 1000;
+  const h_mm = h;
+
+  // Iterative support optimization (standard mode)
+  let numSupports = calcMode !== "standard" ? targetSupports : 0;
   let maxStress = Infinity;
   let spanLength = L;
   let governingSpan = 0;
 
-  for (let supports = 0; supports <= 100; supports++) {
-    const numSpans = supports + 1;
-    const span_m = L / numSpans;
-    const span_mm = span_m * 1000;
+  if (calcMode === "standard") {
+    for (let supports = 0; supports <= 100; supports++) {
+      const numSpans = supports + 1;
+      const span_mm = L_mm / numSpans;
+      const h_span = h_mm / numSpans;
+      const stress = computeStressForSpan(q, E_mpa, section.I, section.c, span_mm, h_span);
 
-    // Settlement per span (proportional)
-    const h_span = h_mm / numSpans;
+      maxStress = stress;
+      numSupports = supports;
+      spanLength = L / numSpans;
+      governingSpan = supports;
 
-    // M_max = qL²/12 + 6EIh/L²
-    const M_self = (q * span_mm * span_mm) / 12;
-    const M_settlement = (6 * E_mpa * section.I * h_span) / (span_mm * span_mm);
-    const M_max = M_self + M_settlement;
-
-    const stress = (M_max * section.c) / section.I;
-
-    if (supports === 0 || stress >= maxStress) {
-      // For first iteration or find governing
+      if (stress <= allowableStress) break;
     }
-    
-    maxStress = stress;
-    numSupports = supports;
-    spanLength = span_m;
-    governingSpan = supports; // simplified: all spans equal
-
-    if (stress <= allowableStress) break;
+  } else {
+    const numSpans = targetSupports + 1;
+    const span_mm = L_mm / numSpans;
+    const h_span = h_mm / numSpans;
+    maxStress = computeStressForSpan(q, E_mpa, section.I, section.c, span_mm, h_span);
+    spanLength = L / numSpans;
+    governingSpan = 0;
   }
 
   const isSafe = maxStress <= allowableStress;
 
-  // Generate stress distribution data
-  const stressData = generateStressDistribution(
-    q, E_mpa, section.I, section.c, L_mm, h_mm, numSupports
-  );
+  const stressData = generateStressDistribution(q, E_mpa, section.I, section.c, L_mm, h_mm, numSupports);
 
-  // Support positions
   const supportPositions: number[] = [];
   if (numSupports > 0) {
     const spanM = L / (numSupports + 1);
@@ -124,17 +172,9 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   }
 
   return {
-    section,
-    yieldStrength,
-    allowableStress,
-    q,
-    maxStress,
-    isSafe,
-    numSupports,
-    spanLength,
-    governingSpan,
-    stressData,
-    supportPositions,
+    section, yieldStrength, allowableStress, q, maxStress, isSafe,
+    numSupports, spanLength, governingSpan, stressData, supportPositions,
+    computedL, computedH,
   };
 };
 
