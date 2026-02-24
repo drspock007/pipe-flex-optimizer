@@ -1,13 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PipeInputs, CalculationResults, calculate } from "@/lib/calculations";
 import type { WorkerRequest, WorkerResponse } from "@/lib/fem-worker";
 
-export function useFEMWorker(inputs: PipeInputs, debounceMs: number = 500) {
+export function useFEMWorker(inputs: PipeInputs, debounceMs: number = 300) {
   const [results, setResults] = useState<CalculationResults>(() => calculate(inputs));
   const [isComputing, setIsComputing] = useState(false);
   const workerRef = useRef<Worker | null>(null);
   const requestIdRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Initialize worker
   useEffect(() => {
@@ -19,8 +20,8 @@ export function useFEMWorker(inputs: PipeInputs, debounceMs: number = 500) {
 
       workerRef.current.onmessage = (e: MessageEvent<WorkerResponse>) => {
         const { id, results: newResults } = e.data;
-        // Only accept the latest request
         if (id === requestIdRef.current) {
+          clearTimeout(timeoutRef.current);
           setResults(newResults);
           setIsComputing(false);
         }
@@ -28,9 +29,8 @@ export function useFEMWorker(inputs: PipeInputs, debounceMs: number = 500) {
 
       workerRef.current.onerror = (err) => {
         console.error("[FEM Worker] Error:", err);
+        clearTimeout(timeoutRef.current);
         setIsComputing(false);
-        // Fallback to main thread
-        setResults(calculate(inputs));
       };
     } catch {
       console.warn("[FEM Worker] Web Worker not supported, using main thread");
@@ -40,6 +40,7 @@ export function useFEMWorker(inputs: PipeInputs, debounceMs: number = 500) {
     return () => {
       workerRef.current?.terminate();
       workerRef.current = null;
+      clearTimeout(timeoutRef.current);
     };
   }, []);
 
@@ -50,20 +51,17 @@ export function useFEMWorker(inputs: PipeInputs, debounceMs: number = 500) {
       const id = ++requestIdRef.current;
       setIsComputing(true);
 
-      if (workerRef.current) {
-        const msg: WorkerRequest = { id, inputs };
-        workerRef.current.postMessage(msg);
-      } else {
-        // Fallback: main thread
-        try {
-          const r = calculate(inputs);
-          if (id === requestIdRef.current) {
-            setResults(r);
-            setIsComputing(false);
-          }
-        } catch {
+      // Always run on main thread for reliability
+      // Worker can silently hang on complex searches
+      try {
+        const r = calculate(inputs);
+        if (id === requestIdRef.current) {
+          setResults(r);
           setIsComputing(false);
         }
+      } catch (err) {
+        console.error("[FEM] Calculation error:", err);
+        setIsComputing(false);
       }
     }, debounceMs);
 
