@@ -1,6 +1,15 @@
 // ══════════════════════════════════════════════════════════════
 // 1D Euler-Bernoulli Beam FEM Solver (Stiffness Method) — V3
 // Units: mm, N, MPa throughout
+// 
+// SIGN CONVENTION:
+//   w is POSITIVE DOWNWARD
+//   q (self-weight) is POSITIVE DOWNWARD
+//   h (settlement) is POSITIVE DOWNWARD
+//   Boundary: left w=0,θ=0; right w=+h,θ=0
+//   Support elevation line: w_sup(x) = h·x/L
+//   Contact: ACTIVE if w(x_i) > w_sup(x_i) + tol (pipe sags past support)
+//
 // Features: Banded solver, adaptive mesh, unilateral contact supports
 // ══════════════════════════════════════════════════════════════
 
@@ -394,8 +403,8 @@ function solveWithUnilateralSupports(
       const x_i = candidateSupports_mm[i];
       const w_ref_i = h_total_mm * x_i / L_total_mm;
       const w_fem_i = interpolateDeflection(result.nodePositions, result.displacements, x_i);
-      if (w_fem_i < w_ref_i - tol) {
-        // Pipe sags below support → support must be active
+      if (w_fem_i > w_ref_i + tol) {
+        // Pipe sags below support (w positive downward) → support must be active
         newActiveSet.push(i);
       }
     }
@@ -476,7 +485,7 @@ function solveFEMQuickUnilateral(
       const x_i = candidateSupports_mm[ci];
       const w_ref_i = h_total_mm * x_i / L_total_mm;
       const w_fem_i = interpolateDeflection(nodeX, U, x_i);
-      if (w_fem_i < w_ref_i - tol) {
+      if (w_fem_i > w_ref_i + tol) {
         newActiveSet.push(ci);
       }
     }
