@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import Header from "@/components/Header";
 import GeometryCard from "@/components/GeometryCard";
 import MaterialCard from "@/components/MaterialCard";
@@ -31,7 +31,16 @@ const Index = () => {
     setInputs(prev => ({ ...prev, [field]: value }));
   };
 
-  const results = useMemo(() => calculate(inputs), [inputs]);
+  const [results, setResults] = useState(() => calculate(inputs));
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setResults(calculate(inputs));
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [inputs]);
 
   return (
     <div className="min-h-screen grid-background">
