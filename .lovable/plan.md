@@ -1,93 +1,54 @@
 
 
-# Corriger Find L / Find H : Ajout automatique de supports
+# Fix: UI Freezing Due to FEM Solver Performance
 
-## Probleme
+## Root Cause
 
-Le mode "Find L" et "Find H" utilisent un nombre de supports fixe (`targetSupports`) saisi par l'utilisateur. L'utilisateur veut que le systeme ajoute automatiquement des supports (comme en mode Standard) jusqu'a trouver une solution viable.
+The `buildMesh` function in `fem-solver.ts` creates too many finite elements for long pipes:
+- For L=500m (500,000 mm), it creates `ceil(500000/500) = 1000` elements per span
+- This produces a 2000-DOF system requiring Gaussian elimination (O(n^3))
+- `findMaxLFEM` calls `solveFEM` up to **80+ times** (exponential bracket + 50 bisection iterations), each solving these massive systems
+- Result: main thread blocked for minutes
 
-Avec les parametres par defaut (Do=114.3, t=6.02, h=2500, X52, 80%), le solveur quadratique avec 0 supports donne un discriminant negatif (pas de solution). Il faut incrementer les supports automatiquement jusqu'a ce que le discriminant devienne positif.
+## Solution
 
----
+### 1. Cap mesh density (`fem-solver.ts` - `buildMesh`)
 
-## Verification manuelle des calculs
-
-Parametres : Do=114.3, t=6.02, X52 (Re=359), 80%, E=210 GPa, h=2500mm
-
-- A = 2048 mm2, I = 3.01e6 mm4, c = 57.15 mm
-- q = 0.1577 N/mm
-- M_allowable = 287.2 * 3.01e6 / 57.15 = 15.13e6 N.mm
-
-Solveur quadratique : aX2 + bX + c = 0 avec X = s2
-- a = q/12, b = -M_allowable, c = 6*E*I*h_span
-
-Avec 0 supports : h_span=2500, c_coeff=9.48e15, discriminant < 0 -- pas de solution
-Avec 1 support : h_span=1250, c_coeff=4.74e15, discriminant < 0 -- pas de solution
-Avec 2 supports : h_span=833, c_coeff=3.16e15, discriminant > 0 -- solution existe
-
-Le solveur actuel ne teste que `targetSupports=0` et echoue. Il faut iterer.
-
----
-
-## Changements
-
-### 1. `src/lib/calculations.ts` -- Refactorer calculateMaxL et calculateMaxH
-
-**calculateMaxL** : iterer automatiquement de 0 a 100 supports
+Replace the unbounded `Math.ceil(spanLen / 500)` with a hard cap:
 
 ```text
-Pour supports = 0, 1, 2, ... 100 :
-  numSpans = supports + 1
-  h_span = h / numSpans
-  Resoudre le quadratique pour le span max
-  Si discriminant >= 0 et solution valide :
-    L_total = span_max * numSpans
-    Retourner { L: L_total, numSupports: supports }
-Si aucune solution apres 100 : retourner undefined
+nSub = Math.max(minElementsPerSpan, Math.min(20, Math.ceil(spanLen / 500)))
 ```
 
-**calculateMaxH** : iterer automatiquement de 0 a 100 supports
+This caps at **20 elements per span** max. For Euler-Bernoulli beams with UDL, 8-20 cubic elements give excellent accuracy (the shape functions are exact for cubic deflection).
 
-```text
-Pour supports = 0, 1, 2, ... 100 :
-  numSpans = supports + 1
-  span_mm = L_mm / numSpans
-  M_self = q * span^2 / 12
-  M_available = M_allowable - M_self
-  Si M_available > 0 :
-    h = M_available * span^2 / (6EI) * numSpans
-    Retourner { h: h, numSupports: supports }
-Si aucune solution : retourner 0
-```
+### 2. Reduce search iterations (`fem-solver.ts`)
 
-Modifier les types de retour pour inclure le nombre de supports trouve.
+- `findMaxLFEM`: reduce bisection from 50 to **20** iterations (gives ~1mm precision, more than enough)
+- `findMaxHFEM`: reduce from 60 to **20** iterations
+- Reduce exponential bracket steps from 30 to **15**
 
-Modifier `CalculationResults` pour que `numSupports` reflète le résultat de l'optimisation automatique en modes findL/findH aussi.
+### 3. Increase debounce (`Index.tsx`)
 
-### 2. `src/lib/calculations.ts` -- Mise a jour de calculate()
+Change debounce from 300ms to **500ms** to give more breathing room during rapid input changes.
 
-- En mode findL : appeler le nouveau calculateMaxL iteratif, utiliser le numSupports retourne
-- En mode findH : appeler le nouveau calculateMaxH iteratif, utiliser le numSupports retourne
-- Supprimer la dependance a `targetSupports` dans ces modes
+## Technical Details
 
-### 3. `src/components/GeometryCard.tsx` -- Retirer "Target Supports"
+### Files Modified
 
-- Supprimer le champ "Target Supports" (le systeme optimise automatiquement dans tous les modes)
-- Simplifier l'interface : les 3 modes se comportent de maniere coherente
+| File | Change |
+|------|--------|
+| `src/lib/fem-solver.ts` | Cap elements per span at 20; reduce bisection iterations |
+| `src/pages/Index.tsx` | Increase debounce to 500ms |
 
-### 4. `src/pages/Index.tsx` -- Nettoyage
+### Performance Impact
 
-- Supprimer `targetSupports` du state (ou le garder mais ne plus le passer a GeometryCard)
+- Before: up to 1000 nodes per span = 2000 DOFs, O(8 billion) per solve
+- After: max 20 nodes per span = 40 DOFs, O(64,000) per solve
+- Speedup: ~100,000x per FEM solve
+- Total findL: from ~80 heavy solves to ~35 lightweight solves
 
-### 5. `src/components/ResultsPanel.tsx` -- Afficher supports trouves
+### Accuracy Impact
 
-- En mode findL/findH, afficher le nombre de supports determines automatiquement (deja fait via numSupports)
-
----
-
-## Resultat attendu
-
-Avec Do=114.3, t=6.02, h=2500, X52, 80% :
-- Le systeme teste 0 supports (echec), 1 support (echec), 2 supports (succes)
-- Retourne L total et affiche "2 supports intermediaires"
+None meaningful. Euler-Bernoulli cubic Hermite elements are exact for polynomial loads up to degree 3. UDL produces a degree-4 deflection on each element, so even 4 elements per span gives sub-0.1% error. 8-20 elements is more than sufficient.
 
