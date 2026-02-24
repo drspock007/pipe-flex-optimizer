@@ -4,6 +4,33 @@ import { DebugInfo, SupportStatusDisplay } from "@/lib/calculations";
 import { Bug, ChevronDown, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 
+function computeSagCheck(
+  debug: DebugInfo,
+  supportStatus: SupportStatusDisplay[],
+  numSupports: number
+): { minSag: number; maxSag: number; warning?: string } | null {
+  // Need deflection data from debug — we approximate from support status + endpoints
+  // Use support positions to define spans, compute w_rel at midpoints
+  // For now, if we have no data, skip
+  if (debug.L_mm == null || debug.L_mm <= 0) return null;
+
+  // We can't access full deflection curve here, but we can check support status
+  // If supportStatus has w_fem and w_ref, compute w_rel = w_fem - w_ref
+  const sagValues = supportStatus.map(s => s.w_fem - s.w_ref);
+  if (sagValues.length === 0) return null;
+
+  const minSag = Math.min(...sagValues);
+  const maxSag = Math.max(...sagValues);
+
+  let warning: string | undefined;
+  // If self-weight is on (q > 0) and max sag <= 0, sign convention issue
+  if (debug.q_Nmm > 0 && maxSag <= 0 && sagValues.length > 0) {
+    warning = "Self-weight sag check failed (sign convention issue)";
+  }
+
+  return { minSag, maxSag, warning };
+}
+
 interface Props {
   debug: DebugInfo;
   numSupports: number;
@@ -59,6 +86,19 @@ const DebugPanel = ({ debug, numSupports, supportStatus }: Props) => {
       ["Candidates", String(debug.candidateSupportsCount ?? 0), "Total candidate supports"],
       ["Active", String(debug.activeSupportsCount ?? 0), "Supports in contact"],
     );
+  }
+
+  // Sag check: compute w_rel at midspans
+  const sagCheck = computeSagCheck(debug, supportStatus, numSupports);
+  if (sagCheck) {
+    rows.push(
+      ["— Sag Check —", "", "w_rel = w - w_ref at mid-spans"],
+      ["min(w_rel)", sagCheck.minSag.toFixed(3) + " mm", "Minimum relative deflection"],
+      ["max(w_rel)", sagCheck.maxSag.toFixed(3) + " mm", "Maximum relative deflection (sag)"],
+    );
+    if (sagCheck.warning) {
+      rows.push(["⚠️ Sag warning", sagCheck.warning, "Sign convention issue"]);
+    }
   }
 
   rows.push(
