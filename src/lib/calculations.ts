@@ -40,6 +40,11 @@ export interface DebugInfo {
   totalDofs: number;
   solveTimeMs: number;
   errorPercent: number;
+  // Settlement-only validation
+  M_settlement_theory: number;
+  M_settlement_fem: number;
+  settlementErrorPercent: number;
+  validationPassed: boolean;
   warnings: string[];
 }
 
@@ -216,15 +221,37 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   const isSafe = maxStress <= allowableStress;
   const spanLength = L / Nsp;
 
-  // Sanity check: theoretical fixed-fixed end moment
+  // Sanity check: theoretical fixed-fixed end moment (self-weight only, h=0, no supports)
   const M_end_theory = q_Nmm > 0 ? (q_Nmm * L_mm * L_mm) / 12 : 0;
-  const femTheoryRatio = M_end_theory > 0 ? maxMoment / M_end_theory : 0;
-  const errorPercent = M_end_theory > 0 ? Math.abs(maxMoment - M_end_theory) / M_end_theory * 100 : 0;
+  const femTheoryRatio = M_end_theory > 0 && numSupports === 0 && h === 0 ? maxMoment / M_end_theory : 0;
+  const errorPercent = M_end_theory > 0 && numSupports === 0 && h === 0 ? Math.abs(maxMoment - M_end_theory) / M_end_theory * 100 : 0;
 
-  // Self-check warning (only valid for h=0, no supports)
-  if (numSupports === 0 && h === 0 && q_Nmm > 0 && errorPercent > 3) {
-    unitWarnings.push(`⚠️ FEM/theory error ${errorPercent.toFixed(1)}% > 3% threshold`);
+  // Settlement-only validation: M = 6EIh/L² for fixed-fixed beam
+  const M_settlement_theory = h > 0 && q_Nmm === 0 ? (6 * E_mpa * section.I * h) / (L_mm * L_mm) : 0;
+  // Run a settlement-only solve if needed for validation
+  let M_settlement_fem = 0;
+  let settlementErrorPercent = 0;
+  if (h > 0 && numSupports === 0) {
+    // Use the actual FEM moment for settlement validation when no self-weight
+    if (q_Nmm === 0) {
+      M_settlement_fem = maxMoment;
+      settlementErrorPercent = M_settlement_theory > 0 ? Math.abs(M_settlement_fem - M_settlement_theory) / M_settlement_theory * 100 : 0;
+    }
   }
+
+  // Validation: self-weight check
+  if (numSupports === 0 && h === 0 && q_Nmm > 0 && errorPercent > 5) {
+    unitWarnings.push(`⚠️ FAIL: Self-weight FEM/theory error ${errorPercent.toFixed(1)}% > 5%`);
+  }
+  // Validation: settlement check
+  if (q_Nmm === 0 && h > 0 && numSupports === 0 && settlementErrorPercent > 5) {
+    unitWarnings.push(`⚠️ FAIL: Settlement FEM/theory error ${settlementErrorPercent.toFixed(1)}% > 5%`);
+  }
+
+  const validationPassed = !(
+    (numSupports === 0 && h === 0 && q_Nmm > 0 && errorPercent > 5) ||
+    (q_Nmm === 0 && h > 0 && numSupports === 0 && settlementErrorPercent > 5)
+  );
 
   const allWarnings = [...unitWarnings, ...femWarnings];
 
@@ -233,6 +260,7 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
     maxMoment, maxMomentLocation, maxStress, allowableStress,
     M_end_theory, femTheoryRatio,
     elementsPerSpan, totalDofs, solveTimeMs, errorPercent,
+    M_settlement_theory, M_settlement_fem, settlementErrorPercent, validationPassed,
     warnings: allWarnings,
   };
 

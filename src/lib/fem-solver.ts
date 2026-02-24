@@ -161,20 +161,32 @@ function solveBanded(bands: Float64Array[], F: Float64Array, nDof: number, halfB
   return b;
 }
 
-// ── Apply boundary conditions using penalty method ──
+// ── Apply boundary conditions using direct DOF elimination ──
+// Transfers coupling terms to RHS before zeroing row/column.
+// This avoids numerical issues from penalty method.
 function applyBCBanded(
-  bands: Float64Array[], F: Float64Array, halfBw: number,
+  bands: Float64Array[], F: Float64Array, nDof: number, halfBw: number,
   constraints: { dof: number; value: number }[]
 ): void {
-  const PENALTY = 1e30;
   for (const { dof, value } of constraints) {
-    bands[0][dof] = PENALTY;
-    F[dof] = PENALTY * value;
-    // Zero off-diagonal entries in this row/col
+    // Transfer coupling K[j][dof]*value to RHS of connected DOFs
     for (let k = 1; k <= halfBw; k++) {
-      if (dof + k < F.length) bands[k][dof] = 0;
-      if (dof - k >= 0) bands[k][dof - k] = 0;
+      // Upper triangle: K[dof][dof+k] stored as bands[k][dof]
+      const j_upper = dof + k;
+      if (j_upper < nDof) {
+        F[j_upper] -= bands[k][dof] * value;
+        bands[k][dof] = 0;
+      }
+      // Lower triangle (symmetric): K[dof-k][dof] stored as bands[k][dof-k]
+      const j_lower = dof - k;
+      if (j_lower >= 0) {
+        F[j_lower] -= bands[k][j_lower] * value;
+        bands[k][j_lower] = 0;
+      }
     }
+    // Set identity row: K[dof][dof] = 1, F[dof] = value
+    bands[0][dof] = 1;
+    F[dof] = value;
   }
 }
 
@@ -291,7 +303,7 @@ function solveFEMCore(
     }
   }
 
-  applyBCBanded(bands, F, halfBw, constraints);
+  applyBCBanded(bands, F, nDof, halfBw, constraints);
   const U = solveBanded(bands, F, nDof, halfBw);
 
   // Post-process
@@ -403,7 +415,7 @@ function solveFEMQuick(
     }
   }
 
-  applyBCBanded(bands, F, halfBw, constraints);
+  applyBCBanded(bands, F, nDof, halfBw, constraints);
   const U = solveBanded(bands, F, nDof, halfBw);
 
   // Sample stress at element boundaries + midpoints only
