@@ -7,16 +7,13 @@ export interface FEMResult {
   maxStress: number;          // MPa
   maxMoment: number;          // N·mm
   maxMomentLocation: number;  // mm from left end
-  stressData: { x: number; stress: number }[];  // x in meters
+  stressData: { x: number; stress: number }[];  // x in meters, stress in MPa
+  deflectionData: { x: number; w: number }[];   // x in meters, w in mm
   displacements: number[];    // full DOF vector
   nodePositions: number[];    // mm
 }
 
 // ── Standard 4×4 Euler-Bernoulli beam element stiffness matrix ──
-// k = (EI/Le³) * [[12, 6Le, -12, 6Le],
-//                  [6Le, 4Le², -6Le, 2Le²],
-//                  [-12, -6Le, 12, -6Le],
-//                  [6Le, 2Le², -6Le, 4Le²]]
 function elementStiffness(EI: number, Le: number): number[][] {
   const Le2 = Le * Le;
   const Le3 = Le2 * Le;
@@ -44,14 +41,13 @@ function assembleSystem(
   EI: number,
   q: number,
 ): { K: number[][]; F: number[] } {
-  const nDof = nNodes * 2; // each node: [w, theta]
+  const nDof = nNodes * 2;
   const K: number[][] = Array.from({ length: nDof }, () => new Array(nDof).fill(0));
   const F: number[] = new Array(nDof).fill(0);
 
   for (const el of elements) {
     const ke = elementStiffness(EI, el.Le);
     const fe = elementLoad(q, el.Le);
-    // DOF mapping: node1 -> [2*node1, 2*node1+1], node2 -> [2*node2, 2*node2+1]
     const dofs = [2 * el.node1, 2 * el.node1 + 1, 2 * el.node2, 2 * el.node2 + 1];
 
     for (let i = 0; i < 4; i++) {
@@ -67,11 +63,9 @@ function assembleSystem(
 // ── Solve linear system Ax=b using Gaussian elimination with partial pivoting ──
 function solveLinearSystem(A: number[][], b: number[]): number[] {
   const n = b.length;
-  // Augmented matrix
   const M: number[][] = A.map((row, i) => [...row, b[i]]);
 
   for (let col = 0; col < n; col++) {
-    // Partial pivoting
     let maxVal = Math.abs(M[col][col]);
     let maxRow = col;
     for (let row = col + 1; row < n; row++) {
@@ -87,7 +81,6 @@ function solveLinearSystem(A: number[][], b: number[]): number[] {
       continue;
     }
 
-    // Eliminate below
     for (let row = col + 1; row < n; row++) {
       const factor = M[row][col] / M[col][col];
       for (let j = col; j <= n; j++) {
@@ -96,7 +89,6 @@ function solveLinearSystem(A: number[][], b: number[]): number[] {
     }
   }
 
-  // Back substitution
   const x = new Array(n).fill(0);
   for (let i = n - 1; i >= 0; i--) {
     let sum = M[i][n];
@@ -109,7 +101,6 @@ function solveLinearSystem(A: number[][], b: number[]): number[] {
 }
 
 // ── Apply boundary conditions using penalty method ──
-// For each constrained DOF, we set K[i][i] = PENALTY, F[i] = PENALTY * value
 function applyBC(
   K: number[][], F: number[],
   constraints: { dof: number; value: number }[]
@@ -121,25 +112,18 @@ function applyBC(
   }
 }
 
-// ── Compute element internal moment at local position xi (0..Le) ──
-// Using Hermite shape functions:
-//   N1(xi) = 1 - 3(xi/L)² + 2(xi/L)³
-//   N2(xi) = xi(1 - xi/L)²
-//   N3(xi) = 3(xi/L)² - 2(xi/L)³
-//   N4(xi) = xi²/L(xi/L - 1)
-//
-// M(xi) = EI * d²w/dx² = EI * [N1''w1 + N2''θ1 + N3''w2 + N4''θ2]
-//
-// N1'' = (-6 + 12xi/L) / L²
-// N2'' = (-4 + 6xi/L) / L
-// N3'' = (6 - 12xi/L) / L²
-// N4'' = (-2 + 6xi/L) / L
+// ── Compute element internal moment using Hermite shape function 2nd derivatives ──
+// M(xi) = EI * w''(xi)
+// N1'' = (-6 + 12*s) / Le²
+// N2'' = (-4 + 6*s) / Le
+// N3'' = (6 - 12*s) / Le²
+// N4'' = (-2 + 6*s) / Le
 function elementMoment(
   EI: number, Le: number,
   w1: number, t1: number, w2: number, t2: number,
   xi: number
 ): number {
-  const s = xi / Le; // normalized coordinate
+  const s = xi / Le;
   const L2 = Le * Le;
 
   const N1pp = (-6 + 12 * s) / L2;
@@ -150,32 +134,72 @@ function elementMoment(
   return EI * (N1pp * w1 + N2pp * t1 + N3pp * w2 + N4pp * t2);
 }
 
+// ── Compute deflection w(xi) using Hermite shape functions ──
+function elementDeflection(
+  Le: number,
+  w1: number, t1: number, w2: number, t2: number,
+  xi: number
+): number {
+  const s = xi / Le;
+  const s2 = s * s;
+  const s3 = s2 * s;
+
+  const N1 = 1 - 3 * s2 + 2 * s3;
+  const N2 = xi * (1 - s) * (1 - s);
+  const N3 = 3 * s2 - 2 * s3;
+  const N4 = xi * s * (s - 1);
+
+  return N1 * w1 + N2 * t1 + N3 * w2 + N4 * t2;
+}
+
+// ── Build mesh: subdivide each span into sub-elements for accuracy ──
+function buildMesh(
+  supportPositions_mm: number[],
+  L_total_mm: number,
+  minElementsPerSpan: number = 20,
+): number[] {
+  const anchors = [0, ...supportPositions_mm, L_total_mm].sort((a, b) => a - b);
+  // Remove duplicates
+  const unique: number[] = [];
+  for (const x of anchors) {
+    if (unique.length === 0 || Math.abs(x - unique[unique.length - 1]) > 0.01) {
+      unique.push(x);
+    }
+  }
+
+  // Subdivide each span
+  const nodeX: number[] = [unique[0]];
+  for (let i = 0; i < unique.length - 1; i++) {
+    const spanLen = unique[i + 1] - unique[i];
+    const nSub = Math.max(minElementsPerSpan, Math.ceil(spanLen / 500)); // at least 1 element per 500mm
+    for (let j = 1; j <= nSub; j++) {
+      nodeX.push(unique[i] + (j / nSub) * spanLen);
+    }
+  }
+
+  return nodeX;
+}
+
 // ══════════════════════════════════════════════════════════════
 // MAIN FEM SOLVER
+// All inputs MUST be in mm, N, MPa
 // ══════════════════════════════════════════════════════════════
 export function solveFEM(
   E_mpa: number,
   I_mm4: number,
   c_mm: number,
-  q_Nmm: number,        // N/mm distributed load (self-weight)
+  q_Nmm: number,        // N/mm distributed load
   L_total_mm: number,    // total pipe length in mm
   h_total_mm: number,    // total settlement at right end in mm
   supportPositions_mm: number[], // positions of intermediate supports in mm
 ): FEMResult {
+  console.log(`[FEM] L_mm=${L_total_mm}, q_Nmm=${q_Nmm.toFixed(6)}, h_mm=${h_total_mm}, E=${E_mpa}, I=${I_mm4.toExponential(4)}`);
+
   const EI = E_mpa * I_mm4;
 
-  // ── Build node list ──
-  // Nodes at: 0, each support, L_total
-  const nodeX = [0, ...supportPositions_mm, L_total_mm].sort((a, b) => a - b);
-  // Remove duplicates
-  const uniqueNodeX: number[] = [];
-  for (const x of nodeX) {
-    if (uniqueNodeX.length === 0 || Math.abs(x - uniqueNodeX[uniqueNodeX.length - 1]) > 0.01) {
-      uniqueNodeX.push(x);
-    }
-  }
-
-  const nNodes = uniqueNodeX.length;
+  // ── Build mesh with subdivisions ──
+  const nodeX = buildMesh(supportPositions_mm, L_total_mm);
+  const nNodes = nodeX.length;
   const nElements = nNodes - 1;
 
   // ── Build elements ──
@@ -184,7 +208,7 @@ export function solveFEM(
     elements.push({
       node1: i,
       node2: i + 1,
-      Le: uniqueNodeX[i + 1] - uniqueNodeX[i],
+      Le: nodeX[i + 1] - nodeX[i],
     });
   }
 
@@ -195,23 +219,21 @@ export function solveFEM(
   const constraints: { dof: number; value: number }[] = [];
 
   // Left end fixed: w(0) = 0, theta(0) = 0
-  constraints.push({ dof: 0, value: 0 });  // w at node 0
-  constraints.push({ dof: 1, value: 0 });  // theta at node 0
+  constraints.push({ dof: 0, value: 0 });
+  constraints.push({ dof: 1, value: 0 });
 
   // Right end fixed: w(L) = h_total, theta(L) = 0
   const rightNode = nNodes - 1;
-  constraints.push({ dof: 2 * rightNode, value: h_total_mm });     // w at right
-  constraints.push({ dof: 2 * rightNode + 1, value: 0 });           // theta at right
+  constraints.push({ dof: 2 * rightNode, value: h_total_mm });
+  constraints.push({ dof: 2 * rightNode + 1, value: 0 });
 
   // Intermediate supports: w(xi) = linear settlement, theta free
-  // Linear settlement line: w(x) = (h_total / L_total) * x
   for (let i = 1; i < nNodes - 1; i++) {
-    const x = uniqueNodeX[i];
-    // Check if this node is a support
+    const x = nodeX[i];
     const isSupport = supportPositions_mm.some(sp => Math.abs(sp - x) < 0.01);
     if (isSupport) {
       const w_imposed = (h_total_mm / L_total_mm) * x;
-      constraints.push({ dof: 2 * i, value: w_imposed }); // w only, theta is free
+      constraints.push({ dof: 2 * i, value: w_imposed });
     }
   }
 
@@ -219,9 +241,10 @@ export function solveFEM(
   applyBC(K, F, constraints);
   const U = solveLinearSystem(K, F);
 
-  // ── Post-process: compute stress distribution ──
-  const totalPoints = 200;
+  // ── Post-process ──
+  const totalPoints = 400;
   const stressData: { x: number; stress: number }[] = [];
+  const deflectionData: { x: number; w: number }[] = [];
   let maxStress = 0;
   let maxMoment = 0;
   let maxMomentLocation = 0;
@@ -229,19 +252,18 @@ export function solveFEM(
   for (let pt = 0; pt <= totalPoints; pt++) {
     const x_mm = (pt / totalPoints) * L_total_mm;
 
-    // Find which element this point belongs to
+    // Find element
     let elIdx = 0;
     for (let i = 0; i < nElements; i++) {
-      if (x_mm >= uniqueNodeX[i] && x_mm <= uniqueNodeX[i + 1]) {
+      if (x_mm >= nodeX[i] && x_mm <= nodeX[i + 1]) {
         elIdx = i;
         break;
       }
     }
-    // Handle right boundary
     if (x_mm >= L_total_mm - 0.01) elIdx = nElements - 1;
 
     const el = elements[elIdx];
-    const xi = x_mm - uniqueNodeX[el.node1]; // local coordinate
+    const xi = x_mm - nodeX[el.node1];
 
     const w1 = U[2 * el.node1];
     const t1 = U[2 * el.node1 + 1];
@@ -250,6 +272,7 @@ export function solveFEM(
 
     const M = elementMoment(EI, el.Le, w1, t1, w2, t2, xi);
     const stress = (Math.abs(M) * c_mm) / I_mm4;
+    const w = elementDeflection(el.Le, w1, t1, w2, t2, xi);
 
     if (stress > maxStress) {
       maxStress = stress;
@@ -257,19 +280,21 @@ export function solveFEM(
       maxMomentLocation = x_mm;
     }
 
-    stressData.push({
-      x: Math.round((x_mm / 1000) * 1000) / 1000, // convert to meters, round
-      stress: Math.round(stress * 100) / 100,
-    });
+    const x_m = Math.round((x_mm / 1000) * 1000) / 1000;
+    stressData.push({ x: x_m, stress: Math.round(stress * 100) / 100 });
+    deflectionData.push({ x: x_m, w: Math.round(w * 1000) / 1000 });
   }
+
+  console.log(`[FEM RESULT] maxMoment=${maxMoment.toExponential(4)} N·mm at x=${maxMomentLocation.toFixed(1)} mm, maxStress=${maxStress.toFixed(2)} MPa`);
 
   return {
     maxStress,
     maxMoment,
     maxMomentLocation,
     stressData,
+    deflectionData,
     displacements: U,
-    nodePositions: uniqueNodeX,
+    nodePositions: nodeX,
   };
 }
 
@@ -301,71 +326,75 @@ export function autoSupportsFEM(
     }
   }
 
-  // Return best found even if not safe
   return { numSupports: bestN, stress: bestStress, result: bestResult! };
 }
 
 // ══════════════════════════════════════════════════════════════
-// FIND MAX L — scan approach (non-monotonic, can't bisect)
-// For each support count, scan L from large to small to find max safe L
+// FIND MAX L — bracket + bisection
 // ══════════════════════════════════════════════════════════════
 export function findMaxLFEM(
   E_mpa: number, I: number, c: number, q: number,
   h_mm: number, allowable: number,
 ): { L_m: number; numSupports: number; result: FEMResult } | undefined {
   for (let n = 0; n <= 100; n++) {
-    // Scan L from a large value down, then refine
-    // Start with coarse scan
-    const L_max_mm = 500_000; // 500m max
-    const L_min_mm = 1_000;   // 1m min
-    const coarseSteps = 200;
+    // Find bracket: L_low is safe, L_high is unsafe
+    // Start small and grow exponentially
+    let L_low_mm = 0;
+    let L_high_mm = 0;
+    let foundBracket = false;
+
+    // Check if L=1m is safe
+    const L_start = 1000; // 1m in mm
+    const supStart = buildEqualSupports(L_start, n);
+    const resStart = solveFEM(E_mpa, I, c, q, L_start, h_mm, supStart);
     
-    let bestL = 0;
-    
-    // Coarse scan: find largest L where stress <= allowable
-    for (let step = 0; step <= coarseSteps; step++) {
-      const L_mm = L_min_mm + (step / coarseSteps) * (L_max_mm - L_min_mm);
-      const supports = buildEqualSupports(L_mm, n);
-      const result = solveFEM(E_mpa, I, c, q, L_mm, h_mm, supports);
-      if (result.maxStress <= allowable) {
-        bestL = L_mm;
+    if (resStart.maxStress > allowable) {
+      // Even 1m is unsafe with n supports, try more supports
+      continue;
+    }
+
+    L_low_mm = L_start;
+
+    // Grow exponentially to find upper bound
+    let L_test = L_start * 2;
+    for (let step = 0; step < 30; step++) {
+      const sup = buildEqualSupports(L_test, n);
+      const res = solveFEM(E_mpa, I, c, q, L_test, h_mm, sup);
+      if (res.maxStress > allowable) {
+        L_high_mm = L_test;
+        foundBracket = true;
+        break;
+      }
+      L_low_mm = L_test;
+      L_test *= 2;
+      if (L_test > 1_000_000) { // 1000m cap
+        L_high_mm = L_test;
+        foundBracket = true;
+        break;
       }
     }
 
-    if (bestL <= 0) continue;
+    if (!foundBracket) continue;
 
-    // Refine: binary search in the neighborhood of bestL
-    let lo = bestL;
-    let hi = Math.min(bestL + (L_max_mm - L_min_mm) / coarseSteps, L_max_mm);
-    
-    // Verify hi is indeed unsafe (otherwise extend)
-    {
-      const supports = buildEqualSupports(hi, n);
-      const result = solveFEM(E_mpa, I, c, q, hi, h_mm, supports);
-      if (result.maxStress <= allowable) {
-        // Still safe at hi; extend search
-        hi = Math.min(hi * 2, L_max_mm);
-      }
-    }
-
+    // Bisection
     for (let iter = 0; iter < 50; iter++) {
-      const mid = (lo + hi) / 2;
-      if (hi - lo < 1) break; // 1mm precision
-      const supports = buildEqualSupports(mid, n);
-      const result = solveFEM(E_mpa, I, c, q, mid, h_mm, supports);
-      if (result.maxStress <= allowable) {
-        lo = mid;
+      const mid = (L_low_mm + L_high_mm) / 2;
+      if (L_high_mm - L_low_mm < 10) break; // 10mm precision
+      const sup = buildEqualSupports(mid, n);
+      const res = solveFEM(E_mpa, I, c, q, mid, h_mm, sup);
+      if (res.maxStress <= allowable) {
+        L_low_mm = mid;
       } else {
-        hi = mid;
+        L_high_mm = mid;
       }
     }
 
-    const finalSupports = buildEqualSupports(lo, n);
-    const finalResult = solveFEM(E_mpa, I, c, q, lo, h_mm, finalSupports);
-    
-    console.log(`[FEM findL] n=${n} L_max=${(lo/1000).toFixed(2)}m σ=${finalResult.maxStress.toFixed(2)} MPa`);
-    
-    return { L_m: lo / 1000, numSupports: n, result: finalResult };
+    const finalSup = buildEqualSupports(L_low_mm, n);
+    const finalRes = solveFEM(E_mpa, I, c, q, L_low_mm, h_mm, finalSup);
+
+    console.log(`[FEM findL] n=${n} L_max=${(L_low_mm / 1000).toFixed(2)}m σ=${finalRes.maxStress.toFixed(2)} MPa`);
+
+    return { L_m: L_low_mm / 1000, numSupports: n, result: finalRes };
   }
   return undefined;
 }
@@ -378,18 +407,16 @@ export function findMaxHFEM(
   L_mm: number, allowable: number,
 ): { h_mm: number; numSupports: number; result: FEMResult } | undefined {
   for (let n = 0; n <= 100; n++) {
-    // Binary search on h
-    let lo = 0;
-    let hi = 100_000; // 100m max settlement
-    
-    // Check if h=0 is already unsafe (self-weight alone exceeds allowable)
     const supports0 = buildEqualSupports(L_mm, n);
     const result0 = solveFEM(E_mpa, I, c, q, L_mm, 0, supports0);
-    if (result0.maxStress > allowable) continue; // need more supports
+    if (result0.maxStress > allowable) continue;
+
+    let lo = 0;
+    let hi = 100_000;
 
     for (let iter = 0; iter < 60; iter++) {
       const mid = (lo + hi) / 2;
-      if (hi - lo < 0.01) break; // 0.01mm precision
+      if (hi - lo < 0.01) break;
       const supports = buildEqualSupports(L_mm, n);
       const result = solveFEM(E_mpa, I, c, q, L_mm, mid, supports);
       if (result.maxStress <= allowable) {
@@ -401,9 +428,9 @@ export function findMaxHFEM(
 
     const finalSupports = buildEqualSupports(L_mm, n);
     const finalResult = solveFEM(E_mpa, I, c, q, L_mm, lo, finalSupports);
-    
+
     console.log(`[FEM findH] n=${n} h_max=${lo.toFixed(2)}mm σ=${finalResult.maxStress.toFixed(2)} MPa`);
-    
+
     return { h_mm: lo, numSupports: n, result: finalResult };
   }
   return undefined;

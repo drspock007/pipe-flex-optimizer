@@ -11,12 +11,17 @@ interface Props {
 const DebugPanel = ({ debug }: Props) => {
   const [open, setOpen] = useState(false);
 
+  const ratioWarning = debug.femTheoryRatio > 0 && (debug.femTheoryRatio < 0.8 || debug.femTheoryRatio > 1.2);
+
   const rows: [string, string, string][] = [
+    ["L (mm)", debug.L_mm.toFixed(1), "Pipe length in mm"],
     ["q (N/mm)", debug.q_Nmm.toFixed(6), "Self-weight distributed load"],
     ["q (N/m)", debug.q_Nm.toFixed(4), "Self-weight in N/m"],
     ["I (mm⁴)", debug.I.toExponential(4), "Second moment of area"],
     ["c (mm)", debug.c.toFixed(2), "Outer fiber distance"],
-    ["Max Moment (N·mm)", debug.maxMoment.toExponential(4), "Peak bending moment from FEM"],
+    ["M_theory = qL²/12", debug.M_end_theory.toExponential(4), "Fixed-fixed end moment (self-weight only, no settlement)"],
+    ["FEM Max Moment (N·mm)", debug.maxMoment.toExponential(4), "Peak bending moment from FEM"],
+    ["FEM/Theory ratio", debug.femTheoryRatio.toFixed(4), ratioWarning ? "⚠️ Ratio far from 1 — settlement/supports contribute" : "Close to 1 when h=0, no supports"],
     ["at x (mm)", debug.maxMomentLocation.toFixed(1), "Location of peak moment"],
     ["Max Stress (MPa)", debug.maxStress.toFixed(2), "σ = |M|·c / I"],
     ["Allowable (MPa)", debug.allowableStress.toFixed(2), "Re × allowable%"],
