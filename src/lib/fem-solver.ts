@@ -466,86 +466,133 @@ export function autoSupportsFEM(
 }
 
 // ══════════════════════════════════════════════════════════════
-// FIND MAX L — stable bracket + bisection
+// FIND MAX L — coarse scan + auto-support per candidate + bisection
 // ══════════════════════════════════════════════════════════════
 export function findMaxLFEM(
   E_mpa: number, I: number, c: number, q: number,
   h_mm: number, allowable: number,
 ): { L_m: number; numSupports: number; result: FEMResult } | undefined {
-  for (let n = 0; n <= MAX_SUPPORTS; n++) {
-    const L_start = 1000;
-    const supStart = buildEqualSupports(L_start, n);
-    if (solveFEMQuick(E_mpa, I, c, q, L_start, h_mm, supStart) > allowable) continue;
-
-    let L_low_mm = L_start;
-    let L_high_mm = 0;
-    let foundBracket = false;
-
-    let L_test = L_start * 2;
-    for (let step = 0; step < 15; step++) {
-      const sup = buildEqualSupports(L_test, n);
-      if (solveFEMQuick(E_mpa, I, c, q, L_test, h_mm, sup) > allowable) {
-        L_high_mm = L_test;
-        foundBracket = true;
-        break;
-      }
-      L_low_mm = L_test;
-      L_test *= 2;
-      if (L_test > 1_000_000) {
-        L_high_mm = L_test;
-        foundBracket = true;
-        break;
+  // Helper: evaluate a candidate L with auto-support optimization
+  function evaluateLength(L_mm: number): { safe: boolean; stress: number; numSupports: number } {
+    for (let n = 0; n <= MAX_SUPPORTS; n++) {
+      const supports = buildEqualSupports(L_mm, n);
+      const stress = solveFEMQuick(E_mpa, I, c, q, L_mm, h_mm, supports);
+      if (stress <= allowable) {
+        return { safe: true, stress, numSupports: n };
       }
     }
-
-    if (!foundBracket) continue;
-
-    for (let iter = 0; iter < 20; iter++) {
-      const mid = (L_low_mm + L_high_mm) / 2;
-      if (L_high_mm - L_low_mm < 10) break;
-      const sup = buildEqualSupports(mid, n);
-      if (solveFEMQuick(E_mpa, I, c, q, mid, h_mm, sup) <= allowable) {
-        L_low_mm = mid;
-      } else {
-        L_high_mm = mid;
-      }
-    }
-
-    const finalSup = buildEqualSupports(L_low_mm, n);
-    const finalRes = solveFEM(E_mpa, I, c, q, L_low_mm, h_mm, finalSup, true);
-    return { L_m: L_low_mm / 1000, numSupports: n, result: finalRes };
+    // Even with max supports, still unsafe
+    const supports = buildEqualSupports(L_mm, MAX_SUPPORTS);
+    const stress = solveFEMQuick(E_mpa, I, c, q, L_mm, h_mm, supports);
+    return { safe: false, stress, numSupports: MAX_SUPPORTS };
   }
-  return undefined;
+
+  // Step 1: Coarse scan from 1m to 1000m to find safe range
+  const coarseSteps = [
+    1, 2, 3, 5, 7, 10, 15, 20, 30, 50, 75, 100, 150, 200, 300, 500, 750, 1000
+  ];
+  let lastSafeL_mm = 0;
+  let lastSafeN = 0;
+  let firstUnsafeL_mm = 0;
+
+  for (const L_m of coarseSteps) {
+    const L_mm = L_m * 1000;
+    const ev = evaluateLength(L_mm);
+    if (ev.safe) {
+      lastSafeL_mm = L_mm;
+      lastSafeN = ev.numSupports;
+    } else {
+      firstUnsafeL_mm = L_mm;
+      break;
+    }
+  }
+
+  // No safe L found at all
+  if (lastSafeL_mm === 0) return undefined;
+
+  // Safe all the way to cap
+  if (firstUnsafeL_mm === 0) {
+    const supports = buildEqualSupports(lastSafeL_mm, lastSafeN);
+    const result = solveFEM(E_mpa, I, c, q, lastSafeL_mm, h_mm, supports, true);
+    result.warnings.push('FindL: safe up to 1000m cap');
+    return { L_m: lastSafeL_mm / 1000, numSupports: lastSafeN, result };
+  }
+
+  // Step 2: Bisection between lastSafeL and firstUnsafeL
+  let lo = lastSafeL_mm;
+  let hi = firstUnsafeL_mm;
+  let bestN = lastSafeN;
+
+  for (let iter = 0; iter < 20; iter++) {
+    const mid = (lo + hi) / 2;
+    if (hi - lo < 10) break; // 10mm precision
+    const ev = evaluateLength(mid);
+    if (ev.safe) {
+      lo = mid;
+      bestN = ev.numSupports;
+    } else {
+      hi = mid;
+    }
+  }
+
+  // Final full adaptive solve at the safe L
+  const finalSupports = buildEqualSupports(lo, bestN);
+  const finalResult = solveFEM(E_mpa, I, c, q, lo, h_mm, finalSupports, true);
+  finalResult.warnings.push(`FindL: bisection [${(lo/1000).toFixed(2)}, ${(hi/1000).toFixed(2)}] m, ${bestN} supports`);
+  return { L_m: lo / 1000, numSupports: bestN, result: finalResult };
 }
 
 // ══════════════════════════════════════════════════════════════
-// FIND MAX H
+// FIND MAX H — with auto-support per candidate
 // ══════════════════════════════════════════════════════════════
 export function findMaxHFEM(
   E_mpa: number, I: number, c: number, q: number,
   L_mm: number, allowable: number,
 ): { h_mm: number; numSupports: number; result: FEMResult } | undefined {
-  for (let n = 0; n <= MAX_SUPPORTS; n++) {
-    const supports0 = buildEqualSupports(L_mm, n);
-    if (solveFEMQuick(E_mpa, I, c, q, L_mm, 0, supports0) > allowable) continue;
-
-    let lo = 0, hi = 100_000;
-    for (let iter = 0; iter < 20; iter++) {
-      const mid = (lo + hi) / 2;
-      if (hi - lo < 0.01) break;
+  // Helper: evaluate candidate h with auto-support
+  function evaluateH(h: number): { safe: boolean; numSupports: number } {
+    for (let n = 0; n <= MAX_SUPPORTS; n++) {
       const supports = buildEqualSupports(L_mm, n);
-      if (solveFEMQuick(E_mpa, I, c, q, L_mm, mid, supports) <= allowable) {
-        lo = mid;
-      } else {
-        hi = mid;
-      }
+      const stress = solveFEMQuick(E_mpa, I, c, q, L_mm, h, supports);
+      if (stress <= allowable) return { safe: true, numSupports: n };
     }
-
-    const finalSupports = buildEqualSupports(L_mm, n);
-    const finalResult = solveFEM(E_mpa, I, c, q, L_mm, lo, finalSupports, true);
-    return { h_mm: lo, numSupports: n, result: finalResult };
+    return { safe: false, numSupports: MAX_SUPPORTS };
   }
-  return undefined;
+
+  // Check h=0 is feasible
+  const ev0 = evaluateH(0);
+  if (!ev0.safe) return undefined;
+
+  // Exponential bracket
+  let lo = 0, hi = 0;
+  let bestN = ev0.numSupports;
+  let testH = 100;
+  for (let step = 0; step < 15; step++) {
+    const ev = evaluateH(testH);
+    if (!ev.safe) { hi = testH; break; }
+    lo = testH;
+    bestN = ev.numSupports;
+    testH *= 2;
+    if (testH > 100_000) { hi = testH; break; }
+  }
+  if (hi === 0) {
+    // Safe all the way
+    const supports = buildEqualSupports(L_mm, bestN);
+    const result = solveFEM(E_mpa, I, c, q, L_mm, lo, supports, true);
+    return { h_mm: lo, numSupports: bestN, result };
+  }
+
+  // Bisection
+  for (let iter = 0; iter < 20; iter++) {
+    const mid = (lo + hi) / 2;
+    if (hi - lo < 0.1) break;
+    const ev = evaluateH(mid);
+    if (ev.safe) { lo = mid; bestN = ev.numSupports; } else { hi = mid; }
+  }
+
+  const finalSupports = buildEqualSupports(L_mm, bestN);
+  const finalResult = solveFEM(E_mpa, I, c, q, L_mm, lo, finalSupports, true);
+  return { h_mm: lo, numSupports: bestN, result: finalResult };
 }
 
 // ── Helper: build equally spaced support positions ──
