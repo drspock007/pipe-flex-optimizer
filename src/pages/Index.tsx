@@ -38,7 +38,7 @@ const Index = () => {
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setResults(calculate(inputs));
-    }, 300);
+    }, 500);
     return () => clearTimeout(debounceRef.current);
   }, [inputs]);
 
