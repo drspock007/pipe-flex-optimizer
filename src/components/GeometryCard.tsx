@@ -9,12 +9,13 @@ interface Props {
   Do: number; t: number; L: number; h: number;
   section: SectionProperties;
   calcMode: CalcMode;
-  computedL?: number;
+  computedLmin?: number;
+  computedLmax?: number;
   computedH?: number;
   onChange: (field: string, value: number | string) => void;
 }
 
-const GeometryCard = ({ Do, t, L, h, section, calcMode, computedL, computedH, onChange }: Props) => {
+const GeometryCard = ({ Do, t, L, h, section, calcMode, computedLmin, computedLmax, computedH, onChange }: Props) => {
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -43,25 +44,35 @@ const GeometryCard = ({ Do, t, L, h, section, calcMode, computedL, computedH, on
             <Label className="text-xs">t (mm)</Label>
             <Input type="number" value={t} onChange={e => onChange("t", +e.target.value)} className="h-8 text-sm" />
           </div>
-          <div>
-            <Label className="text-xs">L (m)</Label>
-            {calcMode === "findL" ? (
-              computedL == null ? (
-                <div className="h-8 text-sm border border-destructive bg-destructive/10 rounded-md flex items-center px-3 font-semibold text-destructive">
-                  Aucune solution
-                </div>
-              ) : (
-                <Input
-                  type="number"
-                  value={Math.round(computedL * 100) / 100}
-                  readOnly
-                  className="h-8 text-sm border-primary bg-primary/10 font-semibold"
-                />
-              )
-            ) : (
+          {calcMode === "findL" ? (
+            <div className="col-span-2 grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">L<sub>min</sub> (m)</Label>
+                {computedLmin == null ? (
+                  <div className="h-8 text-sm border border-destructive bg-destructive/10 rounded-md flex items-center px-3 font-semibold text-destructive text-[11px]">
+                    No solution
+                  </div>
+                ) : (
+                  <Input type="number" value={computedLmin} readOnly className="h-8 text-sm border-primary bg-primary/10 font-semibold" />
+                )}
+              </div>
+              <div>
+                <Label className="text-xs">L<sub>max</sub> (m)</Label>
+                {computedLmax == null ? (
+                  <div className="h-8 text-sm border border-destructive bg-destructive/10 rounded-md flex items-center px-3 font-semibold text-destructive text-[11px]">
+                    No solution
+                  </div>
+                ) : (
+                  <Input type="number" value={computedLmax} readOnly className="h-8 text-sm border-primary bg-primary/10 font-semibold" />
+                )}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <Label className="text-xs">L (m)</Label>
               <Input type="number" value={L} onChange={e => onChange("L", +e.target.value)} className="h-8 text-sm" />
-            )}
-          </div>
+            </div>
+          )}
           <div>
             <Label className="text-xs">h (mm)</Label>
             {calcMode === "findH" ? (

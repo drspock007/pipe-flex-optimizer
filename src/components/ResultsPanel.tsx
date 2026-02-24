@@ -9,7 +9,7 @@ interface Props {
 }
 
 const ResultsPanel = ({ results }: Props) => {
-  const { maxStress, allowableStress, isSafe, numSupports, spanLength, section, computedL, computedH } = results;
+  const { maxStress, allowableStress, isSafe, numSupports, spanLength, section, computedLmin, computedLmax, computedH } = results;
   const ratio = maxStress / allowableStress;
 
   return (
@@ -54,15 +54,25 @@ const ResultsPanel = ({ results }: Props) => {
         </div>
 
         {/* Computed values (reverse modes) */}
-        {results.calcMode === "findL" && computedL != null && (
+        {results.calcMode === "findL" && computedLmin != null && computedLmax != null && (
           <div className="rounded-md border border-primary bg-primary/10 p-2.5 space-y-1">
-            <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Computed Max Length</p>
-            <p className="text-lg font-mono font-bold text-primary">{computedL.toFixed(2)} m</p>
+            <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Admissible Length Range</p>
+            <div className="flex items-baseline gap-3">
+              <div>
+                <span className="text-[10px] text-muted-foreground">L<sub>min</sub></span>
+                <p className="text-lg font-mono font-bold text-primary">{computedLmin.toFixed(2)} m</p>
+              </div>
+              <span className="text-muted-foreground">—</span>
+              <div>
+                <span className="text-[10px] text-muted-foreground">L<sub>max</sub></span>
+                <p className="text-lg font-mono font-bold text-primary">{computedLmax.toFixed(2)} m</p>
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs mt-1">
               <span className="text-muted-foreground">Supports Used</span>
-              <span className="text-right font-mono font-semibold">{numSupports}</span>
-              <span className="text-muted-foreground">Span Length</span>
-              <span className="text-right font-mono">{(computedL / (numSupports + 1)).toFixed(2)} m</span>
+              <span className="text-right font-mono font-semibold">{numSupports} (minimum)</span>
+              <span className="text-muted-foreground">Span at L<sub>max</sub></span>
+              <span className="text-right font-mono">{(computedLmax / (numSupports + 1)).toFixed(2)} m</span>
             </div>
             {numSupports > 0 && (
               <p className="text-[9px] text-muted-foreground mt-1 italic">
@@ -71,11 +81,11 @@ const ResultsPanel = ({ results }: Props) => {
             )}
           </div>
         )}
-        {results.calcMode === "findL" && computedL == null && (
+        {results.calcMode === "findL" && computedLmin == null && (
           <Alert variant="destructive" className="py-2">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription className="text-xs">
-              Aucune longueur admissible pour ces paramètres
+              No admissible length for these parameters
             </AlertDescription>
           </Alert>
         )}

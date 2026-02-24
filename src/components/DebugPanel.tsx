@@ -41,6 +41,16 @@ const DebugPanel = ({ debug, numSupports }: Props) => {
     );
   }
 
+  // FindL search debug
+  if (debug.searchSupportsUsed != null) {
+    rows.push(
+      ["— Find L Search —", "", "Range search debug"],
+      ["Supports tested", String(debug.searchSupportsUsed), "Minimum supports found"],
+      ["Lmin guess", fmt(debug.searchLminGuess, v => v.toFixed(1) + " m"), "Coarse scan lower bound"],
+      ["Lmax guess", fmt(debug.searchLmaxGuess, v => v.toFixed(1) + " m"), "Coarse scan upper bound"],
+    );
+  }
+
   rows.push(
     ["FEM Max M (N·mm)", fmt(debug.maxMoment, v => v.toExponential(4)), "Peak bending moment from FEM"],
     ["FEM/Theory ratio", fmt(debug.femTheoryRatio, v => v.toFixed(4)), ratioWarning ? "⚠️ Ratio far from 1" : "Valid when h=0, no supports"],
