@@ -1,15 +1,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { DebugInfo } from "@/lib/calculations";
+import { DebugInfo, SupportStatusDisplay } from "@/lib/calculations";
 import { Bug, ChevronDown, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 
 interface Props {
   debug: DebugInfo;
   numSupports: number;
+  supportStatus: SupportStatusDisplay[];
 }
 
-const DebugPanel = ({ debug, numSupports }: Props) => {
+const DebugPanel = ({ debug, numSupports, supportStatus }: Props) => {
   const [open, setOpen] = useState(false);
 
   const ratioWarning = (debug.femTheoryRatio ?? 0) > 0 && ((debug.femTheoryRatio ?? 0) < 0.8 || (debug.femTheoryRatio ?? 0) > 1.2);
@@ -31,7 +32,6 @@ const DebugPanel = ({ debug, numSupports }: Props) => {
     ["Settle err %", fmt(debug.settlementErrorPercent, v => v.toFixed(2) + "%"), "|M_FEM - M_theory| / M_theory"],
   ];
 
-  // When supports > 0, show per-span theory rows
   if (numSupports > 0) {
     rows.push(
       ["— Span Theory —", "", `With ${numSupports} supports`],
@@ -48,6 +48,16 @@ const DebugPanel = ({ debug, numSupports }: Props) => {
       ["Supports tested", String(debug.searchSupportsUsed), "Minimum supports found"],
       ["Lmin guess", fmt(debug.searchLminGuess, v => v.toFixed(1) + " m"), "Coarse scan lower bound"],
       ["Lmax guess", fmt(debug.searchLmaxGuess, v => v.toFixed(1) + " m"), "Coarse scan upper bound"],
+    );
+  }
+
+  // Contact solver debug
+  if (debug.contactIterations != null) {
+    rows.push(
+      ["— Contact Solver —", "", "Unilateral support model"],
+      ["Contact iterations", String(debug.contactIterations), "Active-set convergence iterations"],
+      ["Candidates", String(debug.candidateSupportsCount ?? 0), "Total candidate supports"],
+      ["Active", String(debug.activeSupportsCount ?? 0), "Supports in contact"],
     );
   }
 
@@ -95,6 +105,29 @@ const DebugPanel = ({ debug, numSupports }: Props) => {
                 </div>
               ))}
             </div>
+
+            {/* Support Contact Status Table */}
+            {supportStatus.length > 0 && (
+              <div className="mt-3 pt-2 border-t border-border/30">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Support Contact Status</p>
+                <div className="space-y-0.5">
+                  {supportStatus.map((sup, i) => {
+                    const lift = sup.w_fem - sup.w_ref;
+                    return (
+                      <div key={i} className="grid grid-cols-[auto_1fr_auto] gap-2 text-[10px] py-0.5 border-b border-border/20 last:border-0">
+                        <span className="font-mono text-foreground">#{i}</span>
+                        <span className="font-mono text-muted-foreground">
+                          x={sup.x.toFixed(3)}m  w_fem={sup.w_fem.toFixed(1)}  w_ref={sup.w_ref.toFixed(1)}
+                        </span>
+                        <span className={`font-mono font-semibold ${sup.active ? "text-primary" : "text-muted-foreground"}`}>
+                          {sup.active ? "ACTIVE" : `LIFTED +${lift.toFixed(1)}mm`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </CardContent>
         </CollapsibleContent>
       </Collapsible>

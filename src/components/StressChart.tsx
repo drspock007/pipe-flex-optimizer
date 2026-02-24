@@ -11,8 +11,13 @@ interface Props {
 }
 
 const StressChart = ({ results }: Props) => {
-  const { stressData, allowableStress, supportPositions, maxStress, isSafe } = results;
+  const { stressData, allowableStress, supportPositions, supportStatus, maxStress, isSafe } = results;
   const maxY = Math.max(maxStress, allowableStress) * 1.2;
+
+  // Build a set of active support positions for quick lookup
+  const activePosSet = new Set(
+    supportStatus.filter(s => s.active).map(s => Math.round(s.x * 1000) / 1000)
+  );
 
   return (
     <Card>
@@ -63,16 +68,21 @@ const StressChart = ({ results }: Props) => {
                 label={{ value: `Allowable: ${allowableStress.toFixed(0)} MPa`, position: "right", fontSize: 10, fill: "hsl(0 72% 51%)" }}
               />
 
-              {/* Support markers */}
-              {supportPositions.map((pos, i) => (
-                <ReferenceLine
-                  key={i}
-                  x={Math.round(pos * 1000) / 1000}
-                  stroke="hsl(var(--muted-foreground))"
-                  strokeDasharray="4 4"
-                  strokeWidth={1}
-                />
-              ))}
+              {/* Support markers: active = solid, inactive = lighter dotted */}
+              {supportPositions.map((pos, i) => {
+                const roundedPos = Math.round(pos * 1000) / 1000;
+                const isActive = activePosSet.has(roundedPos);
+                return (
+                  <ReferenceLine
+                    key={i}
+                    x={roundedPos}
+                    stroke={isActive ? "hsl(34 100% 51%)" : "hsl(var(--muted-foreground))"}
+                    strokeDasharray={isActive ? "none" : "2 4"}
+                    strokeWidth={isActive ? 1.5 : 1}
+                    strokeOpacity={isActive ? 0.8 : 0.4}
+                  />
+                );
+              })}
 
               {/* Stress curve */}
               <Line

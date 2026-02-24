@@ -3,7 +3,7 @@ import { CalculationResults } from "@/lib/calculations";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis,
-  CartesianGrid, Tooltip, ReferenceLine,
+  CartesianGrid, Tooltip, ReferenceDot,
 } from "recharts";
 import { ArrowDown } from "lucide-react";
 import { useState } from "react";
@@ -13,7 +13,7 @@ interface Props {
 }
 
 const DeflectionChart = ({ results }: Props) => {
-  const { deflectionData, supportPositions } = results;
+  const { deflectionData, supportStatus } = results;
   const [amplify, setAmplify] = useState(false);
 
   if (!deflectionData || deflectionData.length === 0) return null;
@@ -82,16 +82,6 @@ const DeflectionChart = ({ results }: Props) => {
                 labelFormatter={l => `x = ${l} m`}
               />
 
-              {supportPositions.map((pos, i) => (
-                <ReferenceLine
-                  key={i}
-                  x={Math.round(pos * 1000) / 1000}
-                  stroke="hsl(var(--muted-foreground))"
-                  strokeDasharray="4 4"
-                  strokeWidth={1}
-                />
-              ))}
-
               <Line
                 type="monotone"
                 dataKey="wRef"
@@ -111,6 +101,22 @@ const DeflectionChart = ({ results }: Props) => {
                 animationDuration={600}
                 name="Deflection"
               />
+
+              {/* Support markers: active = filled, inactive = hollow */}
+              {supportStatus.map((sup, i) => {
+                const wRefAtSup = L_m > 0 ? (sup.x / L_m) * lastW * factor : 0;
+                return (
+                  <ReferenceDot
+                    key={`sup-${i}`}
+                    x={Math.round(sup.x * 1000) / 1000}
+                    y={wRefAtSup}
+                    r={4}
+                    fill={sup.active ? "hsl(34 100% 51%)" : "none"}
+                    stroke={sup.active ? "hsl(34 100% 51%)" : "hsl(var(--muted-foreground))"}
+                    strokeWidth={sup.active ? 0 : 1.5}
+                  />
+                );
+              })}
             </LineChart>
           </ResponsiveContainer>
         </div>
