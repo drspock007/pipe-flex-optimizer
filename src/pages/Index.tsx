@@ -6,8 +6,10 @@ import AllowableStressCard from "@/components/AllowableStressCard";
 import LoadCard from "@/components/LoadCard";
 import ResultsPanel from "@/components/ResultsPanel";
 import StressChart from "@/components/StressChart";
+import DeflectionChart from "@/components/DeflectionChart";
 import DebugPanel from "@/components/DebugPanel";
 import { calculate, PipeInputs } from "@/lib/calculations";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Index = () => {
   const [inputs, setInputs] = useState<PipeInputs>({
@@ -64,7 +66,18 @@ const Index = () => {
             />
           </div>
           <div className="lg:col-span-2 space-y-4">
-            <StressChart results={results} />
+            <Tabs defaultValue="stress">
+              <TabsList>
+                <TabsTrigger value="stress">Stress σ(x)</TabsTrigger>
+                <TabsTrigger value="deflection">Deflection w(x)</TabsTrigger>
+              </TabsList>
+              <TabsContent value="stress">
+                <StressChart results={results} />
+              </TabsContent>
+              <TabsContent value="deflection">
+                <DeflectionChart results={results} />
+              </TabsContent>
+            </Tabs>
             <ResultsPanel results={results} />
             <DebugPanel debug={results.debug} />
           </div>

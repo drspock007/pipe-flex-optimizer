@@ -26,29 +26,33 @@ export interface SectionProperties {
 export interface DebugInfo {
   q_Nmm: number;
   q_Nm: number;
+  L_mm: number;
   I: number;
   c: number;
   maxMoment: number;
-  maxMomentLocation: number;  // mm
+  maxMomentLocation: number;
   maxStress: number;
   allowableStress: number;
+  M_end_theory: number;     // q*L²/12 for sanity check
+  femTheoryRatio: number;   // FEM maxMoment / M_end_theory
 }
 
 export interface CalculationResults {
   section: SectionProperties;
-  yieldStrength: number;     // MPa
-  allowableStress: number;   // MPa
+  yieldStrength: number;
+  allowableStress: number;
   q: number;                 // N/mm
-  maxStress: number;         // MPa
+  maxStress: number;
   isSafe: boolean;
   numSupports: number;
   spanLength: number;        // m
   governingSpan: number;
   stressData: { x: number; stress: number }[];
+  deflectionData: { x: number; w: number }[];
   supportPositions: number[];
   calcMode: CalcMode;
-  computedL?: number;        // m
-  computedH?: number;        // mm
+  computedL?: number;
+  computedH?: number;
   debug: DebugInfo;
 }
 
@@ -79,7 +83,7 @@ export const calcSectionProperties = (
 };
 
 // ══════════════════════════════════════════════
-// Self-weight q in N/mm
+// Self-weight q
 // ══════════════════════════════════════════════
 function computeQ(density: number, g: number, A_mm2: number): { q_Nmm: number; q_Nm: number } {
   const A_m2 = A_mm2 * 1e-6;
@@ -90,7 +94,7 @@ function computeQ(density: number, g: number, A_mm2: number): { q_Nmm: number; q
 }
 
 // ══════════════════════════════════════════════
-// MAIN ENTRY POINT — now uses FEM solver
+// MAIN ENTRY POINT — FEM solver
 // ══════════════════════════════════════════════
 import {
   solveFEM, autoSupportsFEM, findMaxLFEM, findMaxHFEM, buildEqualSupports
@@ -105,7 +109,7 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   const yieldStrength = getYieldStrength(grade, customYield);
   const allowableStress = yieldStrength * (allowablePercent / 100);
 
-  // Unit conversions
+  // Unit conversions — STRICT
   const E_mpa = E * 1000;  // GPa → MPa
   const { q_Nmm, q_Nm } = includeSelfWeight
     ? computeQ(density, 9.81, section.A)
@@ -120,6 +124,7 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   let maxMoment = 0;
   let maxMomentLocation = 0;
   let stressData: { x: number; stress: number }[] = [];
+  let deflectionData: { x: number; w: number }[] = [];
   let supportPositions: number[] = [];
 
   // ── Mode dispatch ──
@@ -133,9 +138,11 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
       maxMoment = r.result.maxMoment;
       maxMomentLocation = r.result.maxMomentLocation;
       stressData = r.result.stressData;
+      deflectionData = r.result.deflectionData;
     }
   } else if (calcMode === "findH") {
-    const r = findMaxHFEM(E_mpa, section.I, section.c, q_Nmm, inputs.L * 1000, allowableStress);
+    const L_mm = inputs.L * 1000;
+    const r = findMaxHFEM(E_mpa, section.I, section.c, q_Nmm, L_mm, allowableStress);
     if (r) {
       computedH = r.h_mm;
       numSupports = r.numSupports;
@@ -144,6 +151,7 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
       maxMoment = r.result.maxMoment;
       maxMomentLocation = r.result.maxMomentLocation;
       stressData = r.result.stressData;
+      deflectionData = r.result.deflectionData;
     }
   } else {
     // Standard mode: auto-add supports
@@ -154,6 +162,7 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
     maxMoment = r.result.maxMoment;
     maxMomentLocation = r.result.maxMomentLocation;
     stressData = r.result.stressData;
+    deflectionData = r.result.deflectionData;
   }
 
   // Build support positions for display (in meters)
@@ -161,31 +170,36 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   const supports_mm = buildEqualSupports(L_mm, numSupports);
   supportPositions = supports_mm.map(x => x / 1000);
 
-  // If stressData is empty (findL/findH returned no result), run FEM once with current params
+  // Fallback if stressData is empty
   if (stressData.length === 0) {
     const result = solveFEM(E_mpa, section.I, section.c, q_Nmm, L_mm, h, supports_mm);
     maxStress = result.maxStress;
     maxMoment = result.maxMoment;
     maxMomentLocation = result.maxMomentLocation;
     stressData = result.stressData;
+    deflectionData = result.deflectionData;
   }
 
   const Nsp = numSupports + 1;
   const isSafe = maxStress <= allowableStress;
   const spanLength = L / Nsp;
 
-  // Console verification
-  console.log(`[FEM VERIFY] mode=${calcMode} supports=${numSupports} σ_max=${maxStress.toFixed(2)} MPa allowable=${allowableStress.toFixed(2)} MPa safe=${isSafe}`);
-  console.log(`[FEM VERIFY] maxMoment=${maxMoment.toExponential(4)} N·mm at x=${maxMomentLocation.toFixed(1)} mm`);
+  // Sanity check: theoretical fixed-fixed end moment from self-weight
+  const M_end_theory = q_Nmm > 0 ? (q_Nmm * L_mm * L_mm) / 12 : 0;
+  const femTheoryRatio = M_end_theory > 0 ? maxMoment / M_end_theory : 0;
+
+  console.log(`[CALC VERIFY] mode=${calcMode} supports=${numSupports} σ_max=${maxStress.toFixed(2)} MPa allowable=${allowableStress.toFixed(2)} MPa safe=${isSafe}`);
+  console.log(`[CALC VERIFY] L_mm=${L_mm} M_end_theory=${M_end_theory.toExponential(4)} FEM_maxM=${maxMoment.toExponential(4)} ratio=${femTheoryRatio.toFixed(4)}`);
 
   const debug: DebugInfo = {
-    q_Nmm, q_Nm, I: section.I, c: section.c,
+    q_Nmm, q_Nm, L_mm, I: section.I, c: section.c,
     maxMoment, maxMomentLocation, maxStress, allowableStress,
+    M_end_theory, femTheoryRatio,
   };
 
   return {
     section, yieldStrength, allowableStress, q: q_Nmm, maxStress, isSafe,
-    numSupports, spanLength, governingSpan: 0, stressData, supportPositions,
-    calcMode, computedL, computedH, debug,
+    numSupports, spanLength, governingSpan: 0, stressData, deflectionData,
+    supportPositions, calcMode, computedL, computedH, debug,
   };
 };
