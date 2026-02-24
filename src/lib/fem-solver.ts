@@ -306,38 +306,53 @@ function solveFEMCore(
   applyBCBanded(bands, F, nDof, halfBw, constraints);
   const U = solveBanded(bands, F, nDof, halfBw);
 
-  // Post-process
-  const totalPoints = 200;
+  // Post-process: sample at element boundaries + internal points for accuracy
   const stressData: { x: number; stress: number }[] = [];
   const deflectionData: { x: number; w: number }[] = [];
   let maxStress = 0, maxMoment = 0, maxMomentLocation = 0;
 
-  for (let pt = 0; pt <= totalPoints; pt++) {
-    const x_mm = (pt / totalPoints) * L_total_mm;
-    let elIdx = 0;
-    for (let i = 0; i < nElements; i++) {
-      if (x_mm >= nodeX[i] && x_mm <= nodeX[i + 1]) { elIdx = i; break; }
+  // Sample each element at internal points (avoid exact node boundaries near supports)
+  const samplesPerElement = 10;
+  // Build set of constrained node indices for skipping
+  const constrainedNodes = new Set<number>();
+  constrainedNodes.add(0);
+  constrainedNodes.add(nNodes - 1);
+  for (let i = 1; i < nNodes - 1; i++) {
+    if (supportPositions_mm.some(sp => Math.abs(sp - nodeX[i]) < 0.01)) {
+      constrainedNodes.add(i);
     }
-    if (x_mm >= L_total_mm - 0.01) elIdx = nElements - 1;
+  }
 
-    const el = elements[elIdx];
-    const xi = x_mm - nodeX[el.node1];
+  for (let i = 0; i < nElements; i++) {
+    const el = elements[i];
     const w1 = U[2 * el.node1], t1 = U[2 * el.node1 + 1];
     const w2 = U[2 * el.node2], t2 = U[2 * el.node2 + 1];
 
-    const M = elementMoment(EI, el.Le, w1, t1, w2, t2, xi);
-    const stress = (Math.abs(M) * c_mm) / I_mm4;
-    const w = elementDeflection(el.Le, w1, t1, w2, t2, xi);
+    for (let s = 0; s <= samplesPerElement; s++) {
+      if (s === 0 && i > 0) continue;
 
-    if (stress > maxStress) {
-      maxStress = stress;
-      maxMoment = Math.abs(M);
-      maxMomentLocation = x_mm;
+      // Skip exact support/BC nodes — use slight offset instead
+      let frac = s / samplesPerElement;
+      if (s === 0 && constrainedNodes.has(el.node1)) frac = 0.02;
+      if (s === samplesPerElement && constrainedNodes.has(el.node2)) frac = 0.98;
+
+      const xi = frac * el.Le;
+      const x_mm = nodeX[el.node1] + xi;
+
+      const M = elementMoment(EI, el.Le, w1, t1, w2, t2, xi);
+      const stress = (Math.abs(M) * c_mm) / I_mm4;
+      const w = elementDeflection(el.Le, w1, t1, w2, t2, xi);
+
+      if (stress > maxStress) {
+        maxStress = stress;
+        maxMoment = Math.abs(M);
+        maxMomentLocation = x_mm;
+      }
+
+      const x_m = Math.round((x_mm / 1000) * 1000) / 1000;
+      stressData.push({ x: x_m, stress: Math.round(stress * 100) / 100 });
+      deflectionData.push({ x: x_m, w: Math.round(w * 1000) / 1000 });
     }
-
-    const x_m = Math.round((x_mm / 1000) * 1000) / 1000;
-    stressData.push({ x: x_m, stress: Math.round(stress * 100) / 100 });
-    deflectionData.push({ x: x_m, w: Math.round(w * 1000) / 1000 });
   }
 
   const solveTimeMs = performance.now() - t0;
@@ -418,13 +433,15 @@ function solveFEMQuick(
   applyBCBanded(bands, F, nDof, halfBw, constraints);
   const U = solveBanded(bands, F, nDof, halfBw);
 
-  // Sample stress at element boundaries + midpoints only
+  // Sample stress at multiple points per element, skip exact support nodes
   let maxStress = 0;
   for (let i = 0; i < nElements; i++) {
     const el = elements[i];
     const w1 = U[2 * el.node1], t1 = U[2 * el.node1 + 1];
     const w2 = U[2 * el.node2], t2 = U[2 * el.node2 + 1];
-    for (const xi of [0, el.Le / 2, el.Le]) {
+    // Sample at 5 points: 0.05, 0.25, 0.5, 0.75, 0.95 of Le (avoid exact boundaries near supports)
+    for (const frac of [0.05, 0.25, 0.5, 0.75, 0.95]) {
+      const xi = frac * el.Le;
       const M = elementMoment(EI, el.Le, w1, t1, w2, t2, xi);
       const stress = (Math.abs(M) * c_mm) / I_mm4;
       if (stress > maxStress) maxStress = stress;
@@ -442,13 +459,13 @@ export function autoSupportsFEM(
 ): { numSupports: number; stress: number; result: FEMResult } {
   let bestN = 0, bestStress = Infinity;
   let bestResult: FEMResult | null = null;
+  let prevStress = Infinity;
 
   for (let n = 0; n <= MAX_SUPPORTS; n++) {
     const supports = buildEqualSupports(L_mm, n);
     const stress = solveFEMQuick(E_mpa, I, c, q, L_mm, h_mm, supports);
 
     if (stress <= allowable) {
-      // Found it — do a full adaptive solve for the final result
       const result = solveFEM(E_mpa, I, c, q, L_mm, h_mm, supports, true);
       return { numSupports: n, stress: result.maxStress, result };
     }
@@ -457,6 +474,10 @@ export function autoSupportsFEM(
       bestStress = stress;
       bestN = n;
     }
+
+    // Early exit: if stress increased, more supports won't help
+    if (n > 0 && stress > prevStress * 1.05) break;
+    prevStress = stress;
   }
 
   // None safe — return best with full solve
@@ -466,34 +487,53 @@ export function autoSupportsFEM(
 }
 
 // ══════════════════════════════════════════════════════════════
-// FIND MAX L — coarse scan + auto-support per candidate + bisection
+// FIND MAX L — full coarse scan (non-monotonic stress!) + bisection
+// With settlement, stress is huge at small L (M_settle ∝ 1/L²),
+// then decreases, then rises at large L (M_sw ∝ L²).
+// Must scan ALL points to find the safe region.
 // ══════════════════════════════════════════════════════════════
 export function findMaxLFEM(
   E_mpa: number, I: number, c: number, q: number,
   h_mm: number, allowable: number,
 ): { L_m: number; numSupports: number; result: FEMResult } | undefined {
   // Helper: evaluate a candidate L with auto-support optimization
+  // Early-exit: if adding a support increases stress, stop (settlement-dominated case)
   function evaluateLength(L_mm: number): { safe: boolean; stress: number; numSupports: number } {
+    let prevStress = Infinity;
+    let bestStress = Infinity;
+    let bestN = 0;
+
     for (let n = 0; n <= MAX_SUPPORTS; n++) {
       const supports = buildEqualSupports(L_mm, n);
       const stress = solveFEMQuick(E_mpa, I, c, q, L_mm, h_mm, supports);
+
       if (stress <= allowable) {
         return { safe: true, stress, numSupports: n };
       }
+
+      if (stress < bestStress) {
+        bestStress = stress;
+        bestN = n;
+      }
+
+      // Early exit: if stress increased after adding support, more supports won't help
+      if (n > 0 && stress > prevStress * 1.05) {
+        break;
+      }
+      prevStress = stress;
     }
-    // Even with max supports, still unsafe
-    const supports = buildEqualSupports(L_mm, MAX_SUPPORTS);
-    const stress = solveFEMQuick(E_mpa, I, c, q, L_mm, h_mm, supports);
-    return { safe: false, stress, numSupports: MAX_SUPPORTS };
+    return { safe: false, stress: bestStress, numSupports: bestN };
   }
 
-  // Step 1: Coarse scan from 1m to 1000m to find safe range
+  // Step 1: Scan ALL coarse points — do NOT break at first unsafe
   const coarseSteps = [
-    1, 2, 3, 5, 7, 10, 15, 20, 30, 50, 75, 100, 150, 200, 300, 500, 750, 1000
+    1, 2, 3, 4, 5, 7, 10, 15, 20, 25, 30, 40, 50, 75, 100,
+    125, 150, 200, 250, 300, 400, 500, 750, 1000
   ];
+
   let lastSafeL_mm = 0;
   let lastSafeN = 0;
-  let firstUnsafeL_mm = 0;
+  let nextUnsafeAfterLastSafe = 0;
 
   for (const L_m of coarseSteps) {
     const L_mm = L_m * 1000;
@@ -501,9 +541,12 @@ export function findMaxLFEM(
     if (ev.safe) {
       lastSafeL_mm = L_mm;
       lastSafeN = ev.numSupports;
+      nextUnsafeAfterLastSafe = 0; // reset — we need to find the next unsafe AFTER this
     } else {
-      firstUnsafeL_mm = L_mm;
-      break;
+      // Only record the first unsafe after the last safe
+      if (lastSafeL_mm > 0 && nextUnsafeAfterLastSafe === 0) {
+        nextUnsafeAfterLastSafe = L_mm;
+      }
     }
   }
 
@@ -511,16 +554,16 @@ export function findMaxLFEM(
   if (lastSafeL_mm === 0) return undefined;
 
   // Safe all the way to cap
-  if (firstUnsafeL_mm === 0) {
+  if (nextUnsafeAfterLastSafe === 0) {
     const supports = buildEqualSupports(lastSafeL_mm, lastSafeN);
     const result = solveFEM(E_mpa, I, c, q, lastSafeL_mm, h_mm, supports, true);
     result.warnings.push('FindL: safe up to 1000m cap');
     return { L_m: lastSafeL_mm / 1000, numSupports: lastSafeN, result };
   }
 
-  // Step 2: Bisection between lastSafeL and firstUnsafeL
+  // Step 2: Bisection between lastSafe and nextUnsafe
   let lo = lastSafeL_mm;
-  let hi = firstUnsafeL_mm;
+  let hi = nextUnsafeAfterLastSafe;
   let bestN = lastSafeN;
 
   for (let iter = 0; iter < 20; iter++) {
@@ -535,11 +578,23 @@ export function findMaxLFEM(
     }
   }
 
-  // Final full adaptive solve at the safe L
-  const finalSupports = buildEqualSupports(lo, bestN);
-  const finalResult = solveFEM(E_mpa, I, c, q, lo, h_mm, finalSupports, true);
-  finalResult.warnings.push(`FindL: bisection [${(lo/1000).toFixed(2)}, ${(hi/1000).toFixed(2)}] m, ${bestN} supports`);
-  return { L_m: lo / 1000, numSupports: bestN, result: finalResult };
+  // Final full adaptive solve — validate and back off if needed
+  let finalL = lo;
+  for (let retry = 0; retry < 5; retry++) {
+    const finalSupports = buildEqualSupports(finalL, bestN);
+    const finalResult = solveFEM(E_mpa, I, c, q, finalL, h_mm, finalSupports, true);
+    if (finalResult.maxStress <= allowable) {
+      finalResult.warnings.push(`FindL: ${(finalL/1000).toFixed(2)} m, ${bestN} supports`);
+      return { L_m: finalL / 1000, numSupports: bestN, result: finalResult };
+    }
+    // Back off 2% and retry
+    finalL *= 0.98;
+  }
+  // Return last attempt even if slightly over
+  const finalSupports = buildEqualSupports(finalL, bestN);
+  const finalResult = solveFEM(E_mpa, I, c, q, finalL, h_mm, finalSupports, true);
+  finalResult.warnings.push(`FindL: ${(finalL/1000).toFixed(2)} m, ${bestN} supports (marginal)`);
+  return { L_m: finalL / 1000, numSupports: bestN, result: finalResult };
 }
 
 // ══════════════════════════════════════════════════════════════
