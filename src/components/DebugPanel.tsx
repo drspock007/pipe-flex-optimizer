@@ -6,9 +6,10 @@ import { useState } from "react";
 
 interface Props {
   debug: DebugInfo;
+  numSupports: number;
 }
 
-const DebugPanel = ({ debug }: Props) => {
+const DebugPanel = ({ debug, numSupports }: Props) => {
   const [open, setOpen] = useState(false);
 
   const ratioWarning = (debug.femTheoryRatio ?? 0) > 0 && ((debug.femTheoryRatio ?? 0) < 0.8 || (debug.femTheoryRatio ?? 0) > 1.2);
@@ -24,18 +25,31 @@ const DebugPanel = ({ debug }: Props) => {
     ["Elem/span", String(debug.elementsPerSpan ?? "—"), "Elements per span used"],
     ["Total DOFs", String(debug.totalDofs ?? "—"), "Degrees of freedom"],
     ["Solve time", fmt(debug.solveTimeMs, v => v.toFixed(1) + " ms"), "FEM solve duration"],
-    ["M_theory = qL²/12", fmt(debug.M_end_theory, v => v.toExponential(4)), "Fixed-fixed end moment (self-weight only)"],
-    ["M_settle = 6EIh/L²", fmt(debug.M_settlement_theory, v => v.toExponential(4)), "Fixed-fixed settlement moment"],
+    ["M_theory = qL²/12", fmt(debug.M_end_theory, v => v.toExponential(4)), "Fixed-fixed end moment (total L, no supports)"],
+    ["M_settle = 6EIh/L²", fmt(debug.M_settlement_theory, v => v.toExponential(4)), "Fixed-fixed settlement moment (total L)"],
     ["M_settle FEM", fmt(debug.M_settlement_fem, v => v.toExponential(4)), "FEM settlement moment (q=0)"],
     ["Settle err %", fmt(debug.settlementErrorPercent, v => v.toFixed(2) + "%"), "|M_FEM - M_theory| / M_theory"],
+  ];
+
+  // When supports > 0, show per-span theory rows
+  if (numSupports > 0) {
+    rows.push(
+      ["— Span Theory —", "", `With ${numSupports} supports`],
+      ["M_theory (span)", fmt(debug.M_theory_span, v => v.toExponential(4)), "q·Ls²/12 per span"],
+      ["M_settle (span)", fmt(debug.M_settle_span, v => v.toExponential(4)), "6EI·hs/Ls² per span"],
+      ["Span err %", fmt(debug.spanErrorPercent, v => v.toFixed(2) + "%"), "|M_FEM - M_span_total| / M_span_total"],
+    );
+  }
+
+  rows.push(
     ["FEM Max M (N·mm)", fmt(debug.maxMoment, v => v.toExponential(4)), "Peak bending moment from FEM"],
     ["FEM/Theory ratio", fmt(debug.femTheoryRatio, v => v.toFixed(4)), ratioWarning ? "⚠️ Ratio far from 1" : "Valid when h=0, no supports"],
-    ["Error %", fmt(debug.errorPercent, v => v.toFixed(2) + "%"), "|M_FEM - M_theory| / M_theory"],
+    ["Error %", fmt(debug.errorPercent, v => v.toFixed(2) + "%"), "|M_FEM - M_theory| / M_theory (no supports only)"],
     ["Validation", debug.validationPassed ? "✅ PASS" : "❌ FAIL", "Self-weight & settlement checks"],
     ["at x (mm)", fmt(debug.maxMomentLocation, v => v.toFixed(1)), "Location of peak moment"],
     ["Max Stress (MPa)", fmt(debug.maxStress, v => v.toFixed(2)), "σ = |M|·c / I"],
     ["Allowable (MPa)", fmt(debug.allowableStress, v => v.toFixed(2)), "Re × allowable%"],
-  ];
+  );
 
   const hasWarnings = debug.warnings && debug.warnings.length > 0;
 

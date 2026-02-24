@@ -58,6 +58,17 @@ const ResultsPanel = ({ results }: Props) => {
           <div className="rounded-md border border-primary bg-primary/10 p-2.5 space-y-1">
             <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Computed Max Length</p>
             <p className="text-lg font-mono font-bold text-primary">{computedL.toFixed(2)} m</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs mt-1">
+              <span className="text-muted-foreground">Supports Used</span>
+              <span className="text-right font-mono font-semibold">{numSupports}</span>
+              <span className="text-muted-foreground">Span Length</span>
+              <span className="text-right font-mono">{(computedL / (numSupports + 1)).toFixed(2)} m</span>
+            </div>
+            {numSupports > 0 && (
+              <p className="text-[9px] text-muted-foreground mt-1 italic">
+                Intermediate supports are pins on settlement line w(x) = h·x/L
+              </p>
+            )}
           </div>
         )}
         {results.calcMode === "findL" && computedL == null && (
@@ -72,6 +83,12 @@ const ResultsPanel = ({ results }: Props) => {
           <div className="rounded-md border border-primary bg-primary/10 p-2.5 space-y-1">
             <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Computed Max Settlement</p>
             <p className="text-lg font-mono font-bold text-primary">{computedH.toFixed(2)} mm</p>
+            {numSupports > 0 && (
+              <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs mt-1">
+                <span className="text-muted-foreground">Supports Used</span>
+                <span className="text-right font-mono font-semibold">{numSupports}</span>
+              </div>
+            )}
           </div>
         )}
         {results.calcMode === "findH" && computedH == null && (
