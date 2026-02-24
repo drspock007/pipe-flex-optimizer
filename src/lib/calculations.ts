@@ -33,8 +33,14 @@ export interface DebugInfo {
   maxMomentLocation: number;
   maxStress: number;
   allowableStress: number;
-  M_end_theory: number;     // q*L²/12 for sanity check
-  femTheoryRatio: number;   // FEM maxMoment / M_end_theory
+  M_end_theory: number;
+  femTheoryRatio: number;
+  // V2 additions
+  elementsPerSpan: number;
+  totalDofs: number;
+  solveTimeMs: number;
+  errorPercent: number;
+  warnings: string[];
 }
 
 export interface CalculationResults {
@@ -74,7 +80,6 @@ export const calcSectionProperties = (
   Do: number, t: number, density: number
 ): SectionProperties => {
   const Di = Do - 2 * t;
-  console.assert(Di > 0, `[CALC] Di must be > 0, got ${Di}`);
   const A  = (Math.PI / 4)  * (Do * Do - Di * Di);
   const I  = (Math.PI / 64) * (Math.pow(Do, 4) - Math.pow(Di, 4));
   const c  = Do / 2;
@@ -89,8 +94,17 @@ function computeQ(density: number, g: number, A_mm2: number): { q_Nmm: number; q
   const A_m2 = A_mm2 * 1e-6;
   const q_Nm  = density * g * A_m2;
   const q_Nmm = q_Nm / 1000;
-  console.log(`[CALC] q = ${q_Nm.toFixed(4)} N/m = ${q_Nmm.toFixed(6)} N/mm`);
   return { q_Nmm, q_Nm };
+}
+
+// ══════════════════════════════════════════════
+// Unit assertions
+// ══════════════════════════════════════════════
+function assertUnits(E_mpa: number, I: number, q: number, L_mm: number, warnings: string[]) {
+  if (E_mpa < 1000) warnings.push(`⚠️ E=${E_mpa} seems too low for MPa — expected ~200000`);
+  if (I < 1) warnings.push(`⚠️ I=${I} seems too low for mm⁴`);
+  if (q > 1) warnings.push(`⚠️ q=${q} N/mm seems too high — check units`);
+  if (L_mm < 100) warnings.push(`⚠️ L=${L_mm} mm seems very short`);
 }
 
 // ══════════════════════════════════════════════
@@ -104,19 +118,17 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   const { Do, t, grade, customYield, E, allowablePercent,
           includeSelfWeight, density, calcMode } = inputs;
 
-  // Section properties
   const section = calcSectionProperties(Do, t, density);
   const yieldStrength = getYieldStrength(grade, customYield);
   const allowableStress = yieldStrength * (allowablePercent / 100);
 
-  // Unit conversions — STRICT
   const E_mpa = E * 1000;  // GPa → MPa
   const { q_Nmm, q_Nm } = includeSelfWeight
     ? computeQ(density, 9.81, section.A)
     : { q_Nmm: 0, q_Nm: 0 };
 
-  let L = inputs.L;        // m
-  let h = inputs.h;        // mm
+  let L = inputs.L;
+  let h = inputs.h;
   let computedL: number | undefined;
   let computedH: number | undefined;
   let numSupports = 0;
@@ -126,8 +138,15 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   let stressData: { x: number; stress: number }[] = [];
   let deflectionData: { x: number; w: number }[] = [];
   let supportPositions: number[] = [];
+  let elementsPerSpan = 8;
+  let totalDofs = 0;
+  let solveTimeMs = 0;
+  let femWarnings: string[] = [];
 
-  // ── Mode dispatch ──
+  // Unit assertions
+  const unitWarnings: string[] = [];
+  assertUnits(E_mpa, section.I, q_Nmm, L * 1000, unitWarnings);
+
   if (calcMode === "findL") {
     const r = findMaxLFEM(E_mpa, section.I, section.c, q_Nmm, h, allowableStress);
     if (r) {
@@ -139,6 +158,10 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
       maxMomentLocation = r.result.maxMomentLocation;
       stressData = r.result.stressData;
       deflectionData = r.result.deflectionData;
+      elementsPerSpan = r.result.meshInfo.elementsPerSpan;
+      totalDofs = r.result.meshInfo.totalDofs;
+      solveTimeMs = r.result.meshInfo.solveTimeMs;
+      femWarnings = r.result.warnings;
     }
   } else if (calcMode === "findH") {
     const L_mm = inputs.L * 1000;
@@ -152,9 +175,12 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
       maxMomentLocation = r.result.maxMomentLocation;
       stressData = r.result.stressData;
       deflectionData = r.result.deflectionData;
+      elementsPerSpan = r.result.meshInfo.elementsPerSpan;
+      totalDofs = r.result.meshInfo.totalDofs;
+      solveTimeMs = r.result.meshInfo.solveTimeMs;
+      femWarnings = r.result.warnings;
     }
   } else {
-    // Standard mode: auto-add supports
     const L_mm = L * 1000;
     const r = autoSupportsFEM(E_mpa, section.I, section.c, q_Nmm, L_mm, h, allowableStress);
     numSupports = r.numSupports;
@@ -163,38 +189,51 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
     maxMomentLocation = r.result.maxMomentLocation;
     stressData = r.result.stressData;
     deflectionData = r.result.deflectionData;
+    elementsPerSpan = r.result.meshInfo.elementsPerSpan;
+    totalDofs = r.result.meshInfo.totalDofs;
+    solveTimeMs = r.result.meshInfo.solveTimeMs;
+    femWarnings = r.result.warnings;
   }
 
-  // Build support positions for display (in meters)
   const L_mm = L * 1000;
   const supports_mm = buildEqualSupports(L_mm, numSupports);
   supportPositions = supports_mm.map(x => x / 1000);
 
-  // Fallback if stressData is empty
   if (stressData.length === 0) {
-    const result = solveFEM(E_mpa, section.I, section.c, q_Nmm, L_mm, h, supports_mm);
+    const result = solveFEM(E_mpa, section.I, section.c, q_Nmm, L_mm, h, supports_mm, true);
     maxStress = result.maxStress;
     maxMoment = result.maxMoment;
     maxMomentLocation = result.maxMomentLocation;
     stressData = result.stressData;
     deflectionData = result.deflectionData;
+    elementsPerSpan = result.meshInfo.elementsPerSpan;
+    totalDofs = result.meshInfo.totalDofs;
+    solveTimeMs = result.meshInfo.solveTimeMs;
+    femWarnings = result.warnings;
   }
 
   const Nsp = numSupports + 1;
   const isSafe = maxStress <= allowableStress;
   const spanLength = L / Nsp;
 
-  // Sanity check: theoretical fixed-fixed end moment from self-weight
+  // Sanity check: theoretical fixed-fixed end moment
   const M_end_theory = q_Nmm > 0 ? (q_Nmm * L_mm * L_mm) / 12 : 0;
   const femTheoryRatio = M_end_theory > 0 ? maxMoment / M_end_theory : 0;
+  const errorPercent = M_end_theory > 0 ? Math.abs(maxMoment - M_end_theory) / M_end_theory * 100 : 0;
 
-  console.log(`[CALC VERIFY] mode=${calcMode} supports=${numSupports} σ_max=${maxStress.toFixed(2)} MPa allowable=${allowableStress.toFixed(2)} MPa safe=${isSafe}`);
-  console.log(`[CALC VERIFY] L_mm=${L_mm} M_end_theory=${M_end_theory.toExponential(4)} FEM_maxM=${maxMoment.toExponential(4)} ratio=${femTheoryRatio.toFixed(4)}`);
+  // Self-check warning (only valid for h=0, no supports)
+  if (numSupports === 0 && h === 0 && q_Nmm > 0 && errorPercent > 3) {
+    unitWarnings.push(`⚠️ FEM/theory error ${errorPercent.toFixed(1)}% > 3% threshold`);
+  }
+
+  const allWarnings = [...unitWarnings, ...femWarnings];
 
   const debug: DebugInfo = {
     q_Nmm, q_Nm, L_mm, I: section.I, c: section.c,
     maxMoment, maxMomentLocation, maxStress, allowableStress,
     M_end_theory, femTheoryRatio,
+    elementsPerSpan, totalDofs, solveTimeMs, errorPercent,
+    warnings: allWarnings,
   };
 
   return {
