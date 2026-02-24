@@ -311,31 +311,17 @@ function solveFEMCore(
   const deflectionData: { x: number; w: number }[] = [];
   let maxStress = 0, maxMoment = 0, maxMomentLocation = 0;
 
-  // Sample each element at internal points (avoid exact node boundaries near supports)
+  // Uniform interior sampling: 10 points per element at fractions [0.05, 0.15, ..., 0.95]
+  // Never samples at exact element boundaries — eliminates sawtooth artifacts
   const samplesPerElement = 10;
-  // Build set of constrained node indices for skipping
-  const constrainedNodes = new Set<number>();
-  constrainedNodes.add(0);
-  constrainedNodes.add(nNodes - 1);
-  for (let i = 1; i < nNodes - 1; i++) {
-    if (supportPositions_mm.some(sp => Math.abs(sp - nodeX[i]) < 0.01)) {
-      constrainedNodes.add(i);
-    }
-  }
 
   for (let i = 0; i < nElements; i++) {
     const el = elements[i];
     const w1 = U[2 * el.node1], t1 = U[2 * el.node1 + 1];
     const w2 = U[2 * el.node2], t2 = U[2 * el.node2 + 1];
 
-    for (let s = 0; s <= samplesPerElement; s++) {
-      if (s === 0 && i > 0) continue;
-
-      // Skip exact support/BC nodes — use slight offset instead
-      let frac = s / samplesPerElement;
-      if (s === 0 && constrainedNodes.has(el.node1)) frac = 0.02;
-      if (s === samplesPerElement && constrainedNodes.has(el.node2)) frac = 0.98;
-
+    for (let j = 0; j < samplesPerElement; j++) {
+      const frac = (j + 0.5) / samplesPerElement; // 0.05, 0.15, ..., 0.95
       const xi = frac * el.Le;
       const x_mm = nodeX[el.node1] + xi;
 
@@ -353,6 +339,12 @@ function solveFEMCore(
       stressData.push({ x: x_m, stress: Math.round(stress * 100) / 100 });
       deflectionData.push({ x: x_m, w: Math.round(w * 1000) / 1000 });
     }
+  }
+
+  // Consistency check: max of plotted stress vs computed maxStress
+  const plotMax = stressData.reduce((m, d) => Math.max(m, d.stress), 0);
+  if (maxStress > 0 && Math.abs(plotMax - maxStress) / maxStress > 0.02) {
+    warnings.push(`⚠️ Graph mismatch: plot max ${plotMax.toFixed(1)} vs computed ${maxStress.toFixed(1)} MPa`);
   }
 
   const solveTimeMs = performance.now() - t0;

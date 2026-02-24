@@ -45,6 +45,10 @@ export interface DebugInfo {
   M_settlement_fem: number;
   settlementErrorPercent: number;
   validationPassed: boolean;
+  // Per-span theory (when supports > 0)
+  M_theory_span: number;
+  M_settle_span: number;
+  spanErrorPercent: number;
   warnings: string[];
 }
 
@@ -226,10 +230,17 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   const femTheoryRatio = M_end_theory > 0 && numSupports === 0 && h === 0 ? maxMoment / M_end_theory : 0;
   const errorPercent = M_end_theory > 0 && numSupports === 0 && h === 0 ? Math.abs(maxMoment - M_end_theory) / M_end_theory * 100 : 0;
 
+  // Per-span theory when supports > 0
+  const Ls_mm = L_mm / Nsp;
+  const hs_mm = h / Nsp;
+  const M_theory_span = numSupports > 0 && q_Nmm > 0 ? (q_Nmm * Ls_mm * Ls_mm) / 12 : 0;
+  const M_settle_span = numSupports > 0 && h > 0 ? (6 * E_mpa * section.I * hs_mm) / (Ls_mm * Ls_mm) : 0;
+  const spanTheoryTotal = M_theory_span + M_settle_span;
+  const spanErrorPercent = numSupports > 0 && spanTheoryTotal > 0
+    ? Math.abs(maxMoment - spanTheoryTotal) / spanTheoryTotal * 100 : 0;
+
   // Settlement-only validation: M = 6EIh/L² for fixed-fixed beam
-  // Always compute theoretical value when h > 0
   const M_settlement_theory = h > 0 ? (6 * E_mpa * section.I * h) / (L_mm * L_mm) : 0;
-  // Run a SEPARATE FEM solve with q=0, h=actual, no supports for validation
   let M_settlement_fem = 0;
   let settlementErrorPercent = 0;
   if (h > 0) {
@@ -244,7 +255,6 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   if (numSupports === 0 && h === 0 && q_Nmm > 0 && errorPercent > 5) {
     unitWarnings.push(`⚠️ FAIL: Self-weight FEM/theory error ${errorPercent.toFixed(1)}% > 5%`);
   }
-  // Validation: settlement check (always run when h > 0)
   if (h > 0 && settlementErrorPercent > 5) {
     unitWarnings.push(`⚠️ FAIL: Settlement FEM/theory error ${settlementErrorPercent.toFixed(1)}% > 5%`);
   }
@@ -262,6 +272,7 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
     M_end_theory, femTheoryRatio,
     elementsPerSpan, totalDofs, solveTimeMs, errorPercent,
     M_settlement_theory, M_settlement_fem, settlementErrorPercent, validationPassed,
+    M_theory_span, M_settle_span, spanErrorPercent,
     warnings: allWarnings,
   };
 
