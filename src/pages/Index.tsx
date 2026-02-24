@@ -13,6 +13,7 @@ import { useFEMWorker } from "@/hooks/use-fem-worker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 
+// Force clean re-mount after hook refactor
 const Index = () => {
   const [inputs, setInputs] = useState<PipeInputs>({
     Do: 114.3,
