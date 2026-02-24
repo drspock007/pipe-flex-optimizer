@@ -1,54 +1,95 @@
 
 
-# Fix: UI Freezing Due to FEM Solver Performance
+# Fix Stress Plot Sawtooth, Debug Theory, and FindL Clarity
 
-## Root Cause
+## Problem Analysis
 
-The `buildMesh` function in `fem-solver.ts` creates too many finite elements for long pipes:
-- For L=500m (500,000 mm), it creates `ceil(500000/500) = 1000` elements per span
-- This produces a 2000-DOF system requiring Gaussian elimination (O(n^3))
-- `findMaxLFEM` calls `solveFEM` up to **80+ times** (exponential bracket + 50 bisection iterations), each solving these massive systems
-- Result: main thread blocked for minutes
+Three issues identified from code review:
 
-## Solution
+1. **Sawtooth stress plot**: The sampling logic in `solveFEMCore` (lines 326-356) creates discontinuities. At constrained nodes, it offsets to 2%/98% of element length, but adjacent elements sample different physical locations at their shared node, causing visible jumps. Additionally, the `s===0 && i>0` skip creates gaps in the data.
 
-### 1. Cap mesh density (`fem-solver.ts` - `buildMesh`)
+2. **Debug theory misleading with supports**: `M_end_theory = q*L_total^2/12` is computed using total length even when intermediate supports exist, making the FEM/Theory ratio meaningless for multi-span cases.
 
-Replace the unbounded `Math.ceil(spanLen / 500)` with a hard cap:
+3. **FindL UI lacks context**: No display of supports used, span length, or explanation of assumptions.
 
-```text
-nSub = Math.max(minElementsPerSpan, Math.min(20, Math.ceil(spanLen / 500)))
-```
+---
 
-This caps at **20 elements per span** max. For Euler-Bernoulli beams with UDL, 8-20 cubic elements give excellent accuracy (the shape functions are exact for cubic deflection).
+## Changes
 
-### 2. Reduce search iterations (`fem-solver.ts`)
+### 1. Fix stress/deflection sampling in `src/lib/fem-solver.ts`
 
-- `findMaxLFEM`: reduce bisection from 50 to **20** iterations (gives ~1mm precision, more than enough)
-- `findMaxHFEM`: reduce from 60 to **20** iterations
-- Reduce exponential bracket steps from 30 to **15**
+Replace the post-processing loop (lines 310-356) with clean uniform sampling:
+- For each element, sample 10 points at fractions `[0.05, 0.15, 0.25, ..., 0.95]` (uniformly spaced, strictly interior)
+- Never sample at exact element boundaries (xi=0 or xi=Le)
+- This eliminates all discontinuities between adjacent elements at shared nodes
+- Remove the `constrainedNodes` set and offset logic entirely
+- Add consistency check: verify `max(stressData.stress)` matches `maxStress` within 2%, emit "Graph mismatch" warning if not
 
-### 3. Increase debounce (`Index.tsx`)
+### 2. Fix debug theory for multi-span cases in `src/lib/calculations.ts`
 
-Change debounce from 300ms to **500ms** to give more breathing room during rapid input changes.
+When `numSupports > 0`, compute per-span theoretical values:
+- `Ls = L_total_mm / (numSupports + 1)` -- span length
+- `hs = h_total_mm / (numSupports + 1)` -- settlement per span
+- `M_theory_span = q * Ls^2 / 12` -- self-weight moment per span
+- `M_settle_span = 6 * E * I * hs / Ls^2` -- settlement moment per span
+
+Display both total-length theory (for reference) and span theory (for comparison). Compare FEM against span theory when supports exist.
+
+Update `DebugInfo` interface to add: `M_theory_span`, `M_settle_span`, `spanErrorPercent`.
+
+### 3. Update `src/components/DebugPanel.tsx`
+
+- Show "M_theory (span)" and "M_settle (span)" rows when supports > 0
+- Compare FEM max moment against span-based theory instead of total-length theory
+- Label clearly: "Total-length theory (no supports)" vs "Span theory (with N supports)"
+
+### 4. Enhance FindL display in `src/components/ResultsPanel.tsx`
+
+When `calcMode === "findL"` and `computedL` exists, show:
+- `supportsUsed` count
+- `spanLength = computedL / (supportsUsed + 1)` in meters
+- Note: "Intermediate supports are pins on settlement line w(x) = h * x/L"
+
+This requires passing `numSupports` through `CalculationResults` (already available).
+
+### 5. Fix deflection sampling (same file as item 1)
+
+Apply the same uniform interior sampling to deflection data generation -- both stress and deflection use identical sample points from the same loop, ensuring consistency.
+
+---
 
 ## Technical Details
 
-### Files Modified
+### Sampling strategy (replaces lines 310-356 of fem-solver.ts)
+
+```text
+For each element i (0..nElements-1):
+  Le = element length
+  x_start = nodeX[node1]
+  For j = 0..9:
+    frac = (j + 0.5) / 10    // gives 0.05, 0.15, ..., 0.95
+    xi = frac * Le            // physical local coordinate
+    x_mm = x_start + xi
+    Compute M, stress, w at xi
+    Push to stressData, deflectionData
+```
+
+No special casing for boundaries, no constrained-node offsets.
+
+### New DebugInfo fields
+
+```text
+M_theory_span: number      // q*Ls^2/12 when supports>0, else same as M_end_theory
+M_settle_span: number      // 6*E*I*hs/Ls^2 when supports>0
+spanErrorPercent: number    // |M_FEM - M_theory_span| / M_theory_span * 100
+```
+
+### Files modified
 
 | File | Change |
 |------|--------|
-| `src/lib/fem-solver.ts` | Cap elements per span at 20; reduce bisection iterations |
-| `src/pages/Index.tsx` | Increase debounce to 500ms |
-
-### Performance Impact
-
-- Before: up to 1000 nodes per span = 2000 DOFs, O(8 billion) per solve
-- After: max 20 nodes per span = 40 DOFs, O(64,000) per solve
-- Speedup: ~100,000x per FEM solve
-- Total findL: from ~80 heavy solves to ~35 lightweight solves
-
-### Accuracy Impact
-
-None meaningful. Euler-Bernoulli cubic Hermite elements are exact for polynomial loads up to degree 3. UDL produces a degree-4 deflection on each element, so even 4 elements per span gives sub-0.1% error. 8-20 elements is more than sufficient.
+| `src/lib/fem-solver.ts` | Replace post-processing sampling loop in `solveFEMCore` |
+| `src/lib/calculations.ts` | Add per-span theory computation, update DebugInfo interface |
+| `src/components/DebugPanel.tsx` | Show span-based theory rows, conditional display |
+| `src/components/ResultsPanel.tsx` | Add supports/span info in FindL result block |
 
