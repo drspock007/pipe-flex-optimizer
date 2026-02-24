@@ -1,147 +1,149 @@
 
-# Admissible Length Range [Lmin, Lmax] and Minimum Supports
+
+# Unilateral (One-Way) Support Contact Model
 
 ## Overview
 
-Transform "Find L" mode from finding a single maximum length to computing the full admissible range [Lmin, Lmax] with the minimum number of intermediate supports. The key physics: settlement stress scales as ~1/L^2 (dangerous at small L) while self-weight stress scales as ~L^2 (dangerous at large L), creating a safe "window" in between.
+Replace the current bilateral pin support model with a unilateral contact model. Supports can only push upward (resist gravity) but cannot pull downward. The pipe is free to lift off any support. This requires an iterative active-set solver that determines which supports are actually in contact.
 
-The theme color #ff8e04 is already applied (HSL 34 100% 51%).
+Additionally fix the safety status inconsistency in Find L mode and enhance the deflection plot to show active vs inactive supports.
 
 ---
 
 ## Changes by File
 
-### 1. `src/lib/fem-solver.ts` -- Core Algorithm
+### 1. `src/lib/fem-solver.ts` -- Active-Set Contact Solver
 
-**Replace** `findMaxLFEM` with `findLRangeFEM`:
-
-```text
-Export interface FindLRangeResult {
-  Lmin: number;        // meters
-  Lmax: number;        // meters
-  numSupports: number; // minimum supports needed
-  resultAtLmax: FEMResult;  // full FEM data for plotting (at Lmax)
-  resultAtLmin: FEMResult;  // full FEM data at Lmin (for reference)
-}
-```
-
-**Algorithm** (iterates support counts 0..20, stops at first feasible):
+**New function** `solveWithUnilateralSupports`:
 
 ```text
-for supports = 0 .. MAX_SUPPORTS:
+function solveWithUnilateralSupports(
+  E_mpa, I, c, q, L_mm, h_mm,
+  candidateSupports_mm[],  // all candidate positions
+  targetElementsPerSpan,
+):
+  { result: FEMResult, activeSupports: number[], allSupportStatus: {x_mm, w_fem, w_ref, active}[] }
 
-  // Coarse scan: L from 1m to 1000m
-  // Steps: 1m increments to 100m, then 5m increments to 300m, then 10m to 1000m
-  safePoints = []
-  for each L_m in coarseGrid:
-    L_mm = L_m * 1000
-    supportPos = buildEqualSupports(L_mm, supports)
-    stress = solveFEMQuick(E, I, c, q, L_mm, h_mm, supportPos)
-    if stress <= allowable:
-      safePoints.push(L_m)
+  tol = 1e-6 * max(1, abs(h_mm))
+  activeSet = []  // start with no supports active
 
-  if safePoints is empty: continue to next support count
+  for iter = 0..14:   // max 15 iterations
+    // Solve FEM with only active supports constrained
+    activeSupportPositions = candidateSupports_mm filtered by activeSet indices
+    result = solveFEMCore(E, I, c, q, L_mm, h_mm, activeSupportPositions, targetElem)
 
-  // Found feasible support count!
-  Lmin_guess = min(safePoints)
-  Lmax_guess = max(safePoints)
+    // Check all candidate supports for penetration
+    newActiveSet = []
+    for each candidate i:
+      x_i = candidateSupports_mm[i]
+      w_ref_i = h_mm * x_i / L_mm            // settlement line elevation
+      w_fem_i = interpolate w at x_i from result.displacements + nodePositions
+      if w_fem_i < w_ref_i - tol:             // pipe sags below support
+        newActiveSet.push(i)
 
-  // Refine Lmin: bisect between (last unsafe below Lmin_guess) and Lmin_guess
-  // Refine Lmax: bisect between Lmax_guess and (first unsafe above Lmax_guess)
-  // 20 iterations each, 10mm precision
+    if newActiveSet equals activeSet: break    // converged
+    activeSet = newActiveSet
 
-  // Full adaptive solve at Lmax for plots
-  return { Lmin, Lmax, numSupports: supports, resultAtLmax, resultAtLmin }
-
-If no support count works: return undefined
+  // Final solve with converged active set (adaptive mesh for accuracy)
+  return { result, activeSupports: activeSet, allSupportStatus }
 ```
 
-**Keep** `solveFEMQuick` for fast stress-only evaluation during search. Keep `findMaxHFEM` mostly unchanged (it already works with auto-supports).
+**Key detail**: To evaluate `w(x_i)` at a candidate support position, we find which element contains `x_i` and use the Hermite shape function interpolation. This reuses the existing `elementDeflection` function.
+
+**New helper** `interpolateDeflection(nodeX, U, x_mm)`: finds the element containing x_mm and returns the interpolated w.
+
+**Update all callers**:
+- `solveFEMQuick` -- add a quick version `solveFEMQuickUnilateral` that runs the active-set loop with 8 elements and returns only maxStress. For coarse scan performance, limit to 5 active-set iterations.
+- `autoSupportsFEM` -- use unilateral solver
+- `findLRangeFEM` -- use unilateral quick solver for coarse scan, unilateral full solver for final results
+- `findMaxHFEM` -- use unilateral solver
+
+**Update `FEMResult`** interface:
+- Add `activeSupports: number[]` (indices into candidate array)
+- Add `supportStatus: { x_mm: number; w_fem: number; w_ref: number; active: boolean }[]`
+
+**Fix Find L safety**: After bisection refinement, verify both endpoints are truly safe (maxStress <= allowable + 0.5 MPa). If not, shrink interval by 0.01m steps until safe.
 
 ### 2. `src/lib/calculations.ts` -- Types and Entry Point
 
-**Update `CalcMode`**: Keep `"findL"` string value (avoids breaking existing UI wiring), but change its semantics to "find L range".
-
-**Update `PipeInputs`**: No changes needed (L field is ignored in findL mode, h is the given input).
-
 **Update `CalculationResults`**:
-- Remove `computedL?: number`
-- Add `computedLmin?: number` and `computedLmax?: number`
+- Add `activeSupports: number[]` -- indices of active supports
+- Add `supportStatus: { x: number; w_fem: number; w_ref: number; active: boolean }[]` -- in meters/mm for display
+- Add `candidateSupportPositions: number[]` -- all candidate positions in meters
 
-**Update `DebugInfo`**:
-- Add `searchSupportsUsed?: number`
-- Add `searchLminGuess?: number`, `searchLmaxGuess?: number` (coarse scan results for debug)
+**Update safety logic in Find L mode**:
+- When `calcMode === "findL"` and `computedLmin`/`computedLmax` exist, set `isSafe = true` (the interval itself is feasible)
+- Only show NOT SAFE if no feasible interval was found
 
-**Update `calculate()` findL branch**:
-- Call `findLRangeFEM(...)` instead of `findMaxLFEM(...)`
-- Set `computedLmin`, `computedLmax`, `numSupports`
-- Use `resultAtLmax` for stress/deflection plot data (representative case)
-- Set `L = Lmax` for debug theory calculations
+**Pass through** `activeSupports` and `supportStatus` from FEM result to UI.
 
-### 3. `src/components/GeometryCard.tsx` -- Input Panel
+### 3. `src/components/DeflectionChart.tsx` -- Active/Inactive Support Markers
 
-**Find L mode changes**:
-- The L input field becomes **two read-only fields**: Lmin and Lmax (or a single field showing "Lmin -- Lmax")
-- Show "No solution" only when both are undefined
-- The h input remains editable (it's the given parameter in Find L mode)
+**Replace** simple vertical reference lines with scatter-style markers:
+- Active supports: filled orange dot at (x, w_ref) position
+- Inactive supports: hollow circle at (x, w_ref) position
+- Keep the settlement reference line (dashed)
 
-Layout change for L field in findL mode:
+Use Recharts `ReferenceDot` for support markers. For each support in `supportStatus`:
+- If active: `<ReferenceDot x={pos} y={w_ref} r={4} fill="hsl(34 100% 51%)" stroke="hsl(34 100% 51%)" />`
+- If inactive: `<ReferenceDot x={pos} y={w_ref} r={4} fill="none" stroke="hsl(var(--muted-foreground))" />`
+
+This visually shows that the pipe lifts off inactive supports.
+
+**Update props**: Access `supportStatus` from results.
+
+### 4. `src/components/StressChart.tsx` -- Support Markers
+
+Similarly distinguish active vs inactive supports on the stress chart:
+- Active supports: solid vertical reference line
+- Inactive supports: lighter/dotted vertical reference line
+
+### 5. `src/components/DebugPanel.tsx` -- Contact Debug Info
+
+Add a new section "Support Contact Status":
 
 ```text
-  Lmin (m)           Lmax (m)
-  [  25.32  ]        [  87.14  ]
-  (read-only, primary border)
+-- Support Contact --
+Candidates: 3
+Active: 2 (indices 0, 2)
+Inactive: 1 (index 1)
+
+  Sup #0  x=7500mm  w_fem=625.0  w_ref=625.0  ACTIVE
+  Sup #1  x=15000mm w_fem=1255.3 w_ref=1250.0 INACTIVE (lifted 5.3mm)
+  Sup #2  x=22500mm w_fem=1875.0 w_ref=1875.0 ACTIVE
 ```
 
-**Props update**: Replace `computedL` with `computedLmin` and `computedLmax`.
+Show iteration count for convergence.
 
-### 4. `src/components/ResultsPanel.tsx` -- Results Display
+### 6. `src/components/ResultsPanel.tsx` -- Safety Status Fix
 
-**Find L result block** -- replace single "Computed Max Length" with:
+**Find L mode safety**:
+- When `computedLmin` and `computedLmax` exist, display "FEASIBLE" badge (green) instead of evaluating stress at an arbitrary L
+- Show active/total support count: "Active supports: 2/3"
 
-```text
-  ADMISSIBLE LENGTH RANGE
-  Lmin: 25.32 m    Lmax: 87.14 m
-  Supports Used: 3 (minimum)
-  Span at Lmax: 21.79 m
-  Note: Intermediate supports are pins on settlement line w(x) = h*x/L
-```
+### 7. `src/pages/Index.tsx` -- Wiring
 
-Show utilization at Lmax (the plotted case).
-
-**Props**: Update to use `computedLmin`/`computedLmax` instead of `computedL`.
-
-### 5. `src/components/DebugPanel.tsx` -- Debug Info
-
-Add rows when in Find L mode:
-- `Lmin guess` (from coarse scan)
-- `Lmax guess` (from coarse scan)
-- `Supports tested` (the minimum found)
-- Settlement-only stress estimate: `sigma_settle ~ 6*E*h*c / L^2`
-
-### 6. `src/pages/Index.tsx` -- Wiring
-
-- Pass `computedLmin` and `computedLmax` to `GeometryCard` instead of `computedL`
-- No other structural changes needed
+Pass new fields (`supportStatus`, `activeSupports`, `candidateSupportPositions`) through to components. Minimal changes since most data flows through `CalculationResults`.
 
 ---
+
+## Performance Considerations
+
+- Quick unilateral solver uses 8 elements/span and max 5 active-set iterations (vs 15 for full)
+- Each active-set iteration is a full FEM solve, so a single quick unilateral call costs ~5x a bilateral quick solve
+- Coarse scan with 150 grid points x 21 support counts x 5 iterations = ~15,750 quick solves worst case
+- Still under 2-3 seconds on modern hardware (each quick solve is sub-millisecond)
+- Web Worker keeps UI responsive
 
 ## Files Modified
 
 | File | Summary |
 |------|---------|
-| `src/lib/fem-solver.ts` | Replace `findMaxLFEM` with `findLRangeFEM`; new `FindLRangeResult` interface |
-| `src/lib/calculations.ts` | Update `CalculationResults` (Lmin/Lmax), `DebugInfo`, `calculate()` findL branch |
-| `src/components/GeometryCard.tsx` | Show Lmin/Lmax fields in findL mode |
-| `src/components/ResultsPanel.tsx` | Show admissible range block with supports info |
-| `src/components/DebugPanel.tsx` | Add search debug rows |
-| `src/pages/Index.tsx` | Pass new props |
+| `src/lib/fem-solver.ts` | Add `solveWithUnilateralSupports`, `solveFEMQuickUnilateral`, `interpolateDeflection`; update all search functions to use unilateral model |
+| `src/lib/calculations.ts` | Add `activeSupports`, `supportStatus` to results; fix Find L safety logic |
+| `src/components/DeflectionChart.tsx` | Active/inactive support markers (filled vs hollow dots) |
+| `src/components/StressChart.tsx` | Active/inactive support line styling |
+| `src/components/DebugPanel.tsx` | Support contact status table |
+| `src/components/ResultsPanel.tsx` | Fix safety badge for Find L mode; show active/total supports |
+| `src/pages/Index.tsx` | Pass new result fields to components |
 
----
-
-## Technical Notes
-
-- The coarse scan grid uses ~150 points (1m steps to 100m, 5m steps to 300m, 10m to 1000m). Each point calls `solveFEMQuick` which is fast (8 elements, no post-processing). With up to 21 support counts, worst case is ~3000 quick solves -- still under 1 second on modern hardware.
-- Bisection refinement adds ~40 more quick solves per boundary (20 iterations x 2 boundaries).
-- Full adaptive solves are only done at the final Lmin and Lmax values.
-- The stress/deflection plots show the solution at Lmax (the more interesting boundary case).
