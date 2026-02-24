@@ -171,7 +171,7 @@ function buildMesh(
   const nodeX: number[] = [unique[0]];
   for (let i = 0; i < unique.length - 1; i++) {
     const spanLen = unique[i + 1] - unique[i];
-    const nSub = Math.max(minElementsPerSpan, Math.ceil(spanLen / 500)); // at least 1 element per 500mm
+    const nSub = Math.max(minElementsPerSpan, Math.min(20, Math.ceil(spanLen / 500)));
     for (let j = 1; j <= nSub; j++) {
       nodeX.push(unique[i] + (j / nSub) * spanLen);
     }
@@ -357,7 +357,7 @@ export function findMaxLFEM(
 
     // Grow exponentially to find upper bound
     let L_test = L_start * 2;
-    for (let step = 0; step < 30; step++) {
+    for (let step = 0; step < 15; step++) {
       const sup = buildEqualSupports(L_test, n);
       const res = solveFEM(E_mpa, I, c, q, L_test, h_mm, sup);
       if (res.maxStress > allowable) {
@@ -377,7 +377,7 @@ export function findMaxLFEM(
     if (!foundBracket) continue;
 
     // Bisection
-    for (let iter = 0; iter < 50; iter++) {
+    for (let iter = 0; iter < 20; iter++) {
       const mid = (L_low_mm + L_high_mm) / 2;
       if (L_high_mm - L_low_mm < 10) break; // 10mm precision
       const sup = buildEqualSupports(mid, n);
@@ -414,7 +414,7 @@ export function findMaxHFEM(
     let lo = 0;
     let hi = 100_000;
 
-    for (let iter = 0; iter < 60; iter++) {
+    for (let iter = 0; iter < 20; iter++) {
       const mid = (lo + hi) / 2;
       if (hi - lo < 0.01) break;
       const supports = buildEqualSupports(L_mm, n);
