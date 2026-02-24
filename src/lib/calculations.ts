@@ -49,6 +49,10 @@ export interface DebugInfo {
   M_theory_span: number;
   M_settle_span: number;
   spanErrorPercent: number;
+  // FindL search debug
+  searchSupportsUsed?: number;
+  searchLminGuess?: number;
+  searchLmaxGuess?: number;
   warnings: string[];
 }
 
@@ -66,7 +70,8 @@ export interface CalculationResults {
   deflectionData: { x: number; w: number }[];
   supportPositions: number[];
   calcMode: CalcMode;
-  computedL?: number;
+  computedLmin?: number;
+  computedLmax?: number;
   computedH?: number;
   debug: DebugInfo;
 }
@@ -120,7 +125,7 @@ function assertUnits(E_mpa: number, I: number, q: number, L_mm: number, warnings
 // MAIN ENTRY POINT — FEM solver
 // ══════════════════════════════════════════════
 import {
-  solveFEM, autoSupportsFEM, findMaxLFEM, findMaxHFEM, buildEqualSupports
+  solveFEM, autoSupportsFEM, findLRangeFEM, findMaxHFEM, buildEqualSupports
 } from "./fem-solver";
 
 export const calculate = (inputs: PipeInputs): CalculationResults => {
@@ -138,7 +143,8 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
 
   let L = inputs.L;
   let h = inputs.h;
-  let computedL: number | undefined;
+  let computedLmin: number | undefined;
+  let computedLmax: number | undefined;
   let computedH: number | undefined;
   let numSupports = 0;
   let maxStress = Infinity;
@@ -151,26 +157,33 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   let totalDofs = 0;
   let solveTimeMs = 0;
   let femWarnings: string[] = [];
+  let searchSupportsUsed: number | undefined;
+  let searchLminGuess: number | undefined;
+  let searchLmaxGuess: number | undefined;
 
   // Unit assertions
   const unitWarnings: string[] = [];
   assertUnits(E_mpa, section.I, q_Nmm, L * 1000, unitWarnings);
 
   if (calcMode === "findL") {
-    const r = findMaxLFEM(E_mpa, section.I, section.c, q_Nmm, h, allowableStress);
+    const r = findLRangeFEM(E_mpa, section.I, section.c, q_Nmm, h, allowableStress);
     if (r) {
-      computedL = r.L_m;
+      computedLmin = r.Lmin;
+      computedLmax = r.Lmax;
       numSupports = r.numSupports;
-      L = r.L_m;
-      maxStress = r.result.maxStress;
-      maxMoment = r.result.maxMoment;
-      maxMomentLocation = r.result.maxMomentLocation;
-      stressData = r.result.stressData;
-      deflectionData = r.result.deflectionData;
-      elementsPerSpan = r.result.meshInfo.elementsPerSpan;
-      totalDofs = r.result.meshInfo.totalDofs;
-      solveTimeMs = r.result.meshInfo.solveTimeMs;
-      femWarnings = r.result.warnings;
+      L = r.Lmax; // Use Lmax for plots and debug
+      maxStress = r.resultAtLmax.maxStress;
+      maxMoment = r.resultAtLmax.maxMoment;
+      maxMomentLocation = r.resultAtLmax.maxMomentLocation;
+      stressData = r.resultAtLmax.stressData;
+      deflectionData = r.resultAtLmax.deflectionData;
+      elementsPerSpan = r.resultAtLmax.meshInfo.elementsPerSpan;
+      totalDofs = r.resultAtLmax.meshInfo.totalDofs;
+      solveTimeMs = r.resultAtLmax.meshInfo.solveTimeMs;
+      femWarnings = r.resultAtLmax.warnings;
+      searchSupportsUsed = r.numSupports;
+      searchLminGuess = r.searchLminGuess;
+      searchLmaxGuess = r.searchLmaxGuess;
     }
   } else if (calcMode === "findH") {
     const L_mm = inputs.L * 1000;
@@ -273,12 +286,13 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
     elementsPerSpan, totalDofs, solveTimeMs, errorPercent,
     M_settlement_theory, M_settlement_fem, settlementErrorPercent, validationPassed,
     M_theory_span, M_settle_span, spanErrorPercent,
+    searchSupportsUsed, searchLminGuess, searchLmaxGuess,
     warnings: allWarnings,
   };
 
   return {
     section, yieldStrength, allowableStress, q: q_Nmm, maxStress, isSafe,
     numSupports, spanLength, governingSpan: 0, stressData, deflectionData,
-    supportPositions, calcMode, computedL, computedH, debug,
+    supportPositions, calcMode, computedLmin, computedLmax, computedH, debug,
   };
 };

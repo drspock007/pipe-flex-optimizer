@@ -479,114 +479,96 @@ export function autoSupportsFEM(
 }
 
 // ══════════════════════════════════════════════════════════════
-// FIND MAX L — full coarse scan (non-monotonic stress!) + bisection
-// With settlement, stress is huge at small L (M_settle ∝ 1/L²),
-// then decreases, then rises at large L (M_sw ∝ L²).
-// Must scan ALL points to find the safe region.
+// FIND L RANGE — [Lmin, Lmax] with minimum supports
+// Settlement stress ~1/L² (dangerous small L), self-weight ~L² (dangerous large L)
+// Safe window exists in between. Iterate support counts until feasible.
 // ══════════════════════════════════════════════════════════════
-export function findMaxLFEM(
+
+export interface FindLRangeResult {
+  Lmin: number;         // meters
+  Lmax: number;         // meters
+  numSupports: number;  // minimum supports needed
+  resultAtLmax: FEMResult;
+  resultAtLmin: FEMResult;
+  searchLminGuess: number; // coarse scan guess (m)
+  searchLmaxGuess: number;
+}
+
+export function findLRangeFEM(
   E_mpa: number, I: number, c: number, q: number,
   h_mm: number, allowable: number,
-): { L_m: number; numSupports: number; result: FEMResult } | undefined {
-  // Helper: evaluate a candidate L with auto-support optimization
-  // Early-exit: if adding a support increases stress, stop (settlement-dominated case)
-  function evaluateLength(L_mm: number): { safe: boolean; stress: number; numSupports: number } {
-    let prevStress = Infinity;
-    let bestStress = Infinity;
-    let bestN = 0;
+): FindLRangeResult | undefined {
+  // Build coarse scan grid: 1m steps to 100m, 5m to 300m, 10m to 1000m
+  const coarseGrid: number[] = [];
+  for (let L = 1; L <= 100; L += 1) coarseGrid.push(L);
+  for (let L = 105; L <= 300; L += 5) coarseGrid.push(L);
+  for (let L = 310; L <= 1000; L += 10) coarseGrid.push(L);
 
-    for (let n = 0; n <= MAX_SUPPORTS; n++) {
-      const supports = buildEqualSupports(L_mm, n);
+  for (let nSup = 0; nSup <= MAX_SUPPORTS; nSup++) {
+    // Coarse scan: find all safe L values for this support count
+    const safePoints: number[] = [];
+    for (const L_m of coarseGrid) {
+      const L_mm = L_m * 1000;
+      const supports = buildEqualSupports(L_mm, nSup);
       const stress = solveFEMQuick(E_mpa, I, c, q, L_mm, h_mm, supports);
-
       if (stress <= allowable) {
-        return { safe: true, stress, numSupports: n };
-      }
-
-      if (stress < bestStress) {
-        bestStress = stress;
-        bestN = n;
-      }
-
-      // Early exit: if stress increased after adding support, more supports won't help
-      if (n > 0 && stress > prevStress * 1.05) {
-        break;
-      }
-      prevStress = stress;
-    }
-    return { safe: false, stress: bestStress, numSupports: bestN };
-  }
-
-  // Step 1: Scan ALL coarse points — do NOT break at first unsafe
-  const coarseSteps = [
-    1, 2, 3, 4, 5, 7, 10, 15, 20, 25, 30, 40, 50, 75, 100,
-    125, 150, 200, 250, 300, 400, 500, 750, 1000
-  ];
-
-  let lastSafeL_mm = 0;
-  let lastSafeN = 0;
-  let nextUnsafeAfterLastSafe = 0;
-
-  for (const L_m of coarseSteps) {
-    const L_mm = L_m * 1000;
-    const ev = evaluateLength(L_mm);
-    if (ev.safe) {
-      lastSafeL_mm = L_mm;
-      lastSafeN = ev.numSupports;
-      nextUnsafeAfterLastSafe = 0; // reset — we need to find the next unsafe AFTER this
-    } else {
-      // Only record the first unsafe after the last safe
-      if (lastSafeL_mm > 0 && nextUnsafeAfterLastSafe === 0) {
-        nextUnsafeAfterLastSafe = L_mm;
+        safePoints.push(L_m);
       }
     }
-  }
 
-  // No safe L found at all
-  if (lastSafeL_mm === 0) return undefined;
+    if (safePoints.length === 0) continue;
 
-  // Safe all the way to cap
-  if (nextUnsafeAfterLastSafe === 0) {
-    const supports = buildEqualSupports(lastSafeL_mm, lastSafeN);
-    const result = solveFEM(E_mpa, I, c, q, lastSafeL_mm, h_mm, supports, true);
-    result.warnings.push('FindL: safe up to 1000m cap');
-    return { L_m: lastSafeL_mm / 1000, numSupports: lastSafeN, result };
-  }
+    // Found feasible support count!
+    const LminGuess = Math.min(...safePoints);
+    const LmaxGuess = Math.max(...safePoints);
 
-  // Step 2: Bisection between lastSafe and nextUnsafe
-  let lo = lastSafeL_mm;
-  let hi = nextUnsafeAfterLastSafe;
-  let bestN = lastSafeN;
+    // Find coarse grid neighbors for bisection bounds
+    const gridIdx = (v: number) => coarseGrid.indexOf(v);
+    const idxMin = gridIdx(LminGuess);
+    const idxMax = gridIdx(LmaxGuess);
 
-  for (let iter = 0; iter < 20; iter++) {
-    const mid = (lo + hi) / 2;
-    if (hi - lo < 10) break; // 10mm precision
-    const ev = evaluateLength(mid);
-    if (ev.safe) {
-      lo = mid;
-      bestN = ev.numSupports;
-    } else {
-      hi = mid;
+    // Refine Lmin: bisect between last-unsafe-below and LminGuess
+    let loMin = idxMin > 0 ? coarseGrid[idxMin - 1] : 0.5;
+    let hiMin = LminGuess;
+    for (let iter = 0; iter < 20; iter++) {
+      const mid = (loMin + hiMin) / 2;
+      if ((hiMin - loMin) * 1000 < 10) break; // 10mm precision
+      const supports = buildEqualSupports(mid * 1000, nSup);
+      const stress = solveFEMQuick(E_mpa, I, c, q, mid * 1000, h_mm, supports);
+      if (stress <= allowable) { hiMin = mid; } else { loMin = mid; }
     }
+    const refinedLmin = hiMin;
+
+    // Refine Lmax: bisect between LmaxGuess and first-unsafe-above
+    let loMax = LmaxGuess;
+    let hiMax = idxMax < coarseGrid.length - 1 ? coarseGrid[idxMax + 1] : LmaxGuess * 1.1;
+    for (let iter = 0; iter < 20; iter++) {
+      const mid = (loMax + hiMax) / 2;
+      if ((hiMax - loMax) * 1000 < 10) break;
+      const supports = buildEqualSupports(mid * 1000, nSup);
+      const stress = solveFEMQuick(E_mpa, I, c, q, mid * 1000, h_mm, supports);
+      if (stress <= allowable) { loMax = mid; } else { hiMax = mid; }
+    }
+    const refinedLmax = loMax;
+
+    // Full adaptive solve at Lmax and Lmin for plots
+    const supLmax = buildEqualSupports(refinedLmax * 1000, nSup);
+    const resultAtLmax = solveFEM(E_mpa, I, c, q, refinedLmax * 1000, h_mm, supLmax, true);
+    const supLmin = buildEqualSupports(refinedLmin * 1000, nSup);
+    const resultAtLmin = solveFEM(E_mpa, I, c, q, refinedLmin * 1000, h_mm, supLmin, true);
+
+    return {
+      Lmin: Math.round(refinedLmin * 100) / 100,
+      Lmax: Math.round(refinedLmax * 100) / 100,
+      numSupports: nSup,
+      resultAtLmax,
+      resultAtLmin,
+      searchLminGuess: LminGuess,
+      searchLmaxGuess: LmaxGuess,
+    };
   }
 
-  // Final full adaptive solve — validate and back off if needed
-  let finalL = lo;
-  for (let retry = 0; retry < 5; retry++) {
-    const finalSupports = buildEqualSupports(finalL, bestN);
-    const finalResult = solveFEM(E_mpa, I, c, q, finalL, h_mm, finalSupports, true);
-    if (finalResult.maxStress <= allowable) {
-      finalResult.warnings.push(`FindL: ${(finalL/1000).toFixed(2)} m, ${bestN} supports`);
-      return { L_m: finalL / 1000, numSupports: bestN, result: finalResult };
-    }
-    // Back off 2% and retry
-    finalL *= 0.98;
-  }
-  // Return last attempt even if slightly over
-  const finalSupports = buildEqualSupports(finalL, bestN);
-  const finalResult = solveFEM(E_mpa, I, c, q, finalL, h_mm, finalSupports, true);
-  finalResult.warnings.push(`FindL: ${(finalL/1000).toFixed(2)} m, ${bestN} supports (marginal)`);
-  return { L_m: finalL / 1000, numSupports: bestN, result: finalResult };
+  return undefined; // No support count yields a feasible design
 }
 
 // ══════════════════════════════════════════════════════════════
