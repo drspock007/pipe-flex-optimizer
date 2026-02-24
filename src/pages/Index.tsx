@@ -8,8 +8,10 @@ import ResultsPanel from "@/components/ResultsPanel";
 import StressChart from "@/components/StressChart";
 import DeflectionChart from "@/components/DeflectionChart";
 import DebugPanel from "@/components/DebugPanel";
-import { calculate, PipeInputs } from "@/lib/calculations";
+import { PipeInputs } from "@/lib/calculations";
+import { useFEMWorker } from "@/hooks/use-fem-worker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2 } from "lucide-react";
 
 const Index = () => {
   const [inputs, setInputs] = useState<PipeInputs>({
@@ -31,16 +33,7 @@ const Index = () => {
     setInputs(prev => ({ ...prev, [field]: value }));
   };
 
-  const [results, setResults] = useState(() => calculate(inputs));
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
-
-  useEffect(() => {
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setResults(calculate(inputs));
-    }, 500);
-    return () => clearTimeout(debounceRef.current);
-  }, [inputs]);
+  const { results, isComputing } = useFEMWorker(inputs);
 
   return (
     <div className="min-h-screen grid-background">
@@ -75,6 +68,13 @@ const Index = () => {
             />
           </div>
           <div className="lg:col-span-2 space-y-4">
+            {/* Computing indicator */}
+            {isComputing && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted rounded-md px-3 py-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                Computing FEM solution…
+              </div>
+            )}
             <Tabs defaultValue="stress">
               <TabsList>
                 <TabsTrigger value="stress">Stress σ(x)</TabsTrigger>

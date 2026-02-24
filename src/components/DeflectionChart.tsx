@@ -1,10 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CalculationResults } from "@/lib/calculations";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, ReferenceLine,
 } from "recharts";
 import { ArrowDown } from "lucide-react";
+import { useState } from "react";
 
 interface Props {
   results: CalculationResults;
@@ -12,39 +14,43 @@ interface Props {
 
 const DeflectionChart = ({ results }: Props) => {
   const { deflectionData, supportPositions } = results;
+  const [amplify, setAmplify] = useState(false);
 
   if (!deflectionData || deflectionData.length === 0) return null;
 
-  // Settlement reference line data
   const L_m = deflectionData[deflectionData.length - 1]?.x ?? 0;
-  const h_mm = results.debug.L_mm > 0
-    ? (deflectionData[deflectionData.length - 1]?.w ?? 0)
-    : 0;
+  const lastW = deflectionData[deflectionData.length - 1]?.w ?? 0;
 
-  const refLineData = deflectionData.map(d => ({
-    x: d.x,
-    w: d.w,
-    ref: L_m > 0 ? (d.x / L_m) * (results.computedH ?? results.debug.L_mm > 0 ? deflectionData[deflectionData.length - 1]?.w : 0) : 0,
-  }));
+  const factor = amplify ? 10 : 1;
 
-  // Compute settlement reference: w_ref(x) = (h_total/L_total) * x
-  // We know h from the last deflection point or from inputs
-  const totalH = results.computedH ?? (deflectionData.length > 0 ? 0 : 0);
   const dataWithRef = deflectionData.map(d => ({
-    ...d,
-    wRef: L_m > 0 ? (d.x / L_m) * (deflectionData[deflectionData.length - 1]?.w ?? 0) : 0,
+    x: d.x,
+    w: d.w * factor,
+    wRef: L_m > 0 ? (d.x / L_m) * lastW * factor : 0,
   }));
 
-  const allW = deflectionData.map(d => d.w);
-  const minW = Math.min(...allW);
-  const maxW = Math.max(...allW);
+  const allW = dataWithRef.map(d => d.w);
+  const allRef = dataWithRef.map(d => d.wRef);
+  const allVals = [...allW, ...allRef];
+  const minW = Math.min(...allVals);
+  const maxW = Math.max(...allVals);
   const margin = Math.max(Math.abs(maxW - minW) * 0.2, 1);
 
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-sm">
-          <ArrowDown className="h-4 w-4 text-primary" /> Deflection
+        <CardTitle className="flex items-center justify-between text-sm">
+          <span className="flex items-center gap-2">
+            <ArrowDown className="h-4 w-4 text-primary" /> Deflection
+          </span>
+          <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-normal cursor-pointer">
+            <Checkbox
+              checked={amplify}
+              onCheckedChange={(v) => setAmplify(v === true)}
+              className="h-3 w-3"
+            />
+            Amplify ×10
+          </label>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -59,7 +65,7 @@ const DeflectionChart = ({ results }: Props) => {
               />
               <YAxis
                 domain={[minW - margin, maxW + margin]}
-                label={{ value: "w (mm)", angle: -90, position: "insideLeft", offset: 5, fontSize: 11 }}
+                label={{ value: amplify ? "w ×10 (mm)" : "w (mm)", angle: -90, position: "insideLeft", offset: 5, fontSize: 11 }}
                 tick={{ fontSize: 10 }}
               />
               <Tooltip
@@ -71,12 +77,11 @@ const DeflectionChart = ({ results }: Props) => {
                 }}
                 formatter={(value: number, name: string) => [
                   `${value.toFixed(3)} mm`,
-                  name === "w" ? "Deflection" : "Settlement line"
+                  name === "w" ? (amplify ? "Deflection ×10" : "Deflection") : "Settlement line"
                 ]}
                 labelFormatter={l => `x = ${l} m`}
               />
 
-              {/* Support markers */}
               {supportPositions.map((pos, i) => (
                 <ReferenceLine
                   key={i}
@@ -87,7 +92,6 @@ const DeflectionChart = ({ results }: Props) => {
                 />
               ))}
 
-              {/* Settlement reference line */}
               <Line
                 type="monotone"
                 dataKey="wRef"
@@ -98,7 +102,6 @@ const DeflectionChart = ({ results }: Props) => {
                 name="Settlement line"
               />
 
-              {/* Deflection curve */}
               <Line
                 type="monotone"
                 dataKey="w"
