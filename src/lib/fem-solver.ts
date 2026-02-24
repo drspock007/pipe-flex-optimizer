@@ -156,7 +156,7 @@ function elementDeflection(
 function buildMesh(
   supportPositions_mm: number[],
   L_total_mm: number,
-  minElementsPerSpan: number = 20,
+  minElementsPerSpan: number = 8,
 ): number[] {
   const anchors = [0, ...supportPositions_mm, L_total_mm].sort((a, b) => a - b);
   // Remove duplicates
@@ -242,7 +242,7 @@ export function solveFEM(
   const U = solveLinearSystem(K, F);
 
   // ── Post-process ──
-  const totalPoints = 400;
+  const totalPoints = 200;
   const stressData: { x: number; stress: number }[] = [];
   const deflectionData: { x: number; w: number }[] = [];
   let maxStress = 0;
@@ -309,7 +309,7 @@ export function autoSupportsFEM(
   let bestStress = Infinity;
   let bestResult: FEMResult | null = null;
 
-  for (let n = 0; n <= 100; n++) {
+  for (let n = 0; n <= 20; n++) {
     const supports = buildEqualSupports(L_mm, n);
     const result = solveFEM(E_mpa, I, c, q, L_mm, h_mm, supports);
 
@@ -336,7 +336,7 @@ export function findMaxLFEM(
   E_mpa: number, I: number, c: number, q: number,
   h_mm: number, allowable: number,
 ): { L_m: number; numSupports: number; result: FEMResult } | undefined {
-  for (let n = 0; n <= 100; n++) {
+  for (let n = 0; n <= 20; n++) {
     // Find bracket: L_low is safe, L_high is unsafe
     // Start small and grow exponentially
     let L_low_mm = 0;
@@ -406,7 +406,7 @@ export function findMaxHFEM(
   E_mpa: number, I: number, c: number, q: number,
   L_mm: number, allowable: number,
 ): { h_mm: number; numSupports: number; result: FEMResult } | undefined {
-  for (let n = 0; n <= 100; n++) {
+  for (let n = 0; n <= 20; n++) {
     const supports0 = buildEqualSupports(L_mm, n);
     const result0 = solveFEM(E_mpa, I, c, q, L_mm, 0, supports0);
     if (result0.maxStress > allowable) continue;
