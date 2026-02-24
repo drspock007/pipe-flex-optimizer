@@ -90,7 +90,7 @@ const Index = () => {
               </TabsContent>
             </Tabs>
             <ResultsPanel results={results} />
-            <DebugPanel debug={results.debug} numSupports={results.numSupports} />
+            <DebugPanel debug={results.debug} numSupports={results.numSupports} supportStatus={results.supportStatus} />
           </div>
         </div>
       </main>

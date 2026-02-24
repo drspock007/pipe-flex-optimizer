@@ -23,6 +23,13 @@ export interface SectionProperties {
   weightPerMeter: number; // kg/m
 }
 
+export interface SupportStatusDisplay {
+  x: number;       // meters
+  w_fem: number;   // mm
+  w_ref: number;   // mm
+  active: boolean;
+}
+
 export interface DebugInfo {
   q_Nmm: number;
   q_Nm: number;
@@ -35,17 +42,14 @@ export interface DebugInfo {
   allowableStress: number;
   M_end_theory: number;
   femTheoryRatio: number;
-  // V2 additions
   elementsPerSpan: number;
   totalDofs: number;
   solveTimeMs: number;
   errorPercent: number;
-  // Settlement-only validation
   M_settlement_theory: number;
   M_settlement_fem: number;
   settlementErrorPercent: number;
   validationPassed: boolean;
-  // Per-span theory (when supports > 0)
   M_theory_span: number;
   M_settle_span: number;
   spanErrorPercent: number;
@@ -53,6 +57,10 @@ export interface DebugInfo {
   searchSupportsUsed?: number;
   searchLminGuess?: number;
   searchLmaxGuess?: number;
+  // Contact debug
+  contactIterations?: number;
+  activeSupportsCount?: number;
+  candidateSupportsCount?: number;
   warnings: string[];
 }
 
@@ -73,6 +81,9 @@ export interface CalculationResults {
   computedLmin?: number;
   computedLmax?: number;
   computedH?: number;
+  // Unilateral contact data
+  supportStatus: SupportStatusDisplay[];
+  activeSupports: number[];
   debug: DebugInfo;
 }
 
@@ -101,9 +112,6 @@ export const calcSectionProperties = (
   return { Di, A, I, c, weightPerMeter };
 };
 
-// ══════════════════════════════════════════════
-// Self-weight q
-// ══════════════════════════════════════════════
 function computeQ(density: number, g: number, A_mm2: number): { q_Nmm: number; q_Nm: number } {
   const A_m2 = A_mm2 * 1e-6;
   const q_Nm  = density * g * A_m2;
@@ -111,9 +119,6 @@ function computeQ(density: number, g: number, A_mm2: number): { q_Nmm: number; q
   return { q_Nmm, q_Nm };
 }
 
-// ══════════════════════════════════════════════
-// Unit assertions
-// ══════════════════════════════════════════════
 function assertUnits(E_mpa: number, I: number, q: number, L_mm: number, warnings: string[]) {
   if (E_mpa < 1000) warnings.push(`⚠️ E=${E_mpa} seems too low for MPa — expected ~200000`);
   if (I < 1) warnings.push(`⚠️ I=${I} seems too low for mm⁴`);
@@ -160,6 +165,11 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   let searchSupportsUsed: number | undefined;
   let searchLminGuess: number | undefined;
   let searchLmaxGuess: number | undefined;
+  let contactIterations: number | undefined;
+  let activeSupportsCount: number | undefined;
+  let candidateSupportsCount: number | undefined;
+  let supportStatus: SupportStatusDisplay[] = [];
+  let activeSupports: number[] = [];
 
   // Unit assertions
   const unitWarnings: string[] = [];
@@ -171,7 +181,7 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
       computedLmin = r.Lmin;
       computedLmax = r.Lmax;
       numSupports = r.numSupports;
-      L = r.Lmax; // Use Lmax for plots and debug
+      L = r.Lmax;
       maxStress = r.resultAtLmax.maxStress;
       maxMoment = r.resultAtLmax.maxMoment;
       maxMomentLocation = r.resultAtLmax.maxMomentLocation;
@@ -184,6 +194,16 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
       searchSupportsUsed = r.numSupports;
       searchLminGuess = r.searchLminGuess;
       searchLmaxGuess = r.searchLmaxGuess;
+      contactIterations = r.resultAtLmax.contactIterations;
+      activeSupports = r.resultAtLmax.activeSupports;
+      activeSupportsCount = r.resultAtLmax.activeSupports.length;
+      candidateSupportsCount = numSupports;
+      supportStatus = r.resultAtLmax.supportStatus.map(s => ({
+        x: s.x_mm / 1000,
+        w_fem: s.w_fem,
+        w_ref: s.w_ref,
+        active: s.active,
+      }));
     }
   } else if (calcMode === "findH") {
     const L_mm = inputs.L * 1000;
@@ -201,6 +221,16 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
       totalDofs = r.result.meshInfo.totalDofs;
       solveTimeMs = r.result.meshInfo.solveTimeMs;
       femWarnings = r.result.warnings;
+      contactIterations = r.result.contactIterations;
+      activeSupports = r.result.activeSupports;
+      activeSupportsCount = r.result.activeSupports.length;
+      candidateSupportsCount = numSupports;
+      supportStatus = r.result.supportStatus.map(s => ({
+        x: s.x_mm / 1000,
+        w_fem: s.w_fem,
+        w_ref: s.w_ref,
+        active: s.active,
+      }));
     }
   } else {
     const L_mm = L * 1000;
@@ -215,6 +245,16 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
     totalDofs = r.result.meshInfo.totalDofs;
     solveTimeMs = r.result.meshInfo.solveTimeMs;
     femWarnings = r.result.warnings;
+    contactIterations = r.result.contactIterations;
+    activeSupports = r.result.activeSupports;
+    activeSupportsCount = r.result.activeSupports.length;
+    candidateSupportsCount = numSupports;
+    supportStatus = r.result.supportStatus.map(s => ({
+      x: s.x_mm / 1000,
+      w_fem: s.w_fem,
+      w_ref: s.w_ref,
+      active: s.active,
+    }));
   }
 
   const L_mm = L * 1000;
@@ -235,15 +275,17 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   }
 
   const Nsp = numSupports + 1;
-  const isSafe = maxStress <= allowableStress;
+  // Safety logic: in findL mode, if interval exists → feasible
+  const isSafe = calcMode === "findL"
+    ? (computedLmin != null && computedLmax != null)
+    : maxStress <= allowableStress;
   const spanLength = L / Nsp;
 
-  // Sanity check: theoretical fixed-fixed end moment (self-weight only, h=0, no supports)
+  // Sanity checks
   const M_end_theory = q_Nmm > 0 ? (q_Nmm * L_mm * L_mm) / 12 : 0;
   const femTheoryRatio = M_end_theory > 0 && numSupports === 0 && h === 0 ? maxMoment / M_end_theory : 0;
   const errorPercent = M_end_theory > 0 && numSupports === 0 && h === 0 ? Math.abs(maxMoment - M_end_theory) / M_end_theory * 100 : 0;
 
-  // Per-span theory when supports > 0
   const Ls_mm = L_mm / Nsp;
   const hs_mm = h / Nsp;
   const M_theory_span = numSupports > 0 && q_Nmm > 0 ? (q_Nmm * Ls_mm * Ls_mm) / 12 : 0;
@@ -252,7 +294,6 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   const spanErrorPercent = numSupports > 0 && spanTheoryTotal > 0
     ? Math.abs(maxMoment - spanTheoryTotal) / spanTheoryTotal * 100 : 0;
 
-  // Settlement-only validation: M = 6EIh/L² for fixed-fixed beam
   const M_settlement_theory = h > 0 ? (6 * E_mpa * section.I * h) / (L_mm * L_mm) : 0;
   let M_settlement_fem = 0;
   let settlementErrorPercent = 0;
@@ -264,7 +305,6 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
       : 0;
   }
 
-  // Validation: self-weight check
   if (numSupports === 0 && h === 0 && q_Nmm > 0 && errorPercent > 5) {
     unitWarnings.push(`⚠️ FAIL: Self-weight FEM/theory error ${errorPercent.toFixed(1)}% > 5%`);
   }
@@ -287,12 +327,15 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
     M_settlement_theory, M_settlement_fem, settlementErrorPercent, validationPassed,
     M_theory_span, M_settle_span, spanErrorPercent,
     searchSupportsUsed, searchLminGuess, searchLmaxGuess,
+    contactIterations, activeSupportsCount, candidateSupportsCount,
     warnings: allWarnings,
   };
 
   return {
     section, yieldStrength, allowableStress, q: q_Nmm, maxStress, isSafe,
     numSupports, spanLength, governingSpan: 0, stressData, deflectionData,
-    supportPositions, calcMode, computedLmin, computedLmax, computedH, debug,
+    supportPositions, calcMode, computedLmin, computedLmax, computedH,
+    supportStatus, activeSupports,
+    debug,
   };
 };

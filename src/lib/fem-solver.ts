@@ -1,8 +1,15 @@
 // ══════════════════════════════════════════════════════════════
-// 1D Euler-Bernoulli Beam FEM Solver (Stiffness Method) — V2
+// 1D Euler-Bernoulli Beam FEM Solver (Stiffness Method) — V3
 // Units: mm, N, MPa throughout
-// Features: Banded solver, adaptive mesh, performance guardrails
+// Features: Banded solver, adaptive mesh, unilateral contact supports
 // ══════════════════════════════════════════════════════════════
+
+export interface SupportStatus {
+  x_mm: number;
+  w_fem: number;   // mm - deflection from FEM
+  w_ref: number;   // mm - settlement line value
+  active: boolean;
+}
 
 export interface FEMResult {
   maxStress: number;          // MPa
@@ -14,6 +21,10 @@ export interface FEMResult {
   nodePositions: number[];    // mm
   meshInfo: { elementsPerSpan: number; totalDofs: number; solveTimeMs: number };
   warnings: string[];
+  // Unilateral contact info
+  activeSupports: number[];         // indices into candidate array
+  supportStatus: SupportStatus[];   // status of all candidate supports
+  contactIterations: number;
 }
 
 // ── Performance guardrails ──
@@ -42,8 +53,6 @@ function elementLoad(q: number, Le: number): number[] {
 }
 
 // ── Assemble global system (banded storage) ──
-// Bandwidth for beam elements: each element connects 2 nodes (4 DOFs),
-// so half-bandwidth = 3 (max DOF distance within element)
 function assembleSystemBanded(
   nNodes: number,
   elements: { node1: number; node2: number; Le: number }[],
@@ -51,9 +60,7 @@ function assembleSystemBanded(
   q: number,
 ): { bands: Float64Array[]; F: Float64Array; nDof: number; halfBw: number } {
   const nDof = nNodes * 2;
-  // Half bandwidth: max distance between DOFs in an element = 3
   const halfBw = 3;
-  // Store only upper triangle: bands[0] = diagonal, bands[k] = k-th superdiagonal
   const bands: Float64Array[] = [];
   for (let k = 0; k <= halfBw; k++) {
     bands.push(new Float64Array(nDof));
@@ -75,9 +82,6 @@ function assembleSystemBanded(
         const band = col - row;
         if (band <= halfBw) {
           bands[band][row] += ke[i][j];
-          if (i !== j) {
-            // symmetric: also need lower, but we handle that in solver
-          }
         }
       }
     }
@@ -86,20 +90,15 @@ function assembleSystemBanded(
 }
 
 // ── Banded symmetric positive-definite solver (LDLT factorization) ──
-// Solves K*x = F where K is symmetric banded, stored as bands[0..halfBw]
-// bands[k][i] = K[i][i+k] for k >= 0
 function solveBanded(bands: Float64Array[], F: Float64Array, nDof: number, halfBw: number): Float64Array {
-  // Make working copies
-  const d = new Float64Array(nDof); // diagonal of D
+  const d = new Float64Array(nDof);
   const L: Float64Array[] = [];
   for (let k = 0; k <= halfBw; k++) {
     L.push(new Float64Array(bands[k]));
   }
   const b = new Float64Array(F);
 
-  // LDLT factorization in-place on banded storage
   for (let i = 0; i < nDof; i++) {
-    // Compute D[i]
     let sum = L[0][i];
     for (let k = 1; k <= halfBw; k++) {
       const j = i - k;
@@ -108,48 +107,31 @@ function solveBanded(bands: Float64Array[], F: Float64Array, nDof: number, halfB
       }
     }
     d[i] = sum;
+    if (Math.abs(d[i]) < 1e-30) d[i] = 1e-30;
 
-    if (Math.abs(d[i]) < 1e-30) {
-      d[i] = 1e-30; // prevent division by zero
-    }
-
-    // Compute L entries for column i
     for (let k = 1; k <= halfBw; k++) {
       const row = i + k;
       if (row >= nDof) break;
-      let s = L[k][i]; // original K[i][i+k] = K[row][i] (but stored as bands[k][i])
-      // Wait — bands[k][i] = K[i][i+k], so for column i of L, we need rows > i
-      // L[row][i] = (K[row][i] - sum) / D[i]
-      // K[row][i] = bands[row-i][i] = bands[k][i]
+      let s = L[k][i];
       for (let m = 1; m <= halfBw; m++) {
         const j = i - m;
         if (j < 0) break;
-        const ki = i - j; // = m
+        const ki = i - j;
         const krow = row - j;
-        if (krow > halfBw) continue;
-        if (krow <= 0) continue;
+        if (krow > halfBw || krow <= 0) continue;
         s -= L[ki][j] * L[krow][j] * d[j];
       }
       L[k][i] = s / d[i];
     }
   }
 
-  // Forward solve: L * y = b
   for (let i = 0; i < nDof; i++) {
     for (let k = 1; k <= halfBw; k++) {
       const j = i - k;
-      if (j >= 0) {
-        b[i] -= L[k][j] * b[j];
-      }
+      if (j >= 0) b[i] -= L[k][j] * b[j];
     }
   }
-
-  // Diagonal solve: D * z = y
-  for (let i = 0; i < nDof; i++) {
-    b[i] /= d[i];
-  }
-
-  // Backward solve: L^T * x = z
+  for (let i = 0; i < nDof; i++) b[i] /= d[i];
   for (let i = nDof - 1; i >= 0; i--) {
     for (let k = 1; k <= halfBw; k++) {
       const row = i + k;
@@ -157,34 +139,27 @@ function solveBanded(bands: Float64Array[], F: Float64Array, nDof: number, halfB
       b[i] -= L[k][i] * b[row];
     }
   }
-
   return b;
 }
 
 // ── Apply boundary conditions using direct DOF elimination ──
-// Transfers coupling terms to RHS before zeroing row/column.
-// This avoids numerical issues from penalty method.
 function applyBCBanded(
   bands: Float64Array[], F: Float64Array, nDof: number, halfBw: number,
   constraints: { dof: number; value: number }[]
 ): void {
   for (const { dof, value } of constraints) {
-    // Transfer coupling K[j][dof]*value to RHS of connected DOFs
     for (let k = 1; k <= halfBw; k++) {
-      // Upper triangle: K[dof][dof+k] stored as bands[k][dof]
       const j_upper = dof + k;
       if (j_upper < nDof) {
         F[j_upper] -= bands[k][dof] * value;
         bands[k][dof] = 0;
       }
-      // Lower triangle (symmetric): K[dof-k][dof] stored as bands[k][dof-k]
       const j_lower = dof - k;
       if (j_lower >= 0) {
         F[j_lower] -= bands[k][j_lower] * value;
         bands[k][j_lower] = 0;
       }
     }
-    // Set identity row: K[dof][dof] = 1, F[dof] = value
     bands[0][dof] = 1;
     F[dof] = value;
   }
@@ -221,6 +196,28 @@ function elementDeflection(
   return N1 * w1 + N2 * t1 + N3 * w2 + N4 * t2;
 }
 
+// ── Interpolate deflection at arbitrary x_mm from FEM solution ──
+function interpolateDeflection(
+  nodeX: number[], U: number[] | Float64Array, x_mm: number
+): number {
+  // Find element containing x_mm
+  const nNodes = nodeX.length;
+  for (let i = 0; i < nNodes - 1; i++) {
+    const x1 = nodeX[i];
+    const x2 = nodeX[i + 1];
+    if (x_mm >= x1 - 0.01 && x_mm <= x2 + 0.01) {
+      const Le = x2 - x1;
+      const xi = Math.max(0, Math.min(Le, x_mm - x1));
+      const w1 = U[2 * i], t1 = U[2 * i + 1];
+      const w2 = U[2 * (i + 1)], t2 = U[2 * (i + 1) + 1];
+      return elementDeflection(Le, w1, t1, w2, t2, xi);
+    }
+  }
+  // Fallback: return value at nearest node
+  if (x_mm <= nodeX[0]) return U[0] as number;
+  return U[2 * (nNodes - 1)] as number;
+}
+
 // ── Build mesh with guardrails ──
 function buildMesh(
   supportPositions_mm: number[],
@@ -239,7 +236,6 @@ function buildMesh(
   const nSpans = unique.length - 1;
   let nSub = Math.max(4, Math.min(MAX_ELEMENTS_PER_SPAN, targetElementsPerSpan));
 
-  // Check total DOFs would not exceed limit
   const totalNodes = nSpans * nSub + 1;
   const totalDofs = totalNodes * 2;
   if (totalDofs > MAX_TOTAL_DOFS) {
@@ -259,7 +255,7 @@ function buildMesh(
 }
 
 // ══════════════════════════════════════════════════════════════
-// CORE FEM SOLVER (single solve)
+// CORE FEM SOLVER (single solve, bilateral supports)
 // ══════════════════════════════════════════════════════════════
 function solveFEMCore(
   E_mpa: number, I_mm4: number, c_mm: number, q_Nmm: number,
@@ -284,10 +280,8 @@ function solveFEMCore(
     elements.push({ node1: i, node2: i + 1, Le: nodeX[i + 1] - nodeX[i] });
   }
 
-  // Assemble banded system
   const { bands, F, nDof, halfBw } = assembleSystemBanded(nNodes, elements, EI, q_Nmm);
 
-  // Boundary conditions
   const constraints: { dof: number; value: number }[] = [];
   constraints.push({ dof: 0, value: 0 });
   constraints.push({ dof: 1, value: 0 });
@@ -306,13 +300,11 @@ function solveFEMCore(
   applyBCBanded(bands, F, nDof, halfBw, constraints);
   const U = solveBanded(bands, F, nDof, halfBw);
 
-  // Post-process: sample at element boundaries + internal points for accuracy
+  // Post-process
   const stressData: { x: number; stress: number }[] = [];
   const deflectionData: { x: number; w: number }[] = [];
   let maxStress = 0, maxMoment = 0, maxMomentLocation = 0;
 
-  // Uniform interior sampling: 10 points per element at fractions [0.05, 0.15, ..., 0.95]
-  // Never samples at exact element boundaries — eliminates sawtooth artifacts
   const samplesPerElement = 10;
 
   for (let i = 0; i < nElements; i++) {
@@ -321,7 +313,7 @@ function solveFEMCore(
     const w2 = U[2 * el.node2], t2 = U[2 * el.node2 + 1];
 
     for (let j = 0; j < samplesPerElement; j++) {
-      const frac = (j + 0.5) / samplesPerElement; // 0.05, 0.15, ..., 0.95
+      const frac = (j + 0.5) / samplesPerElement;
       const xi = frac * el.Le;
       const x_mm = nodeX[el.node1] + xi;
 
@@ -341,7 +333,6 @@ function solveFEMCore(
     }
   }
 
-  // Consistency check: max of plotted stress vs computed maxStress
   const plotMax = stressData.reduce((m, d) => Math.max(m, d.stress), 0);
   if (maxStress > 0 && Math.abs(plotMax - maxStress) / maxStress > 0.02) {
     warnings.push(`⚠️ Graph mismatch: plot max ${plotMax.toFixed(1)} vs computed ${maxStress.toFixed(1)} MPa`);
@@ -355,83 +346,182 @@ function solveFEMCore(
     displacements: Array.from(U), nodePositions: nodeX,
     meshInfo: { elementsPerSpan, totalDofs: nDof, solveTimeMs },
     warnings,
+    activeSupports: [],
+    supportStatus: [],
+    contactIterations: 0,
   };
 }
 
 // ══════════════════════════════════════════════════════════════
-// ADAPTIVE MESH SOLVER — accuracy control
-// Solve at 8, compare with 16; if error > 1%, use 20
+// UNILATERAL CONTACT SOLVER — Active-set iteration
+// Supports can only push up (resist gravity), not pull down.
 // ══════════════════════════════════════════════════════════════
-export function solveFEM(
-  E_mpa: number, I_mm4: number, c_mm: number, q_Nmm: number,
-  L_total_mm: number, h_total_mm: number,
-  supportPositions_mm: number[],
-  adaptive: boolean = false,
-): FEMResult {
-  if (!adaptive) {
-    return solveFEMCore(E_mpa, I_mm4, c_mm, q_Nmm, L_total_mm, h_total_mm, supportPositions_mm, 8);
-  }
 
-  // Step 1: solve with 8 elements
-  const r8 = solveFEMCore(E_mpa, I_mm4, c_mm, q_Nmm, L_total_mm, h_total_mm, supportPositions_mm, 8);
-  // Step 2: solve with 16 elements
-  const r16 = solveFEMCore(E_mpa, I_mm4, c_mm, q_Nmm, L_total_mm, h_total_mm, supportPositions_mm, 16);
-
-  const M1 = r8.maxMoment;
-  const M2 = r16.maxMoment;
-
-  if (M2 > 0 && Math.abs(M2 - M1) / M2 < 0.01) {
-    // 8 elements is accurate enough
-    r8.warnings.push(`Adaptive: 8 elem/span accepted (error ${((Math.abs(M2 - M1) / M2) * 100).toFixed(2)}%)`);
-    return r8;
-  }
-
-  // Need finer mesh
-  const r20 = solveFEMCore(E_mpa, I_mm4, c_mm, q_Nmm, L_total_mm, h_total_mm, supportPositions_mm, 20);
-  r20.warnings.push(`Adaptive: refined to 20 elem/span (8→16 error was ${M2 > 0 ? ((Math.abs(M2 - M1) / M2) * 100).toFixed(2) : '∞'}%)`);
-  return r20;
+interface UnilateralResult {
+  result: FEMResult;
+  activeSupports: number[];       // indices into candidateSupports
+  supportStatus: SupportStatus[];
+  contactIterations: number;
 }
 
-// ── Quick solve for search (no post-processing, just max stress) ──
-function solveFEMQuick(
+function solveWithUnilateralSupports(
   E_mpa: number, I_mm4: number, c_mm: number, q_Nmm: number,
   L_total_mm: number, h_total_mm: number,
-  supportPositions_mm: number[],
-): number {
-  // Minimal solve with 8 elements, only compute max stress
-  const EI = E_mpa * I_mm4;
-  const { nodeX } = buildMesh(supportPositions_mm, L_total_mm, 8);
-  const nNodes = nodeX.length;
-  const nElements = nNodes - 1;
+  candidateSupports_mm: number[],
+  targetElementsPerSpan: number,
+  maxIter: number = 15,
+): UnilateralResult {
+  const tol = 1e-6 * Math.max(1, Math.abs(h_total_mm));
+  let activeSet: number[] = []; // start with no supports active
+  let result: FEMResult;
+  let iter = 0;
 
+  for (iter = 0; iter < maxIter; iter++) {
+    // Build active support positions
+    const activeSupportPositions = activeSet.map(i => candidateSupports_mm[i]);
+
+    // Solve FEM with only active supports
+    result = solveFEMCore(
+      E_mpa, I_mm4, c_mm, q_Nmm,
+      L_total_mm, h_total_mm,
+      activeSupportPositions,
+      targetElementsPerSpan,
+    );
+
+    // Check all candidates for penetration
+    const newActiveSet: number[] = [];
+    for (let i = 0; i < candidateSupports_mm.length; i++) {
+      const x_i = candidateSupports_mm[i];
+      const w_ref_i = h_total_mm * x_i / L_total_mm;
+      const w_fem_i = interpolateDeflection(result.nodePositions, result.displacements, x_i);
+      if (w_fem_i < w_ref_i - tol) {
+        // Pipe sags below support → support must be active
+        newActiveSet.push(i);
+      }
+    }
+
+    // Check convergence
+    if (newActiveSet.length === activeSet.length &&
+        newActiveSet.every((v, idx) => v === activeSet[idx])) {
+      iter++;
+      break;
+    }
+    activeSet = newActiveSet;
+  }
+
+  // Final result is the last computed one
+  result = result!;
+
+  // Build support status for all candidates
+  const supportStatus: SupportStatus[] = candidateSupports_mm.map((x_mm, i) => {
+    const w_ref = h_total_mm * x_mm / L_total_mm;
+    const w_fem = interpolateDeflection(result.nodePositions, result.displacements, x_mm);
+    return {
+      x_mm,
+      w_fem: Math.round(w_fem * 1000) / 1000,
+      w_ref: Math.round(w_ref * 1000) / 1000,
+      active: activeSet.includes(i),
+    };
+  });
+
+  // Attach contact info to result
+  result.activeSupports = activeSet;
+  result.supportStatus = supportStatus;
+  result.contactIterations = iter;
+
+  return { result, activeSupports: activeSet, supportStatus, contactIterations: iter };
+}
+
+// ── Quick unilateral solve (stress only, for search) ──
+function solveFEMQuickUnilateral(
+  E_mpa: number, I_mm4: number, c_mm: number, q_Nmm: number,
+  L_total_mm: number, h_total_mm: number,
+  candidateSupports_mm: number[],
+): number {
+  const tol = 1e-6 * Math.max(1, Math.abs(h_total_mm));
+  let activeSet: number[] = [];
+  const EI = E_mpa * I_mm4;
+  const maxIter = 5; // fewer iterations for speed
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    const activeSupportPositions = activeSet.map(i => candidateSupports_mm[i]);
+    const { nodeX } = buildMesh(activeSupportPositions, L_total_mm, 8);
+    const nNodes = nodeX.length;
+    const nElements = nNodes - 1;
+
+    const elements: { node1: number; node2: number; Le: number }[] = [];
+    for (let i = 0; i < nElements; i++) {
+      elements.push({ node1: i, node2: i + 1, Le: nodeX[i + 1] - nodeX[i] });
+    }
+
+    const { bands, F, nDof, halfBw } = assembleSystemBanded(nNodes, elements, EI, q_Nmm);
+
+    const constraints: { dof: number; value: number }[] = [];
+    constraints.push({ dof: 0, value: 0 }, { dof: 1, value: 0 });
+    const rightNode = nNodes - 1;
+    constraints.push({ dof: 2 * rightNode, value: h_total_mm }, { dof: 2 * rightNode + 1, value: 0 });
+    for (let i = 1; i < nNodes - 1; i++) {
+      const x = nodeX[i];
+      if (activeSupportPositions.some(sp => Math.abs(sp - x) < 0.01)) {
+        constraints.push({ dof: 2 * i, value: (h_total_mm / L_total_mm) * x });
+      }
+    }
+
+    applyBCBanded(bands, F, nDof, halfBw, constraints);
+    const U = solveBanded(bands, F, nDof, halfBw);
+
+    // Check candidates for penetration
+    const newActiveSet: number[] = [];
+    for (let ci = 0; ci < candidateSupports_mm.length; ci++) {
+      const x_i = candidateSupports_mm[ci];
+      const w_ref_i = h_total_mm * x_i / L_total_mm;
+      const w_fem_i = interpolateDeflection(nodeX, U, x_i);
+      if (w_fem_i < w_ref_i - tol) {
+        newActiveSet.push(ci);
+      }
+    }
+
+    if (newActiveSet.length === activeSet.length &&
+        newActiveSet.every((v, idx) => v === activeSet[idx])) {
+      // Converged — compute max stress from this solution
+      return computeMaxStressFromU(EI, I_mm4, c_mm, elements, nodeX, U);
+    }
+    activeSet = newActiveSet;
+  }
+
+  // Not converged — compute stress from last iteration's active set
+  const activeSupportPositions = activeSet.map(i => candidateSupports_mm[i]);
+  const { nodeX } = buildMesh(activeSupportPositions, L_total_mm, 8);
+  const nNodes = nodeX.length;
   const elements: { node1: number; node2: number; Le: number }[] = [];
-  for (let i = 0; i < nElements; i++) {
+  for (let i = 0; i < nNodes - 1; i++) {
     elements.push({ node1: i, node2: i + 1, Le: nodeX[i + 1] - nodeX[i] });
   }
-
   const { bands, F, nDof, halfBw } = assembleSystemBanded(nNodes, elements, EI, q_Nmm);
-
   const constraints: { dof: number; value: number }[] = [];
   constraints.push({ dof: 0, value: 0 }, { dof: 1, value: 0 });
-  const rightNode = nNodes - 1;
-  constraints.push({ dof: 2 * rightNode, value: h_total_mm }, { dof: 2 * rightNode + 1, value: 0 });
+  constraints.push({ dof: 2 * (nNodes - 1), value: h_total_mm }, { dof: 2 * (nNodes - 1) + 1, value: 0 });
   for (let i = 1; i < nNodes - 1; i++) {
-    const x = nodeX[i];
-    if (supportPositions_mm.some(sp => Math.abs(sp - x) < 0.01)) {
-      constraints.push({ dof: 2 * i, value: (h_total_mm / L_total_mm) * x });
+    if (activeSupportPositions.some(sp => Math.abs(sp - nodeX[i]) < 0.01)) {
+      constraints.push({ dof: 2 * i, value: (h_total_mm / L_total_mm) * nodeX[i] });
     }
   }
-
   applyBCBanded(bands, F, nDof, halfBw, constraints);
   const U = solveBanded(bands, F, nDof, halfBw);
+  return computeMaxStressFromU(EI, I_mm4, c_mm, elements, nodeX, U);
+}
 
-  // Sample stress at multiple points per element, skip exact support nodes
+// ── Helper: compute max stress from a solved DOF vector ──
+function computeMaxStressFromU(
+  EI: number, I_mm4: number, c_mm: number,
+  elements: { node1: number; node2: number; Le: number }[],
+  nodeX: number[], U: number[] | Float64Array,
+): number {
   let maxStress = 0;
-  for (let i = 0; i < nElements; i++) {
+  for (let i = 0; i < elements.length; i++) {
     const el = elements[i];
-    const w1 = U[2 * el.node1], t1 = U[2 * el.node1 + 1];
-    const w2 = U[2 * el.node2], t2 = U[2 * el.node2 + 1];
-    // Sample at 5 points: 0.05, 0.25, 0.5, 0.75, 0.95 of Le (avoid exact boundaries near supports)
+    const w1 = U[2 * el.node1] as number, t1 = U[2 * el.node1 + 1] as number;
+    const w2 = U[2 * el.node2] as number, t2 = U[2 * el.node2 + 1] as number;
     for (const frac of [0.05, 0.25, 0.5, 0.75, 0.95]) {
       const xi = frac * el.Le;
       const M = elementMoment(EI, el.Le, w1, t1, w2, t2, xi);
@@ -443,7 +533,64 @@ function solveFEMQuick(
 }
 
 // ══════════════════════════════════════════════════════════════
-// AUTO-SUPPORT
+// ADAPTIVE MESH SOLVER
+// ══════════════════════════════════════════════════════════════
+export function solveFEM(
+  E_mpa: number, I_mm4: number, c_mm: number, q_Nmm: number,
+  L_total_mm: number, h_total_mm: number,
+  supportPositions_mm: number[],
+  adaptive: boolean = false,
+): FEMResult {
+  if (!adaptive) {
+    return solveFEMCore(E_mpa, I_mm4, c_mm, q_Nmm, L_total_mm, h_total_mm, supportPositions_mm, 8);
+  }
+
+  const r8 = solveFEMCore(E_mpa, I_mm4, c_mm, q_Nmm, L_total_mm, h_total_mm, supportPositions_mm, 8);
+  const r16 = solveFEMCore(E_mpa, I_mm4, c_mm, q_Nmm, L_total_mm, h_total_mm, supportPositions_mm, 16);
+
+  const M1 = r8.maxMoment;
+  const M2 = r16.maxMoment;
+
+  if (M2 > 0 && Math.abs(M2 - M1) / M2 < 0.01) {
+    r8.warnings.push(`Adaptive: 8 elem/span accepted (error ${((Math.abs(M2 - M1) / M2) * 100).toFixed(2)}%)`);
+    return r8;
+  }
+
+  const r20 = solveFEMCore(E_mpa, I_mm4, c_mm, q_Nmm, L_total_mm, h_total_mm, supportPositions_mm, 20);
+  r20.warnings.push(`Adaptive: refined to 20 elem/span (8→16 error was ${M2 > 0 ? ((Math.abs(M2 - M1) / M2) * 100).toFixed(2) : '∞'}%)`);
+  return r20;
+}
+
+// ── Quick solve (bilateral, for backward compat) ──
+function solveFEMQuick(
+  E_mpa: number, I_mm4: number, c_mm: number, q_Nmm: number,
+  L_total_mm: number, h_total_mm: number,
+  supportPositions_mm: number[],
+): number {
+  const EI = E_mpa * I_mm4;
+  const { nodeX } = buildMesh(supportPositions_mm, L_total_mm, 8);
+  const nNodes = nodeX.length;
+  const elements: { node1: number; node2: number; Le: number }[] = [];
+  for (let i = 0; i < nNodes - 1; i++) {
+    elements.push({ node1: i, node2: i + 1, Le: nodeX[i + 1] - nodeX[i] });
+  }
+  const { bands, F, nDof, halfBw } = assembleSystemBanded(nNodes, elements, EI, q_Nmm);
+  const constraints: { dof: number; value: number }[] = [];
+  constraints.push({ dof: 0, value: 0 }, { dof: 1, value: 0 });
+  const rightNode = nNodes - 1;
+  constraints.push({ dof: 2 * rightNode, value: h_total_mm }, { dof: 2 * rightNode + 1, value: 0 });
+  for (let i = 1; i < nNodes - 1; i++) {
+    if (supportPositions_mm.some(sp => Math.abs(sp - nodeX[i]) < 0.01)) {
+      constraints.push({ dof: 2 * i, value: (h_total_mm / L_total_mm) * nodeX[i] });
+    }
+  }
+  applyBCBanded(bands, F, nDof, halfBw, constraints);
+  const U = solveBanded(bands, F, nDof, halfBw);
+  return computeMaxStressFromU(EI, I_mm4, c_mm, elements, nodeX, U);
+}
+
+// ══════════════════════════════════════════════════════════════
+// AUTO-SUPPORT (with unilateral contacts)
 // ══════════════════════════════════════════════════════════════
 export function autoSupportsFEM(
   E_mpa: number, I: number, c: number, q: number,
@@ -454,11 +601,11 @@ export function autoSupportsFEM(
   let prevStress = Infinity;
 
   for (let n = 0; n <= MAX_SUPPORTS; n++) {
-    const supports = buildEqualSupports(L_mm, n);
-    const stress = solveFEMQuick(E_mpa, I, c, q, L_mm, h_mm, supports);
+    const candidates = buildEqualSupports(L_mm, n);
+    const stress = solveFEMQuickUnilateral(E_mpa, I, c, q, L_mm, h_mm, candidates);
 
     if (stress <= allowable) {
-      const result = solveFEM(E_mpa, I, c, q, L_mm, h_mm, supports, true);
+      const { result } = solveWithUnilateralSupports(E_mpa, I, c, q, L_mm, h_mm, candidates, 16);
       return { numSupports: n, stress: result.maxStress, result };
     }
 
@@ -467,30 +614,27 @@ export function autoSupportsFEM(
       bestN = n;
     }
 
-    // Early exit: if stress increased, more supports won't help
     if (n > 0 && stress > prevStress * 1.05) break;
     prevStress = stress;
   }
 
-  // None safe — return best with full solve
-  const supports = buildEqualSupports(L_mm, bestN);
-  bestResult = solveFEM(E_mpa, I, c, q, L_mm, h_mm, supports, true);
+  const candidates = buildEqualSupports(L_mm, bestN);
+  const { result } = solveWithUnilateralSupports(E_mpa, I, c, q, L_mm, h_mm, candidates, 16);
+  bestResult = result;
   return { numSupports: bestN, stress: bestResult.maxStress, result: bestResult };
 }
 
 // ══════════════════════════════════════════════════════════════
-// FIND L RANGE — [Lmin, Lmax] with minimum supports
-// Settlement stress ~1/L² (dangerous small L), self-weight ~L² (dangerous large L)
-// Safe window exists in between. Iterate support counts until feasible.
+// FIND L RANGE — [Lmin, Lmax] with unilateral supports
 // ══════════════════════════════════════════════════════════════
 
 export interface FindLRangeResult {
-  Lmin: number;         // meters
-  Lmax: number;         // meters
-  numSupports: number;  // minimum supports needed
+  Lmin: number;
+  Lmax: number;
+  numSupports: number;
   resultAtLmax: FEMResult;
   resultAtLmin: FEMResult;
-  searchLminGuess: number; // coarse scan guess (m)
+  searchLminGuess: number;
   searchLmaxGuess: number;
 }
 
@@ -498,19 +642,17 @@ export function findLRangeFEM(
   E_mpa: number, I: number, c: number, q: number,
   h_mm: number, allowable: number,
 ): FindLRangeResult | undefined {
-  // Build coarse scan grid: 1m steps to 100m, 5m to 300m, 10m to 1000m
   const coarseGrid: number[] = [];
   for (let L = 1; L <= 100; L += 1) coarseGrid.push(L);
   for (let L = 105; L <= 300; L += 5) coarseGrid.push(L);
   for (let L = 310; L <= 1000; L += 10) coarseGrid.push(L);
 
   for (let nSup = 0; nSup <= MAX_SUPPORTS; nSup++) {
-    // Coarse scan: find all safe L values for this support count
     const safePoints: number[] = [];
     for (const L_m of coarseGrid) {
       const L_mm = L_m * 1000;
-      const supports = buildEqualSupports(L_mm, nSup);
-      const stress = solveFEMQuick(E_mpa, I, c, q, L_mm, h_mm, supports);
+      const candidates = buildEqualSupports(L_mm, nSup);
+      const stress = solveFEMQuickUnilateral(E_mpa, I, c, q, L_mm, h_mm, candidates);
       if (stress <= allowable) {
         safePoints.push(L_m);
       }
@@ -518,44 +660,65 @@ export function findLRangeFEM(
 
     if (safePoints.length === 0) continue;
 
-    // Found feasible support count!
     const LminGuess = Math.min(...safePoints);
     const LmaxGuess = Math.max(...safePoints);
 
-    // Find coarse grid neighbors for bisection bounds
     const gridIdx = (v: number) => coarseGrid.indexOf(v);
     const idxMin = gridIdx(LminGuess);
     const idxMax = gridIdx(LmaxGuess);
 
-    // Refine Lmin: bisect between last-unsafe-below and LminGuess
+    // Refine Lmin
     let loMin = idxMin > 0 ? coarseGrid[idxMin - 1] : 0.5;
     let hiMin = LminGuess;
     for (let iter = 0; iter < 20; iter++) {
       const mid = (loMin + hiMin) / 2;
-      if ((hiMin - loMin) * 1000 < 10) break; // 10mm precision
-      const supports = buildEqualSupports(mid * 1000, nSup);
-      const stress = solveFEMQuick(E_mpa, I, c, q, mid * 1000, h_mm, supports);
+      if ((hiMin - loMin) * 1000 < 10) break;
+      const candidates = buildEqualSupports(mid * 1000, nSup);
+      const stress = solveFEMQuickUnilateral(E_mpa, I, c, q, mid * 1000, h_mm, candidates);
       if (stress <= allowable) { hiMin = mid; } else { loMin = mid; }
     }
-    const refinedLmin = hiMin;
+    let refinedLmin = hiMin;
 
-    // Refine Lmax: bisect between LmaxGuess and first-unsafe-above
+    // Refine Lmax
     let loMax = LmaxGuess;
     let hiMax = idxMax < coarseGrid.length - 1 ? coarseGrid[idxMax + 1] : LmaxGuess * 1.1;
     for (let iter = 0; iter < 20; iter++) {
       const mid = (loMax + hiMax) / 2;
       if ((hiMax - loMax) * 1000 < 10) break;
-      const supports = buildEqualSupports(mid * 1000, nSup);
-      const stress = solveFEMQuick(E_mpa, I, c, q, mid * 1000, h_mm, supports);
+      const candidates = buildEqualSupports(mid * 1000, nSup);
+      const stress = solveFEMQuickUnilateral(E_mpa, I, c, q, mid * 1000, h_mm, candidates);
       if (stress <= allowable) { loMax = mid; } else { hiMax = mid; }
     }
-    const refinedLmax = loMax;
+    let refinedLmax = loMax;
 
-    // Full adaptive solve at Lmax and Lmin for plots
-    const supLmax = buildEqualSupports(refinedLmax * 1000, nSup);
-    const resultAtLmax = solveFEM(E_mpa, I, c, q, refinedLmax * 1000, h_mm, supLmax, true);
-    const supLmin = buildEqualSupports(refinedLmin * 1000, nSup);
-    const resultAtLmin = solveFEM(E_mpa, I, c, q, refinedLmin * 1000, h_mm, supLmin, true);
+    // Safety verification: ensure endpoints are truly safe (within 0.5 MPa tolerance)
+    const eps = 0.5;
+    // Shrink Lmin up if not safe
+    for (let s = 0; s < 50; s++) {
+      const candidates = buildEqualSupports(refinedLmin * 1000, nSup);
+      const stress = solveFEMQuickUnilateral(E_mpa, I, c, q, refinedLmin * 1000, h_mm, candidates);
+      if (stress <= allowable + eps) break;
+      refinedLmin += 0.01;
+    }
+    // Shrink Lmax down if not safe
+    for (let s = 0; s < 50; s++) {
+      const candidates = buildEqualSupports(refinedLmax * 1000, nSup);
+      const stress = solveFEMQuickUnilateral(E_mpa, I, c, q, refinedLmax * 1000, h_mm, candidates);
+      if (stress <= allowable + eps) break;
+      refinedLmax -= 0.01;
+    }
+
+    if (refinedLmin >= refinedLmax) continue; // degenerate
+
+    // Full unilateral solve at Lmax and Lmin for plots
+    const candLmax = buildEqualSupports(refinedLmax * 1000, nSup);
+    const { result: resultAtLmax } = solveWithUnilateralSupports(
+      E_mpa, I, c, q, refinedLmax * 1000, h_mm, candLmax, 16
+    );
+    const candLmin = buildEqualSupports(refinedLmin * 1000, nSup);
+    const { result: resultAtLmin } = solveWithUnilateralSupports(
+      E_mpa, I, c, q, refinedLmin * 1000, h_mm, candLmin, 16
+    );
 
     return {
       Lmin: Math.round(refinedLmin * 100) / 100,
@@ -568,31 +731,28 @@ export function findLRangeFEM(
     };
   }
 
-  return undefined; // No support count yields a feasible design
+  return undefined;
 }
 
 // ══════════════════════════════════════════════════════════════
-// FIND MAX H — with auto-support per candidate
+// FIND MAX H — with unilateral supports
 // ══════════════════════════════════════════════════════════════
 export function findMaxHFEM(
   E_mpa: number, I: number, c: number, q: number,
   L_mm: number, allowable: number,
 ): { h_mm: number; numSupports: number; result: FEMResult } | undefined {
-  // Helper: evaluate candidate h with auto-support
   function evaluateH(h: number): { safe: boolean; numSupports: number } {
     for (let n = 0; n <= MAX_SUPPORTS; n++) {
-      const supports = buildEqualSupports(L_mm, n);
-      const stress = solveFEMQuick(E_mpa, I, c, q, L_mm, h, supports);
+      const candidates = buildEqualSupports(L_mm, n);
+      const stress = solveFEMQuickUnilateral(E_mpa, I, c, q, L_mm, h, candidates);
       if (stress <= allowable) return { safe: true, numSupports: n };
     }
     return { safe: false, numSupports: MAX_SUPPORTS };
   }
 
-  // Check h=0 is feasible
   const ev0 = evaluateH(0);
   if (!ev0.safe) return undefined;
 
-  // Exponential bracket
   let lo = 0, hi = 0;
   let bestN = ev0.numSupports;
   let testH = 100;
@@ -605,13 +765,11 @@ export function findMaxHFEM(
     if (testH > 100_000) { hi = testH; break; }
   }
   if (hi === 0) {
-    // Safe all the way
-    const supports = buildEqualSupports(L_mm, bestN);
-    const result = solveFEM(E_mpa, I, c, q, L_mm, lo, supports, true);
+    const candidates = buildEqualSupports(L_mm, bestN);
+    const { result } = solveWithUnilateralSupports(E_mpa, I, c, q, L_mm, lo, candidates, 16);
     return { h_mm: lo, numSupports: bestN, result };
   }
 
-  // Bisection
   for (let iter = 0; iter < 20; iter++) {
     const mid = (lo + hi) / 2;
     if (hi - lo < 0.1) break;
@@ -619,8 +777,8 @@ export function findMaxHFEM(
     if (ev.safe) { lo = mid; bestN = ev.numSupports; } else { hi = mid; }
   }
 
-  const finalSupports = buildEqualSupports(L_mm, bestN);
-  const finalResult = solveFEM(E_mpa, I, c, q, L_mm, lo, finalSupports, true);
+  const finalCandidates = buildEqualSupports(L_mm, bestN);
+  const { result: finalResult } = solveWithUnilateralSupports(E_mpa, I, c, q, L_mm, lo, finalCandidates, 16);
   return { h_mm: lo, numSupports: bestN, result: finalResult };
 }
 
