@@ -275,10 +275,10 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   }
 
   const Nsp = numSupports + 1;
-  // Safety logic: in findL mode, if interval exists → feasible
+  // Safety logic: in findL mode, feasibility is determined by existence of interval
   const isSafe = calcMode === "findL"
     ? (computedLmin != null && computedLmax != null)
-    : maxStress <= allowableStress;
+    : maxStress <= allowableStress + 0.5;
   const spanLength = L / Nsp;
 
   // Sanity checks

@@ -26,10 +26,16 @@ const ResultsPanel = ({ results }: Props) => {
         {/* Safety Badge */}
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">Safety Status</span>
-          {calcMode === "findL" && computedLmin != null && computedLmax != null ? (
-            <Badge className="bg-safe text-safe-foreground hover:bg-safe/90">
-              <CircleCheck className="h-3 w-3 mr-1" /> FEASIBLE
-            </Badge>
+          {calcMode === "findL" ? (
+            computedLmin != null && computedLmax != null ? (
+              <Badge className="bg-safe text-safe-foreground hover:bg-safe/90">
+                <CircleCheck className="h-3 w-3 mr-1" /> FEASIBLE WINDOW FOUND
+              </Badge>
+            ) : (
+              <Badge className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                <CircleX className="h-3 w-3 mr-1" /> NO SOLUTION
+              </Badge>
+            )
           ) : (
             <Badge className={isSafe
               ? "bg-safe text-safe-foreground hover:bg-safe/90"
@@ -96,7 +102,7 @@ const ResultsPanel = ({ results }: Props) => {
           <Alert variant="destructive" className="py-2">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription className="text-xs">
-              No admissible length for these parameters
+              No solution up to {20} supports
             </AlertDescription>
           </Alert>
         )}
