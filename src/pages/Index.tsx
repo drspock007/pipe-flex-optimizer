@@ -6,6 +6,7 @@ import AllowableStressCard from "@/components/AllowableStressCard";
 import LoadCard from "@/components/LoadCard";
 import ResultsPanel from "@/components/ResultsPanel";
 import StressChart from "@/components/StressChart";
+import DebugPanel from "@/components/DebugPanel";
 import { calculate, PipeInputs } from "@/lib/calculations";
 
 const Index = () => {
@@ -65,6 +66,7 @@ const Index = () => {
           <div className="lg:col-span-2 space-y-4">
             <StressChart results={results} />
             <ResultsPanel results={results} />
+            <DebugPanel debug={results.debug} />
           </div>
         </div>
       </main>
