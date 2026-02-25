@@ -35,11 +35,15 @@ const StressChart = ({ results }: Props) => {
                 dataKey="x"
                 label={{ value: "Position (m)", position: "insideBottom", offset: -10, fontSize: 11 }}
                 tick={{ fontSize: 10 }}
+                allowDecimals={false}
+                tickFormatter={(v: number) => Math.round(v).toString()}
               />
               <YAxis
                 domain={[0, maxY]}
                 label={{ value: "Stress (MPa)", angle: -90, position: "insideLeft", offset: 5, fontSize: 11 }}
                 tick={{ fontSize: 10 }}
+                allowDecimals={false}
+                tickFormatter={(v: number) => Math.round(v).toString()}
               />
               <Tooltip
                 contentStyle={{
