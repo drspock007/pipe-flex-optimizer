@@ -1,8 +1,9 @@
-import { Activity } from "lucide-react";
+import { Activity, HelpCircle } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Header = () => (
   <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50">
-    <div className="container flex h-14 items-center gap-3 px-4">
+    <div className="container flex h-14 items-center justify-between px-4">
       <div className="flex items-center gap-2">
         <div className="rounded-lg bg-primary p-1.5">
           <Activity className="h-5 w-5 text-primary-foreground" />
@@ -12,6 +13,9 @@ const Header = () => (
           <p className="text-[10px] text-muted-foreground font-medium tracking-widest uppercase">Flexibility Optimizer</p>
         </div>
       </div>
+      <Link to="/help" className="text-muted-foreground hover:text-foreground transition-colors" title="Help">
+        <HelpCircle className="h-5 w-5" />
+      </Link>
     </div>
   </header>
 );
