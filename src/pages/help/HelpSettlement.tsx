@@ -16,9 +16,7 @@ const HelpSettlement = () => (
       the right end (h<sub>fem</sub>):
     </p>
 
-    <FormulaBlock label="Reference elevation at position x">
-      w<sub>ref</sub>(x) = h<sub>fem</sub> · x / L
-    </FormulaBlock>
+    <FormulaBlock tex="w_{\text{ref}}(x) = \frac{h_{\text{fem}} \cdot x}{L}" label="Reference elevation at position x" />
 
     <p className="text-sm text-muted-foreground leading-relaxed">
       This reference line is critical for the <strong>unilateral support model</strong>: intermediate supports
@@ -30,9 +28,7 @@ const HelpSettlement = () => (
       For a fixed-fixed beam with imposed settlement h and no distributed load, the end moment is:
     </p>
 
-    <FormulaBlock label="Settlement-induced moment (analytical)">
-      M<sub>settlement</sub> = 6 · E · I · |h| / L²
-    </FormulaBlock>
+    <FormulaBlock tex="M_{\text{settlement}} = \frac{6 \, E \, I \, |h|}{L^2}" label="Settlement-induced moment (analytical)" />
   </section>
 );
 

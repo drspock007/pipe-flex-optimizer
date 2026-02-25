@@ -10,9 +10,7 @@ const HelpLoading = () => (
       along the entire span. This load can be toggled on/off by the user.
     </p>
 
-    <FormulaBlock label="Distributed load (self-weight)">
-      q = ρ · g · A &nbsp; [N/mm]
-    </FormulaBlock>
+    <FormulaBlock tex="q = \rho \cdot g \cdot A \quad [\text{N/mm}]" label="Distributed load (self-weight)" />
 
     <p className="text-sm text-muted-foreground leading-relaxed">
       Where g = 9.81 m/s² is the gravitational acceleration, ρ is the steel density in kg/m³, and A is the
@@ -23,9 +21,10 @@ const HelpLoading = () => (
       The consistent load vector for a beam element of length L<sub>e</sub> under UDL q is:
     </p>
 
-    <FormulaBlock label="Element load vector">
-      f<sub>e</sub> = [ qL/2, &nbsp; qL²/12, &nbsp; qL/2, &nbsp; −qL²/12 ]
-    </FormulaBlock>
+    <FormulaBlock
+      tex="\mathbf{f}_e = \begin{bmatrix} \dfrac{qL}{2} \\[6pt] \dfrac{qL^2}{12} \\[6pt] \dfrac{qL}{2} \\[6pt] -\dfrac{qL^2}{12} \end{bmatrix}"
+      label="Element load vector"
+    />
   </section>
 );
 

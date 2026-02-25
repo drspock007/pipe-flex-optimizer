@@ -10,9 +10,10 @@ const HelpSafetyCriteria = () => (
       <strong> safe</strong> if:
     </p>
 
-    <FormulaBlock label="Safety criterion">
-      σ<sub>max</sub> ≤ σ<sub>allowable</sub> + 0.5 MPa
-    </FormulaBlock>
+    <FormulaBlock
+      tex="\sigma_{\max} \leq \sigma_{\text{allow}} + 0.5 \; \text{MPa}"
+      label="Safety criterion"
+    />
 
     <p className="text-sm text-muted-foreground leading-relaxed">
       Where:
