@@ -292,7 +292,8 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   const supports_mm = buildEqualSupports(L_mm, numSupports);
   supportPositions = supports_mm.map(x => x / 1000);
 
-  if (stressData.length === 0) {
+  // Fallback solve only for standard/findH — never for findL (which uses L_plot from the search)
+  if (stressData.length === 0 && calcMode !== "findL") {
     const result = solveFEM(E_mpa, section.I, section.c, q_Nmm, L_mm, h, supports_mm, true);
     maxStress = result.maxStress;
     maxMoment = result.maxMoment;
@@ -307,8 +308,9 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
 
   const Nsp = numSupports + 1;
   const hasWindow = computedLmin != null && computedLmax != null;
-  const isSafeNow = maxStress <= allowableStress + 0.5;
-  const isSafe = calcMode === "findL" ? hasWindow : isSafeNow;
+  const isSafeNow = isFinite(maxStress) && maxStress <= allowableStress + 0.5;
+  // FindL: both window must exist AND displayed stress must be safe
+  const isSafe = calcMode === "findL" ? (hasWindow && isSafeNow) : isSafeNow;
   const spanLength = L / Nsp;
 
   // Sanity checks (use abs(h) for theory comparisons)
