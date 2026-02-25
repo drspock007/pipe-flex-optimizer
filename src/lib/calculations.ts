@@ -80,6 +80,8 @@ export interface CalculationResults {
   q: number;                 // N/mm
   maxStress: number;
   isSafe: boolean;
+  hasWindow: boolean;        // FindL: whether [Lmin,Lmax] window exists
+  isSafeNow: boolean;        // whether displayed maxStress <= allowable
   numSupports: number;
   spanLength: number;        // m
   governingSpan: number;
@@ -304,9 +306,9 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   }
 
   const Nsp = numSupports + 1;
-  const isSafe = calcMode === "findL"
-    ? (computedLmin != null && computedLmax != null)
-    : maxStress <= allowableStress + 0.5;
+  const hasWindow = computedLmin != null && computedLmax != null;
+  const isSafeNow = maxStress <= allowableStress + 0.5;
+  const isSafe = calcMode === "findL" ? hasWindow : isSafeNow;
   const spanLength = L / Nsp;
 
   // Sanity checks (use abs(h) for theory comparisons)
@@ -365,6 +367,7 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
 
   return {
     section, yieldStrength, allowableStress, q: q_Nmm, maxStress, isSafe,
+    hasWindow, isSafeNow,
     numSupports, spanLength, governingSpan: 0, stressData, deflectionData,
     supportPositions, calcMode, computedLmin, computedLmax, computedH,
     supportStatus, activeSupports,
