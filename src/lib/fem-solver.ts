@@ -560,13 +560,14 @@ export function autoSupportsFEM(
 // ══════════════════════════════════════════════════════════════
 // FIND L RANGE — [Lmin, Lmax] with unilateral supports
 // Uses evaluateCandidate as single source of truth.
+// Seeded with settlement-only estimate for faster bracketing.
 // ══════════════════════════════════════════════════════════════
 
 export interface FindLRangeResult {
   Lmin: number;
   Lmax: number;
   numSupports: number;
-  resultAtMid: FEMResult;       // full result at L_plot = (Lmin+Lmax)/2
+  resultAtMid: FEMResult;       // full result at L_plot = clamp(midpoint, [Lmin,Lmax])
   resultAtLmin: FEMResult;
   L_plot: number;               // display L = midpoint
   stressAtLmin: number;
@@ -580,10 +581,36 @@ export function findLRangeFEM(
   E_mpa: number, I: number, c: number, q: number,
   h_fem_mm: number, allowable: number,
 ): FindLRangeResult | undefined {
+  // Seed: settlement-only estimate L_seed = sqrt(6*E*c*|h|/allowable) (mm -> m)
+  const h_abs = Math.abs(h_fem_mm);
+  let L_seed_mm = h_abs > 0 && allowable > 0
+    ? Math.sqrt(6 * E_mpa * c * h_abs / allowable)
+    : 0;
+  const L_seed_m = L_seed_mm / 1000;
+
+  // Build coarse grid centered around seed
   const coarseGrid: number[] = [];
-  for (let L = 1; L <= 100; L += 1) coarseGrid.push(L);
-  for (let L = 105; L <= 300; L += 5) coarseGrid.push(L);
-  for (let L = 310; L <= 1000; L += 10) coarseGrid.push(L);
+  if (L_seed_m > 5) {
+    const lo = Math.max(1, Math.floor(L_seed_m * 0.3));
+    const hi = Math.ceil(L_seed_m * 3);
+    for (let L = lo; L <= Math.min(hi, 100); L += 1) coarseGrid.push(L);
+    for (let L = Math.max(105, lo); L <= Math.min(hi, 300); L += 5) {
+      if (!coarseGrid.includes(L)) coarseGrid.push(L);
+    }
+    for (let L = Math.max(310, lo); L <= Math.min(hi, 1000); L += 10) {
+      if (!coarseGrid.includes(L)) coarseGrid.push(L);
+    }
+    const maxGrid = Math.max(...coarseGrid);
+    if (maxGrid < 1000) {
+      for (let L = maxGrid + 10; L <= 1000; L += 10) coarseGrid.push(L);
+    }
+    for (let L = 1; L < lo; L += 1) coarseGrid.unshift(L);
+  } else {
+    for (let L = 1; L <= 100; L += 1) coarseGrid.push(L);
+    for (let L = 105; L <= 300; L += 5) coarseGrid.push(L);
+    for (let L = 310; L <= 1000; L += 10) coarseGrid.push(L);
+  }
+  coarseGrid.sort((a, b) => a - b);
 
   for (let nSup = 0; nSup <= MAX_SUPPORTS; nSup++) {
     const safePoints: number[] = [];
@@ -640,8 +667,8 @@ export function findLRangeFEM(
 
     if (refinedLmin >= refinedLmax) continue;
 
-    // Compute results at midpoint, Lmin, and Lmax
-    const L_plot = (refinedLmin + refinedLmax) / 2;
+    // Compute representative results at clamped midpoint
+    const L_plot = Math.max(refinedLmin, Math.min(refinedLmax, (refinedLmin + refinedLmax) / 2));
     const evMid = evaluateCandidate(E_mpa, I, c, q, L_plot, h_fem_mm, nSup, allowable);
     const evLmin = evaluateCandidate(E_mpa, I, c, q, refinedLmin, h_fem_mm, nSup, allowable);
     const evLmax = evaluateCandidate(E_mpa, I, c, q, refinedLmax, h_fem_mm, nSup, allowable);

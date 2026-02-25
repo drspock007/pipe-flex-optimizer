@@ -9,7 +9,7 @@ interface Props {
 }
 
 const ResultsPanel = ({ results }: Props) => {
-  const { maxStress, allowableStress, isSafe, numSupports, spanLength, section,
+  const { maxStress, allowableStress, isSafeNow, hasWindow, numSupports, spanLength, section,
           computedLmin, computedLmax, computedH, calcMode, supportStatus, L_plot } = results;
   const ratio = maxStress / allowableStress;
 
@@ -24,28 +24,38 @@ const ResultsPanel = ({ results }: Props) => {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Safety Badge */}
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium">Safety Status</span>
-          {calcMode === "findL" ? (
-            computedLmin != null && computedLmax != null ? (
-              <Badge className="bg-safe text-safe-foreground hover:bg-safe/90">
-                <CircleCheck className="h-3 w-3 mr-1" /> FEASIBLE WINDOW FOUND
-              </Badge>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Safety Status</span>
+            {calcMode === "findL" ? (
+              hasWindow ? (
+                <Badge className="bg-safe text-safe-foreground hover:bg-safe/90">
+                  <CircleCheck className="h-3 w-3 mr-1" /> FEASIBLE WINDOW FOUND
+                </Badge>
+              ) : (
+                <Badge className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  <CircleX className="h-3 w-3 mr-1" /> NO SOLUTION
+                </Badge>
+              )
             ) : (
-              <Badge className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                <CircleX className="h-3 w-3 mr-1" /> NO SOLUTION
+              <Badge className={isSafeNow
+                ? "bg-safe text-safe-foreground hover:bg-safe/90"
+                : "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              }>
+                {isSafeNow
+                  ? <><CircleCheck className="h-3 w-3 mr-1" /> SAFE</>
+                  : <><CircleX className="h-3 w-3 mr-1" /> NOT SAFE</>
+                }
               </Badge>
-            )
-          ) : (
-            <Badge className={isSafe
-              ? "bg-safe text-safe-foreground hover:bg-safe/90"
-              : "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            }>
-              {isSafe
-                ? <><CircleCheck className="h-3 w-3 mr-1" /> SAFE</>
-                : <><CircleX className="h-3 w-3 mr-1" /> NOT SAFE</>
-              }
-            </Badge>
+            )}
+          </div>
+          {/* Separate stress safety indicator for FindL */}
+          {calcMode === "findL" && hasWindow && !isSafeNow && (
+            <div className="flex items-center justify-end">
+              <Badge className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-[9px]">
+                <AlertTriangle className="h-2.5 w-2.5 mr-1" /> Display stress exceeds allowable
+              </Badge>
+            </div>
           )}
         </div>
 
@@ -53,7 +63,7 @@ const ResultsPanel = ({ results }: Props) => {
         <div className="space-y-2">
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">Max Stress</span>
-            <span className="font-mono font-semibold">{maxStress.toFixed(1)} MPa</span>
+            <span className={`font-mono font-semibold ${!isSafeNow ? "text-destructive" : ""}`}>{maxStress.toFixed(1)} MPa</span>
           </div>
           {calcMode === "findL" && L_plot != null && (
             <p className="text-[9px] text-muted-foreground italic">Shown at L = {L_plot.toFixed(2)} m (midpoint)</p>
@@ -64,7 +74,7 @@ const ResultsPanel = ({ results }: Props) => {
           </div>
           <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-500 ${isSafe ? 'bg-safe' : 'bg-destructive'}`}
+              className={`h-full rounded-full transition-all duration-500 ${isSafeNow ? 'bg-safe' : 'bg-destructive'}`}
               style={{ width: `${Math.min(ratio * 100, 100)}%` }}
             />
           </div>
@@ -72,7 +82,7 @@ const ResultsPanel = ({ results }: Props) => {
         </div>
 
         {/* Computed values (reverse modes) */}
-        {calcMode === "findL" && computedLmin != null && computedLmax != null && (
+        {calcMode === "findL" && hasWindow && computedLmin != null && computedLmax != null && (
           <div className="rounded-md border border-primary bg-primary/10 p-2.5 space-y-1">
             <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Admissible Length Range</p>
             <div className="flex items-baseline gap-3">
@@ -105,7 +115,7 @@ const ResultsPanel = ({ results }: Props) => {
             )}
           </div>
         )}
-        {calcMode === "findL" && computedLmin == null && (
+        {calcMode === "findL" && !hasWindow && (
           <Alert variant="destructive" className="py-2">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription className="text-xs">
