@@ -1,95 +1,79 @@
 
 
-## Plan : Page d'aide détaillée (Help & Documentation)
+## Plan : Remplacement des formules HTML par KaTeX
 
 ### Objectif
-Créer une page `/help` exhaustive décrivant le fonctionnement du SaaS, les méthodes de calcul, les hypothèses et les formules utilisées. Accessible depuis la page principale via un lien dans le Header.
+Remplacer le rendu des formules fait en HTML/CSS brut par **KaTeX**, la bibliothèque de rendu LaTeX côté client, pour un rendu scientifique professionnel avec de vraies fractions, exposants, indices et symboles grecs.
 
-### Structure de la page d'aide
+### Dépendance à ajouter
+- `katex` (package npm) — rendu LaTeX rapide côté client (~28 kB gzipped)
 
-La page sera divisée en sections claires avec navigation interne (ancres) :
-
-1. **Introduction** — Objectif de l'outil, cas d'usage (pipeline flexibility / settlement analysis)
-2. **Données d'entrée** — Description de chaque paramètre (D₀, t, L, h, grade, E, ρ, allowable %)
-3. **Propriétés de section** — Formules : A, I, c, poids linéique
-4. **Modèle mécanique** — Poutre Euler-Bernoulli encastrée-encastrée, convention de signes
-5. **Chargement** — Poids propre q = ρ·g·A, convention w positif vers le bas
-6. **Tassement différentiel** — Modèle h, ligne de référence w_ref(x) = h·x/L
-7. **Supports intermédiaires** — Modèle unilatéral (hoists/sidebooms), algorithme active-set
-8. **Méthode des éléments finis** — Matrice de rigidité poutre, solveur LDLT bandé, maillage adaptatif
-9. **Modes de calcul** :
-   - Standard (auto supports)
-   - Find L (fenêtre admissible Lmin–Lmax + Lopt par section dorée)
-   - Find H (tassement max par bisection)
-10. **Critère de sécurité** — σ = |M|·c / I ≤ allowable + 0.5 MPa (buffer numérique)
-11. **Validation** — Comparaisons analytiques (qL²/12, 6EIh/L²)
-12. **Limites et hypothèses** — Linéaire élastique, petites déformations, pas de flambement, etc.
-
-### Formules clés à inclure (rendues en HTML/CSS, pas de dépendance externe)
-
-Les formules seront mises en page avec des éléments HTML sémantiques (`<var>`, `<sub>`, `<sup>`, fractions via flexbox) sans dépendre de MathJax/KaTeX pour rester léger :
-
-- A = π/4 · (D₀² − Dᵢ²)
-- I = π/64 · (D₀⁴ − Dᵢ⁴)
-- c = D₀ / 2
-- q = ρ · g · A
-- σ = |M| · c / I
-- M_theory = q·L² / 12 (encastré-encastré)
-- M_settlement = 6·E·I·h / L²
-- Matrice de rigidité élémentaire 4×4 Euler-Bernoulli (EI/L³ · [12, 6L, ...])
+### Approche
+1. Transformer `FormulaBlock` pour qu'il accepte une string LaTeX via une prop `tex` et utilise `katex.renderToString()` pour produire le HTML
+2. Importer le CSS de KaTeX dans `FormulaBlock.tsx`
+3. Réécrire toutes les formules en LaTeX dans les sections help
+4. Supprimer les anciennes formules HTML (balises `<sub>`, `<sup>`, texte brut)
 
 ### Fichiers impactés
 
 | Fichier | Modification |
 |---|---|
-| `src/pages/HelpPage.tsx` | **Nouveau** — Page d'aide (~150 lignes, composant principal) |
-| `src/pages/help/HelpIntroduction.tsx` | **Nouveau** — Section introduction |
-| `src/pages/help/HelpInputs.tsx` | **Nouveau** — Section données d'entrée |
-| `src/pages/help/HelpSectionProperties.tsx` | **Nouveau** — Section propriétés de section + formules |
-| `src/pages/help/HelpMechanicalModel.tsx` | **Nouveau** — Modèle mécanique + conventions |
-| `src/pages/help/HelpLoading.tsx` | **Nouveau** — Chargement |
-| `src/pages/help/HelpSettlement.tsx` | **Nouveau** — Tassement différentiel |
-| `src/pages/help/HelpSupports.tsx` | **Nouveau** — Supports unilatéraux |
-| `src/pages/help/HelpFEM.tsx` | **Nouveau** — Méthode FEM détaillée |
-| `src/pages/help/HelpCalcModes.tsx` | **Nouveau** — 3 modes de calcul |
-| `src/pages/help/HelpSafetyCriteria.tsx` | **Nouveau** — Critère de sécurité |
-| `src/pages/help/HelpValidation.tsx` | **Nouveau** — Validation analytique |
-| `src/pages/help/HelpLimitations.tsx` | **Nouveau** — Limites et hypothèses |
-| `src/pages/help/FormulaBlock.tsx` | **Nouveau** — Composant réutilisable pour afficher les formules |
-| `src/components/Header.tsx` | Ajout d'un lien "Help" vers `/help` |
-| `src/App.tsx` | Ajout de la route `/help` |
+| `src/pages/help/FormulaBlock.tsx` | Refonte complète : accept `tex` string, rendu via `katex.renderToString()`, import CSS KaTeX |
+| `src/pages/help/HelpSectionProperties.tsx` | 5 formules → LaTeX (`D_i`, `A`, `I`, `c`, `w_{lin}`) |
+| `src/pages/help/HelpLoading.tsx` | 2 formules → LaTeX (`q`, vecteur de charge élémentaire) |
+| `src/pages/help/HelpSettlement.tsx` | 2 formules → LaTeX (`w_{ref}`, `M_{settlement}`) |
+| `src/pages/help/HelpFEM.tsx` | 2 formules → LaTeX (matrice de rigidité 4×4, `\sigma(x)`) |
+| `src/pages/help/HelpValidation.tsx` | 3 formules → LaTeX (`M_{end}`, `M_{settlement}`, `M_{span}`) |
+| `src/pages/help/HelpSafetyCriteria.tsx` | 1 formule → LaTeX (critère de sécurité) |
+
+Les fichiers sans formules (`HelpIntroduction`, `HelpInputs`, `HelpMechanicalModel`, `HelpSupports`, `HelpCalcModes`, `HelpLimitations`) ne changent **pas**.
 
 ### Détails techniques
 
-**Mise en page des formules** — Un composant `FormulaBlock` simple :
+**FormulaBlock refait** (~25 lignes) :
 ```tsx
-// Affiche une formule centrée avec un fond légèrement grisé
-const FormulaBlock = ({ children, label }: { children: React.ReactNode; label?: string }) => (
-  <div className="my-3 px-4 py-3 bg-muted rounded-md text-center">
-    <div className="text-sm font-mono">{children}</div>
-    {label && <p className="text-[10px] text-muted-foreground mt-1">{label}</p>}
+import katex from "katex";
+import "katex/dist/katex.min.css";
+
+interface FormulaBlockProps {
+  tex: string;
+  label?: string;
+}
+
+const FormulaBlock = ({ tex, label }: FormulaBlockProps) => (
+  <div className="my-3 px-4 py-3 bg-muted/50 rounded-md border-l-4 border-primary/30 overflow-x-auto">
+    <div
+      className="text-center"
+      dangerouslySetInnerHTML={{ __html: katex.renderToString(tex, { displayMode: true, throwOnError: false }) }}
+    />
+    {label && <p className="text-[10px] text-muted-foreground mt-1 text-center">{label}</p>}
   </div>
 );
+
+export default FormulaBlock;
 ```
 
-**Navigation interne** — Table of contents en haut avec des liens `#section-id` pour naviguer rapidement.
+**Exemples de formules LaTeX** :
 
-**Header** — Ajout d'un lien discret :
-```tsx
-<Link to="/help" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-  <HelpCircle className="h-4 w-4" />
-</Link>
-```
+| Section | Avant (HTML) | Après (LaTeX) |
+|---|---|---|
+| Section Properties | `A = (π / 4) · (D₀² − Dᵢ²)` | `A = \frac{\pi}{4} \left( D_0^2 - D_i^2 \right)` |
+| Section Properties | `I = (π / 64) · (D₀⁴ − Dᵢ⁴)` | `I = \frac{\pi}{64} \left( D_0^4 - D_i^4 \right)` |
+| Loading | `q = ρ · g · A` | `q = \rho \cdot g \cdot A` |
+| Loading (vecteur) | `f = [ qL/2, qL²/12, ... ]` | `\mathbf{f}_e = \begin{bmatrix} \frac{qL}{2} & \frac{qL^2}{12} & \frac{qL}{2} & -\frac{qL^2}{12} \end{bmatrix}^T` |
+| Settlement | `w_ref(x) = h·x / L` | `w_{\text{ref}}(x) = \frac{h_{\text{fem}} \cdot x}{L}` |
+| FEM (matrice) | Texte brut 4 lignes | `\mathbf{k}_e = \frac{EI}{L_e^3} \begin{bmatrix} 12 & 6L_e & -12 & 6L_e \\ ... \end{bmatrix}` |
+| FEM (stress) | `σ(x) = \|M(x)\| · c / I` | `\sigma(x) = \frac{|M(x)| \cdot c}{I}` |
+| Safety | `σ_max ≤ σ_allow + 0.5` | `\sigma_{\max} \leq \sigma_{\text{allow}} + 0.5 \text{ MPa}` |
 
-**Responsive** — La page utilisera `prose`-like styling avec `max-w-4xl mx-auto` pour une lecture confortable sur tous les devices.
-
-**Scalabilité** — Chaque section est un composant séparé (~60-80 lignes chacun) dans `src/pages/help/`, ce qui permet d'ajouter facilement de nouvelles sections.
+**Style amélioré** : le `FormulaBlock` aura une bordure gauche accent (`border-l-4 border-primary/30`), un fond subtil (`bg-muted/50`), et `overflow-x-auto` pour le scroll horizontal sur mobile si la formule est large.
 
 ### Ce qui ne change PAS
-- Aucune modification aux calculs, au FEM solver, ou aux composants existants
-- Le DebugPanel, les graphiques, les cards restent identiques
-- Aucun impact sur les performances (la page est purement statique)
+- Aucune modification aux calculs, solver, ou composants de la page principale
+- Le contenu textuel des sections help reste identique
+- Aucun impact sur les performances de la page de calcul (KaTeX n'est chargé que sur `/help`)
 
-### Version footer
-La version `202602251646` sera affichée en bas de la page d'aide.
+### Risques
+- **Zéro fonctionnel** : changement purement visuel sur une page statique
+- Le CSS de KaTeX (~28 kB) est chargé uniquement sur la page help via l'import dans `FormulaBlock`
 
