@@ -78,7 +78,7 @@ const HelpPage = () => (
       <HelpLimitations />
 
       <footer className="pt-6 border-t text-center text-[10px] text-muted-foreground">
-        v202602251646
+        v202602252100
       </footer>
     </main>
   </div>

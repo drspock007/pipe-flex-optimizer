@@ -12,27 +12,10 @@ const HelpFEM = () => (
       node (transverse displacement w and rotation θ), yielding a 4×4 element stiffness matrix.
     </p>
 
-    <FormulaBlock label="Element stiffness matrix (Euler-Bernoulli)">
-      <div className="text-xs leading-relaxed">
-        <span className="font-semibold">k<sub>e</sub></span> = (EI / L<sub>e</sub>³) ×
-        <br />
-        <span className="inline-block mt-1">
-          [ 12, &nbsp; 6L<sub>e</sub>, &nbsp; −12, &nbsp; 6L<sub>e</sub> ]
-        </span>
-        <br />
-        <span className="inline-block">
-          [ 6L<sub>e</sub>, &nbsp; 4L<sub>e</sub>², &nbsp; −6L<sub>e</sub>, &nbsp; 2L<sub>e</sub>² ]
-        </span>
-        <br />
-        <span className="inline-block">
-          [ −12, &nbsp; −6L<sub>e</sub>, &nbsp; 12, &nbsp; −6L<sub>e</sub> ]
-        </span>
-        <br />
-        <span className="inline-block">
-          [ 6L<sub>e</sub>, &nbsp; 2L<sub>e</sub>², &nbsp; −6L<sub>e</sub>, &nbsp; 4L<sub>e</sub>² ]
-        </span>
-      </div>
-    </FormulaBlock>
+    <FormulaBlock
+      tex={String.raw`\mathbf{k}_e = \frac{EI}{L_e^3} \begin{bmatrix} 12 & 6L_e & -12 & 6L_e \\ 6L_e & 4L_e^2 & -6L_e & 2L_e^2 \\ -12 & -6L_e & 12 & -6L_e \\ 6L_e & 2L_e^2 & -6L_e & 4L_e^2 \end{bmatrix}`}
+      label="Element stiffness matrix (Euler-Bernoulli)"
+    />
 
     <h3 className="text-base font-semibold mt-4">Assembly and solver</h3>
     <p className="text-sm text-muted-foreground leading-relaxed">
@@ -60,9 +43,7 @@ const HelpFEM = () => (
       sample point is:
     </p>
 
-    <FormulaBlock label="Bending stress">
-      σ(x) = |M(x)| · c / I
-    </FormulaBlock>
+    <FormulaBlock tex="\sigma(x) = \frac{|M(x)| \cdot c}{I}" label="Bending stress" />
   </section>
 );
 

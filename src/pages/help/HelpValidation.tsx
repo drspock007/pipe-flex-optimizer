@@ -14,9 +14,7 @@ const HelpValidation = () => (
     <p className="text-sm text-muted-foreground leading-relaxed">
       For a fixed-fixed beam under UDL q, the maximum end moment is:
     </p>
-    <FormulaBlock label="Analytical end moment (fixed-fixed, UDL)">
-      M<sub>end</sub> = q · L² / 12
-    </FormulaBlock>
+    <FormulaBlock tex="M_{\text{end}} = \frac{q \cdot L^2}{12}" label="Analytical end moment (fixed-fixed, UDL)" />
     <p className="text-sm text-muted-foreground leading-relaxed">
       The FEM result is compared to this value. An error greater than 5% triggers a validation warning.
     </p>
@@ -25,9 +23,7 @@ const HelpValidation = () => (
     <p className="text-sm text-muted-foreground leading-relaxed">
       For a fixed-fixed beam with imposed settlement h and no distributed load:
     </p>
-    <FormulaBlock label="Analytical settlement moment">
-      M<sub>settlement</sub> = 6 · E · I · |h| / L²
-    </FormulaBlock>
+    <FormulaBlock tex="M_{\text{settlement}} = \frac{6 \, E \, I \, |h|}{L^2}" label="Analytical settlement moment" />
     <p className="text-sm text-muted-foreground leading-relaxed">
       A separate FEM solve with q = 0 is performed and compared. An error greater than 5% triggers a warning.
     </p>
@@ -36,9 +32,10 @@ const HelpValidation = () => (
     <p className="text-sm text-muted-foreground leading-relaxed">
       When intermediate supports are present, the solver also checks the combined analytical estimate per span:
     </p>
-    <FormulaBlock label="Per-span theory">
-      M<sub>span</sub> ≈ q·L<sub>s</sub>²/12 + 6·E·I·h<sub>s</sub>/L<sub>s</sub>²
-    </FormulaBlock>
+    <FormulaBlock
+      tex="M_{\text{span}} \approx \frac{q \, L_s^2}{12} + \frac{6 \, E \, I \, h_s}{L_s^2}"
+      label="Per-span theory"
+    />
     <p className="text-sm text-muted-foreground leading-relaxed">
       Where L<sub>s</sub> = L / (N+1) is the span length and h<sub>s</sub> = |h| / (N+1) is the per-span settlement.
     </p>

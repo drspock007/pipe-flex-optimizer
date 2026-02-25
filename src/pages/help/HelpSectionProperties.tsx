@@ -10,25 +10,11 @@ const HelpSectionProperties = () => (
       diameter D₀ and wall thickness t.
     </p>
 
-    <FormulaBlock label="Inner diameter">
-      D<sub>i</sub> = D₀ − 2·t
-    </FormulaBlock>
-
-    <FormulaBlock label="Cross-sectional area">
-      A = (π / 4) · (D₀² − D<sub>i</sub>²)
-    </FormulaBlock>
-
-    <FormulaBlock label="Second moment of area (moment of inertia)">
-      I = (π / 64) · (D₀⁴ − D<sub>i</sub>⁴)
-    </FormulaBlock>
-
-    <FormulaBlock label="Distance from neutral axis to extreme fiber">
-      c = D₀ / 2
-    </FormulaBlock>
-
-    <FormulaBlock label="Linear weight">
-      w<sub>lin</sub> = ρ · A · 10⁻⁶ &nbsp; [kg/m]
-    </FormulaBlock>
+    <FormulaBlock tex="D_i = D_0 - 2t" label="Inner diameter" />
+    <FormulaBlock tex="A = \frac{\pi}{4} \left( D_0^2 - D_i^2 \right)" label="Cross-sectional area" />
+    <FormulaBlock tex="I = \frac{\pi}{64} \left( D_0^4 - D_i^4 \right)" label="Second moment of area (moment of inertia)" />
+    <FormulaBlock tex="c = \frac{D_0}{2}" label="Distance from neutral axis to extreme fiber" />
+    <FormulaBlock tex="w_{\text{lin}} = \rho \cdot A \times 10^{-6} \quad [\text{kg/m}]" label="Linear weight" />
 
     <p className="text-sm text-muted-foreground leading-relaxed">
       All internal calculations use <strong>mm-based units</strong> (mm, N, MPa) for numerical consistency.
