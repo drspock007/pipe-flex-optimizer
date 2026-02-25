@@ -1,23 +1,26 @@
-// ══════════════════════════════════════════════════════════════
-// 1D Euler-Bernoulli Beam FEM Solver (Stiffness Method) — V4
+// src/lib/fem-solver.ts
+// Modifié par Giovanni Malagnino, 2026-02-25 16:46 UTC.
+//
+// 1D Euler-Bernoulli Beam FEM Solver (Stiffness Method)
 // Units: mm, N, MPa throughout
 //
 // SIGN CONVENTION:
 //   w is POSITIVE DOWNWARD
 //   q (self-weight) is POSITIVE DOWNWARD
-//   h_fem_mm: FEM settlement value (positive = right end lower)
-//     When user says "right end higher by h_up", h_fem = -h_up
+//   h_fem_mm: FEM settlement (positive = right end lower)
 //   Boundary: left w=0,θ=0; right w=h_fem_mm,θ=0
 //   Support elevation line: w_ref(x) = h_fem_mm · x / L
-//   Contact: ACTIVE if w(x_i) > w_ref(x_i) + tol (pipe sags past support)
+//   Contact (unilateral hoists/sidebooms):
+//     - Activate if penetration: w(x_i) > w_ref(x_i) + tolW
+//     - Deactivate if reaction would push downward (not possible for a hoist)
 //
-// Features: Banded solver, adaptive mesh, unilateral contact supports
-// ══════════════════════════════════════════════════════════════
+// Features: banded solver, adaptive mesh, unilateral active-set supports,
+//           FindL window + Lopt (min stress) inside the window.
 
 export interface SupportStatus {
   x_mm: number;
-  w_fem: number; // mm - deflection from FEM
-  w_ref: number; // mm - settlement line value
+  w_fem: number; // mm
+  w_ref: number; // mm
   active: boolean;
 }
 
@@ -25,15 +28,14 @@ export interface FEMResult {
   maxStress: number; // MPa
   maxMoment: number; // N·mm
   maxMomentLocation: number; // mm from left end
-  stressData: { x: number; stress: number }[]; // x in meters, stress in MPa
+  stressData: { x: number; stress: number }[]; // x in meters
   deflectionData: { x: number; w: number }[]; // x in meters, w in mm
-  displacements: number[]; // full DOF vector
+  displacements: number[];
   nodePositions: number[]; // mm
   meshInfo: { elementsPerSpan: number; totalDofs: number; solveTimeMs: number };
   warnings: string[];
-  // Unilateral contact info
   activeSupports: number[]; // indices into candidate array
-  supportStatus: SupportStatus[]; // status of all candidate supports
+  supportStatus: SupportStatus[];
   contactIterations: number;
 }
 
@@ -45,12 +47,12 @@ export interface EvaluateCandidateResult {
   contactWarnings: string[];
 }
 
-// ── Performance guardrails ──
+// ── Guardrails ──
 const MAX_SUPPORTS = 20;
 const MAX_ELEMENTS_PER_SPAN = 20;
 const MAX_TOTAL_DOFS = 1000;
 
-// ── Standard 4×4 Euler-Bernoulli beam element stiffness matrix ──
+// ── Beam element stiffness ──
 function elementStiffness(EI: number, Le: number): number[][] {
   const Le2 = Le * Le;
   const Le3 = Le2 * Le;
@@ -63,14 +65,15 @@ function elementStiffness(EI: number, Le: number): number[][] {
   ];
 }
 
-// ── Consistent nodal load vector for UDL q (N/mm) ──
+// ── Consistent load vector for UDL q (N/mm) ──
 function elementLoad(q: number, Le: number): number[] {
   const qL = q * Le;
   const qL2 = qL * Le;
   return [qL / 2, qL2 / 12, qL / 2, -qL2 / 12];
 }
 
-// ── Assemble global system (banded storage) ──
+// ── Assemble banded system ──
+// Storage: bands[k][row] stores K[row, row+k] (upper triangle)
 function assembleSystemBanded(
   nNodes: number,
   elements: { node1: number; node2: number; Le: number }[],
@@ -79,10 +82,7 @@ function assembleSystemBanded(
 ): { bands: Float64Array[]; F: Float64Array; nDof: number; halfBw: number } {
   const nDof = nNodes * 2;
   const halfBw = 3;
-  const bands: Float64Array[] = [];
-  for (let k = 0; k <= halfBw; k++) {
-    bands.push(new Float64Array(nDof));
-  }
+  const bands: Float64Array[] = Array.from({ length: halfBw + 1 }, () => new Float64Array(nDof));
   const F = new Float64Array(nDof);
 
   for (const el of elements) {
@@ -98,34 +98,28 @@ function assembleSystemBanded(
         const row = Math.min(di, dj);
         const col = Math.max(di, dj);
         const band = col - row;
-        if (band <= halfBw) {
-          bands[band][row] += ke[i][j];
-        }
+        if (band <= halfBw) bands[band][row] += ke[i][j];
       }
     }
   }
+
   return { bands, F, nDof, halfBw };
 }
 
-// ── Banded symmetric positive-definite solver (LDLT factorization) ──
+// ── LDLT banded solver ──
 function solveBanded(bands: Float64Array[], F: Float64Array, nDof: number, halfBw: number): Float64Array {
   const d = new Float64Array(nDof);
-  const L: Float64Array[] = [];
-  for (let k = 0; k <= halfBw; k++) {
-    L.push(new Float64Array(bands[k]));
-  }
+  const L: Float64Array[] = bands.map((b) => new Float64Array(b));
   const b = new Float64Array(F);
 
   for (let i = 0; i < nDof; i++) {
     let sum = L[0][i];
     for (let k = 1; k <= halfBw; k++) {
       const j = i - k;
-      if (j >= 0) {
-        sum -= L[k][j] * L[k][j] * d[j];
-      }
+      if (j >= 0) sum -= L[k][j] * L[k][j] * d[j];
     }
     d[i] = sum;
-    if (Math.abs(d[i]) < 1e-30) d[i] = 1e-30;
+    if (!Number.isFinite(d[i]) || Math.abs(d[i]) < 1e-30) d[i] = 1e-30;
 
     for (let k = 1; k <= halfBw; k++) {
       const row = i + k;
@@ -143,13 +137,16 @@ function solveBanded(bands: Float64Array[], F: Float64Array, nDof: number, halfB
     }
   }
 
+  // Forward: L*y=b
   for (let i = 0; i < nDof; i++) {
     for (let k = 1; k <= halfBw; k++) {
       const j = i - k;
       if (j >= 0) b[i] -= L[k][j] * b[j];
     }
   }
+  // Diagonal: D*z=y
   for (let i = 0; i < nDof; i++) b[i] /= d[i];
+  // Backward: L^T*x=z
   for (let i = nDof - 1; i >= 0; i--) {
     for (let k = 1; k <= halfBw; k++) {
       const row = i + k;
@@ -160,41 +157,7 @@ function solveBanded(bands: Float64Array[], F: Float64Array, nDof: number, halfB
   return b;
 }
 
-// ── Utilities for reactions / active-set contact ─────────────────────────────
-// Storage convention: bands[k][row] stores K[row, row+k] (upper triangle).
-function bandedMatVecAt(bands: Float64Array[], U: Float64Array, i: number, halfBw: number): number {
-  const n = U.length;
-  let s = bands[0][i] * U[i];
-  for (let k = 1; k <= halfBw; k++) {
-    const jUp = i + k;
-    if (jUp < n) {
-      // K[i, i+k]
-      s += bands[k][i] * U[jUp];
-    }
-    const jLo = i - k;
-    if (jLo >= 0) {
-      // K[i-k, i] == K[i, i-k]
-      s += bands[k][jLo] * U[jLo];
-    }
-  }
-  return s;
-}
-
-function reactionAtDof(bands0: Float64Array[], F0: Float64Array, U: Float64Array, dof: number, halfBw: number): number {
-  // R = K*U - F
-  // With w positive downward, positive R means a downward reaction would be
-  // required to enforce the constraint. A sideboom can only pull up (R <= 0).
-  return bandedMatVecAt(bands0, U, dof, halfBw) - F0[dof];
-}
-
-function findNodeIndex(nodeX: number[], x_mm: number): number | null {
-  for (let i = 0; i < nodeX.length; i++) {
-    if (Math.abs(nodeX[i] - x_mm) < 0.01) return i;
-  }
-  return null;
-}
-
-// ── Apply boundary conditions using direct DOF elimination ──
+// ── Apply BC by direct elimination ──
 function applyBCBanded(
   bands: Float64Array[],
   F: Float64Array,
@@ -204,15 +167,15 @@ function applyBCBanded(
 ): void {
   for (const { dof, value } of constraints) {
     for (let k = 1; k <= halfBw; k++) {
-      const j_upper = dof + k;
-      if (j_upper < nDof) {
-        F[j_upper] -= bands[k][dof] * value;
+      const jUp = dof + k;
+      if (jUp < nDof) {
+        F[jUp] -= bands[k][dof] * value;
         bands[k][dof] = 0;
       }
-      const j_lower = dof - k;
-      if (j_lower >= 0) {
-        F[j_lower] -= bands[k][j_lower] * value;
-        bands[k][j_lower] = 0;
+      const jLo = dof - k;
+      if (jLo >= 0) {
+        F[jLo] -= bands[k][jLo] * value;
+        bands[k][jLo] = 0;
       }
     }
     bands[0][dof] = 1;
@@ -220,7 +183,7 @@ function applyBCBanded(
   }
 }
 
-// ── Compute element internal moment ──
+// ── Moment and deflection shape functions ──
 function elementMoment(EI: number, Le: number, w1: number, t1: number, w2: number, t2: number, xi: number): number {
   const s = xi / Le;
   const L2 = Le * Le;
@@ -231,7 +194,6 @@ function elementMoment(EI: number, Le: number, w1: number, t1: number, w2: numbe
   return EI * (N1pp * w1 + N2pp * t1 + N3pp * w2 + N4pp * t2);
 }
 
-// ── Compute deflection w(xi) using Hermite shape functions ──
 function elementDeflection(Le: number, w1: number, t1: number, w2: number, t2: number, xi: number): number {
   const s = xi / Le;
   const s2 = s * s;
@@ -243,7 +205,7 @@ function elementDeflection(Le: number, w1: number, t1: number, w2: number, t2: n
   return N1 * w1 + N2 * t1 + N3 * w2 + N4 * t2;
 }
 
-// ── Interpolate deflection at arbitrary x_mm from FEM solution ──
+// ── Interpolate w(x) from FEM U ──
 function interpolateDeflection(nodeX: number[], U: number[] | Float64Array, x_mm: number): number {
   const nNodes = nodeX.length;
   for (let i = 0; i < nNodes - 1; i++) {
@@ -252,10 +214,10 @@ function interpolateDeflection(nodeX: number[], U: number[] | Float64Array, x_mm
     if (x_mm >= x1 - 0.01 && x_mm <= x2 + 0.01) {
       const Le = x2 - x1;
       const xi = Math.max(0, Math.min(Le, x_mm - x1));
-      const w1 = U[2 * i],
-        t1 = U[2 * i + 1];
-      const w2 = U[2 * (i + 1)],
-        t2 = U[2 * (i + 1) + 1];
+      const w1 = U[2 * i] as number,
+        t1 = U[2 * i + 1] as number;
+      const w2 = U[2 * (i + 1)] as number,
+        t2 = U[2 * (i + 1) + 1] as number;
       return elementDeflection(Le, w1, t1, w2, t2, xi);
     }
   }
@@ -263,7 +225,7 @@ function interpolateDeflection(nodeX: number[], U: number[] | Float64Array, x_mm
   return U[2 * (nNodes - 1)] as number;
 }
 
-// ── Build mesh with guardrails ──
+// ── Mesh builder ──
 function buildMesh(
   supportPositions_mm: number[],
   L_total_mm: number,
@@ -271,11 +233,10 @@ function buildMesh(
 ): { nodeX: number[]; elementsPerSpan: number; warnings: string[] } {
   const warnings: string[] = [];
   const anchors = [0, ...supportPositions_mm, L_total_mm].sort((a, b) => a - b);
+
   const unique: number[] = [];
   for (const x of anchors) {
-    if (unique.length === 0 || Math.abs(x - unique[unique.length - 1]) > 0.01) {
-      unique.push(x);
-    }
+    if (unique.length === 0 || Math.abs(x - unique[unique.length - 1]) > 0.01) unique.push(x);
   }
 
   const nSpans = unique.length - 1;
@@ -291,16 +252,39 @@ function buildMesh(
   const nodeX: number[] = [unique[0]];
   for (let i = 0; i < unique.length - 1; i++) {
     const spanLen = unique[i + 1] - unique[i];
-    for (let j = 1; j <= nSub; j++) {
-      nodeX.push(unique[i] + (j / nSub) * spanLen);
-    }
+    for (let j = 1; j <= nSub; j++) nodeX.push(unique[i] + (j / nSub) * spanLen);
   }
 
   return { nodeX, elementsPerSpan: nSub, warnings };
 }
 
+// ── Reactions for unilateral logic ──
+function bandedMatVecAt(bands: Float64Array[], U: Float64Array, i: number, halfBw: number): number {
+  const n = U.length;
+  let s = bands[0][i] * U[i];
+  for (let k = 1; k <= halfBw; k++) {
+    const jUp = i + k;
+    if (jUp < n) s += bands[k][i] * U[jUp]; // K(i,i+k)
+    const jLo = i - k;
+    if (jLo >= 0) s += bands[k][jLo] * U[jLo]; // K(i,i-k) via symmetry
+  }
+  return s;
+}
+
+function reactionAtDof(bands0: Float64Array[], F0: Float64Array, U: Float64Array, dof: number, halfBw: number): number {
+  // R = K*U - F. Positive is downward. Hoist can only pull UP => require R <= 0.
+  return bandedMatVecAt(bands0, U, dof, halfBw) - F0[dof];
+}
+
+function findNodeIndex(nodeX: number[], x_mm: number): number | null {
+  for (let i = 0; i < nodeX.length; i++) {
+    if (Math.abs(nodeX[i] - x_mm) < 0.01) return i;
+  }
+  return null;
+}
+
 // ══════════════════════════════════════════════════════════════
-// CORE FEM SOLVER (single solve, bilateral supports)
+// CORE SOLVER (bilateral constraints at specified support positions)
 // ══════════════════════════════════════════════════════════════
 function solveFEMCoreWithSystem(
   E_mpa: number,
@@ -327,9 +311,7 @@ function solveFEMCoreWithSystem(
   const nElements = nNodes - 1;
 
   const elements: { node1: number; node2: number; Le: number }[] = [];
-  for (let i = 0; i < nElements; i++) {
-    elements.push({ node1: i, node2: i + 1, Le: nodeX[i + 1] - nodeX[i] });
-  }
+  for (let i = 0; i < nElements; i++) elements.push({ node1: i, node2: i + 1, Le: nodeX[i + 1] - nodeX[i] });
 
   const { bands, F, nDof, halfBw } = assembleSystemBanded(nNodes, elements, EI, q_Nmm);
 
@@ -338,18 +320,17 @@ function solveFEMCoreWithSystem(
   const F0 = new Float64Array(F);
 
   const constraints: { dof: number; value: number }[] = [];
-  constraints.push({ dof: 0, value: 0 });
-  constraints.push({ dof: 1, value: 0 });
+  // Left fixed
+  constraints.push({ dof: 0, value: 0 }, { dof: 1, value: 0 });
+  // Right fixed with imposed settlement
   const rightNode = nNodes - 1;
-  constraints.push({ dof: 2 * rightNode, value: h_total_mm });
-  constraints.push({ dof: 2 * rightNode + 1, value: 0 });
+  constraints.push({ dof: 2 * rightNode, value: h_total_mm }, { dof: 2 * rightNode + 1, value: 0 });
 
+  // Supports: enforce w = w_ref(x) at support nodes (rotation free)
   for (let i = 1; i < nNodes - 1; i++) {
     const x = nodeX[i];
     const isSupport = supportPositions_mm.some((sp) => Math.abs(sp - x) < 0.01);
-    if (isSupport) {
-      constraints.push({ dof: 2 * i, value: (h_total_mm / L_total_mm) * x });
-    }
+    if (isSupport) constraints.push({ dof: 2 * i, value: (h_total_mm / L_total_mm) * x });
   }
 
   applyBCBanded(bands, F, nDof, halfBw, constraints);
@@ -357,18 +338,17 @@ function solveFEMCoreWithSystem(
 
   const stressData: { x: number; stress: number }[] = [];
   const deflectionData: { x: number; w: number }[] = [];
-  let maxStress = 0,
-    maxMoment = 0,
-    maxMomentLocation = 0;
+  let maxStress = 0;
+  let maxMoment = 0;
+  let maxMomentLocation = 0;
 
   const samplesPerElement = 10;
-
   for (let i = 0; i < nElements; i++) {
     const el = elements[i];
-    const w1 = U[2 * el.node1],
-      t1 = U[2 * el.node1 + 1];
-    const w2 = U[2 * el.node2],
-      t2 = U[2 * el.node2 + 1];
+    const w1 = U[2 * el.node1] as number,
+      t1 = U[2 * el.node1 + 1] as number;
+    const w2 = U[2 * el.node2] as number,
+      t2 = U[2 * el.node2 + 1] as number;
 
     for (let j = 0; j < samplesPerElement; j++) {
       const frac = (j + 0.5) / samplesPerElement;
@@ -389,11 +369,6 @@ function solveFEMCoreWithSystem(
       stressData.push({ x: x_m, stress: Math.round(stress * 100) / 100 });
       deflectionData.push({ x: x_m, w: Math.round(w * 1000) / 1000 });
     }
-  }
-
-  const plotMax = stressData.reduce((m, d) => Math.max(m, d.stress), 0);
-  if (maxStress > 0 && Math.abs(plotMax - maxStress) / maxStress > 0.02) {
-    warnings.push(`⚠️ Graph mismatch: plot max ${plotMax.toFixed(1)} vs computed ${maxStress.toFixed(1)} MPa`);
   }
 
   const solveTimeMs = performance.now() - t0;
@@ -439,13 +414,11 @@ function solveFEMCore(
 }
 
 // ══════════════════════════════════════════════════════════════
-// UNILATERAL CONTACT SOLVER — Active-set iteration
-// Supports can only push up (resist gravity), not pull down.
+// UNILATERAL HOIST SUPPORTS (active-set + reaction rule)
 // ══════════════════════════════════════════════════════════════
-
 interface UnilateralResult {
   result: FEMResult;
-  activeSupports: number[]; // indices into candidateSupports
+  activeSupports: number[];
   supportStatus: SupportStatus[];
   contactIterations: number;
 }
@@ -459,15 +432,11 @@ function solveWithUnilateralSupports(
   h_total_mm: number,
   candidateSupports_mm: number[],
   targetElementsPerSpan: number,
-  maxIter: number = 15,
+  maxIter: number = 20,
 ): UnilateralResult {
-  // Contact tolerances
   const tolW = 1e-6 * Math.max(1, Math.abs(h_total_mm));
-  const tolR = 1e-8 * Math.max(1, Math.abs(q_Nmm) * L_total_mm);
+  const tolR = 1e-9 * Math.max(1, Math.abs(q_Nmm) * L_total_mm);
 
-  // Active-set for sidebooms/hoists:
-  // - Activate if the pipe sags below the target line (penetration): w_fem > w_ref + tolW
-  // - Deactivate if the reaction would have to push downward (not possible for a hoist): R_dof > tolR
   let activeSet: number[] = [];
   let iter = 0;
 
@@ -486,11 +455,10 @@ function solveWithUnilateralSupports(
       targetElementsPerSpan,
     );
 
-    const resultNow = core.result;
-    const U = new Float64Array(resultNow.displacements);
-    const nodeX = resultNow.nodePositions;
+    const U = new Float64Array(core.result.displacements);
+    const nodeX = core.result.nodePositions;
 
-    // 1) Add supports with penetration
+    // Add: penetration (pipe below the hoist line)
     const mustAdd: number[] = [];
     for (let i = 0; i < candidateSupports_mm.length; i++) {
       const x_i = candidateSupports_mm[i];
@@ -499,26 +467,25 @@ function solveWithUnilateralSupports(
       if (w_fem_i > w_ref_i + tolW) mustAdd.push(i);
     }
 
-    // 2) Remove supports with wrong-sign reaction (would push downward)
+    // Remove: wrong-sign reaction (would push downward)
     const mustRemove: number[] = [];
-    for (const i of activeSet) {
-      const x_i = candidateSupports_mm[i];
+    for (const idx of activeSet) {
+      const x_i = candidateSupports_mm[idx];
       const nodeIdx = findNodeIndex(nodeX, x_i);
       if (nodeIdx == null) continue;
       const dofW = 2 * nodeIdx;
       const R = reactionAtDof(core.bands0, core.F0, U, dofW, core.halfBw);
-      if (R > tolR) mustRemove.push(i);
+      if (R > tolR) mustRemove.push(idx);
     }
 
     const next = Array.from(new Set([...activeSet, ...mustAdd]))
       .filter((i) => !mustRemove.includes(i))
       .sort((a, b) => a - b);
 
-    const same = next.length === activeSet.length && next.every((v, idx) => v === activeSet[idx]);
+    const same = next.length === activeSet.length && next.every((v, k) => v === activeSet[k]);
 
     if (same) {
-      // Final coherent solve using converged active set
-      const finalSupportPositions = next.map((i) => candidateSupports_mm[i]);
+      const finalActivePos = next.map((i) => candidateSupports_mm[i]);
       const final = solveFEMCore(
         E_mpa,
         I_mm4,
@@ -526,7 +493,7 @@ function solveWithUnilateralSupports(
         q_Nmm,
         L_total_mm,
         h_total_mm,
-        finalSupportPositions,
+        finalActivePos,
         targetElementsPerSpan,
       );
 
@@ -551,18 +518,9 @@ function solveWithUnilateralSupports(
     activeSet = next;
   }
 
-  // If maxIter reached, still provide a coherent final solve
-  const finalSupportPositions = activeSet.map((i) => candidateSupports_mm[i]);
-  const final = solveFEMCore(
-    E_mpa,
-    I_mm4,
-    c_mm,
-    q_Nmm,
-    L_total_mm,
-    h_total_mm,
-    finalSupportPositions,
-    targetElementsPerSpan,
-  );
+  // MaxIter reached: still output coherent final solve
+  const finalActivePos = activeSet.map((i) => candidateSupports_mm[i]);
+  const final = solveFEMCore(E_mpa, I_mm4, c_mm, q_Nmm, L_total_mm, h_total_mm, finalActivePos, targetElementsPerSpan);
 
   const supportStatus: SupportStatus[] = candidateSupports_mm.map((x_mm, i) => {
     const w_ref = (h_total_mm * x_mm) / L_total_mm;
@@ -582,9 +540,7 @@ function solveWithUnilateralSupports(
   return { result: final, activeSupports: activeSet, supportStatus, contactIterations: maxIter };
 }
 
-// ══════════════════════════════════════════════════════════════
-// CONTACT SANITY CHECK
-// ══════════════════════════════════════════════════════════════
+// ── Contact sanity check ──
 function validateContact(supportStatus: SupportStatus[], h_fem_mm: number): { valid: boolean; warnings: string[] } {
   const tol = 1e-6 * Math.max(1, Math.abs(h_fem_mm));
   const warnings: string[] = [];
@@ -592,15 +548,13 @@ function validateContact(supportStatus: SupportStatus[], h_fem_mm: number): { va
 
   for (const s of supportStatus) {
     if (s.active) {
-      // Active: w should be very close to w_ref
       if (Math.abs(s.w_fem - s.w_ref) > 10 * tol) {
         valid = false;
         warnings.push(
-          `Contact violation (active): x=${s.x_mm.toFixed(0)}mm |w_fem-w_ref|=${Math.abs(s.w_fem - s.w_ref).toFixed(3)}mm > 10·tol`,
+          `Contact violation (active): x=${s.x_mm.toFixed(0)}mm |w_fem-w_ref|=${Math.abs(s.w_fem - s.w_ref).toFixed(3)}mm`,
         );
       }
     } else {
-      // Inactive: w should be <= w_ref + tol (pipe above or at support)
       if (s.w_fem > s.w_ref + tol) {
         valid = false;
         warnings.push(
@@ -614,8 +568,7 @@ function validateContact(supportStatus: SupportStatus[], h_fem_mm: number): { va
 }
 
 // ══════════════════════════════════════════════════════════════
-// SINGLE SOURCE OF TRUTH: evaluateCandidate
-// Used by FindL scan, bisection, auto-supports, and display.
+// Public helper used by searches and display
 // ══════════════════════════════════════════════════════════════
 export function evaluateCandidate(
   E_mpa: number,
@@ -629,20 +582,19 @@ export function evaluateCandidate(
 ): EvaluateCandidateResult {
   const L_mm = L_m * 1000;
   const candidates = buildEqualSupports(L_mm, supportsCount);
-  const { result, supportStatus } = solveWithUnilateralSupports(E_mpa, I, c, q, L_mm, h_fem_mm, candidates, 16);
 
+  const { result, supportStatus } = solveWithUnilateralSupports(E_mpa, I, c, q, L_mm, h_fem_mm, candidates, 16);
   const { valid: contactValid, warnings: contactWarnings } = validateContact(supportStatus, h_fem_mm);
-  if (!contactValid) {
-    // Bubble contact warnings up into the FEM result so the UI/debug can show them.
-    result.warnings.push(...contactWarnings);
-  }
+
+  if (!contactValid) result.warnings.push(...contactWarnings);
+
   const isSafe = result.maxStress <= allowable + 0.5 && contactValid;
 
   return { maxStress: result.maxStress, isSafe, result, contactValid, contactWarnings };
 }
 
 // ══════════════════════════════════════════════════════════════
-// ADAPTIVE MESH SOLVER
+// Adaptive mesh (bilateral) export
 // ══════════════════════════════════════════════════════════════
 export function solveFEM(
   E_mpa: number,
@@ -677,7 +629,7 @@ export function solveFEM(
 }
 
 // ══════════════════════════════════════════════════════════════
-// AUTO-SUPPORT (with unilateral contacts via evaluateCandidate)
+// AUTO SUPPORTS (minimum candidates to be safe)
 // ══════════════════════════════════════════════════════════════
 export function autoSupportsFEM(
   E_mpa: number,
@@ -688,11 +640,11 @@ export function autoSupportsFEM(
   h_fem_mm: number,
   allowable: number,
 ): { numSupports: number; stress: number; result: FEMResult } {
-  let bestN = 0,
-    bestStress = Infinity;
+  const L_m = L_mm / 1000;
+  let bestN = 0;
+  let bestStress = Infinity;
   let bestResult: FEMResult | null = null;
   let prevStress = Infinity;
-  const L_m = L_mm / 1000;
 
   for (let n = 0; n <= MAX_SUPPORTS; n++) {
     const ev = evaluateCandidate(E_mpa, I, c, q, L_m, h_fem_mm, n, allowable);
@@ -721,21 +673,25 @@ export function autoSupportsFEM(
 }
 
 // ══════════════════════════════════════════════════════════════
-// FIND L RANGE — [Lmin, Lmax] with unilateral supports
-// Uses evaluateCandidate as single source of truth.
-// Seeded with settlement-only estimate for faster bracketing.
+// FIND L RANGE + Lopt (min stress) inside the safe window
 // ══════════════════════════════════════════════════════════════
-
 export interface FindLRangeResult {
   Lmin: number;
   Lmax: number;
+  Lmid: number;
+  Lopt: number;
   numSupports: number;
-  resultAtMid: FEMResult; // full result at L_plot = clamp(midpoint, [Lmin,Lmax])
+
   resultAtLmin: FEMResult;
-  L_plot: number; // display L = midpoint
+  resultAtLmid: FEMResult;
+  resultAtLopt: FEMResult;
+  resultAtLmax: FEMResult;
+
   stressAtLmin: number;
+  stressAtLmid: number;
+  stressAtLopt: number;
   stressAtLmax: number;
-  stressAtLplot: number;
+
   searchLminGuess: number;
   searchLmaxGuess: number;
 }
@@ -748,114 +704,184 @@ export function findLRangeFEM(
   h_fem_mm: number,
   allowable: number,
 ): FindLRangeResult | undefined {
-  // Seed: settlement-only estimate L_seed = sqrt(6*E*c*|h|/allowable) (mm -> m)
-  const h_abs = Math.abs(h_fem_mm);
-  let L_seed_mm = h_abs > 0 && allowable > 0 ? Math.sqrt((6 * E_mpa * c * h_abs) / allowable) : 0;
-  const L_seed_m = L_seed_mm / 1000;
-
-  // Build coarse grid centered around seed
+  // Coarse grid (meters)
   const coarseGrid: number[] = [];
-  if (L_seed_m > 5) {
-    const lo = Math.max(1, Math.floor(L_seed_m * 0.3));
-    const hi = Math.ceil(L_seed_m * 3);
-    for (let L = lo; L <= Math.min(hi, 100); L += 1) coarseGrid.push(L);
-    for (let L = Math.max(105, lo); L <= Math.min(hi, 300); L += 5) {
-      if (!coarseGrid.includes(L)) coarseGrid.push(L);
-    }
-    for (let L = Math.max(310, lo); L <= Math.min(hi, 1000); L += 10) {
-      if (!coarseGrid.includes(L)) coarseGrid.push(L);
-    }
-    const maxGrid = Math.max(...coarseGrid);
-    if (maxGrid < 1000) {
-      for (let L = maxGrid + 10; L <= 1000; L += 10) coarseGrid.push(L);
-    }
-    for (let L = 1; L < lo; L += 1) coarseGrid.unshift(L);
-  } else {
-    for (let L = 1; L <= 100; L += 1) coarseGrid.push(L);
-    for (let L = 105; L <= 300; L += 5) coarseGrid.push(L);
-    for (let L = 310; L <= 1000; L += 10) coarseGrid.push(L);
-  }
-  coarseGrid.sort((a, b) => a - b);
+  for (let L = 1; L <= 100; L += 1) coarseGrid.push(L);
+  for (let L = 105; L <= 300; L += 5) coarseGrid.push(L);
+  for (let L = 310; L <= 1000; L += 10) coarseGrid.push(L);
+
+  // Cache evaluations by L (meters) for each nSup
+  const keyOf = (L: number) => L.toFixed(5);
 
   for (let nSup = 0; nSup <= MAX_SUPPORTS; nSup++) {
-    const safePoints: number[] = [];
-    for (const L_m of coarseGrid) {
+    const cache = new Map<string, EvaluateCandidateResult>();
+
+    const evalAt = (L_m: number): EvaluateCandidateResult => {
+      const k = keyOf(L_m);
+      const existing = cache.get(k);
+      if (existing) return existing;
       const ev = evaluateCandidate(E_mpa, I, c, q, L_m, h_fem_mm, nSup, allowable);
-      if (ev.isSafe) {
-        safePoints.push(L_m);
-      }
+      cache.set(k, ev);
+      return ev;
+    };
+
+    // Scan grid and mark safe points
+    const safeFlags: boolean[] = [];
+    const stresses: number[] = [];
+    for (const L_m of coarseGrid) {
+      const ev = evalAt(L_m);
+      safeFlags.push(ev.isSafe);
+      stresses.push(ev.maxStress);
     }
 
-    if (safePoints.length === 0) continue;
+    if (!safeFlags.some((v) => v)) continue;
 
-    const LminGuess = Math.min(...safePoints);
-    const LmaxGuess = Math.max(...safePoints);
-
-    const gridIdx = (v: number) => coarseGrid.indexOf(v);
-    const idxMin = gridIdx(LminGuess);
-    const idxMax = gridIdx(LmaxGuess);
-
-    // Refine Lmin by bisection
-    let loMin = idxMin > 0 ? coarseGrid[idxMin - 1] : 0.5;
-    let hiMin = LminGuess;
-    for (let iter = 0; iter < 20; iter++) {
-      const mid = (loMin + hiMin) / 2;
-      if ((hiMin - loMin) * 1000 < 10) break;
-      const ev = evaluateCandidate(E_mpa, I, c, q, mid, h_fem_mm, nSup, allowable);
-      if (ev.isSafe) {
-        hiMin = mid;
-      } else {
-        loMin = mid;
+    // Identify contiguous safe runs (by grid index adjacency)
+    type Run = { i0: number; i1: number };
+    const runs: Run[] = [];
+    let i = 0;
+    while (i < safeFlags.length) {
+      if (!safeFlags[i]) {
+        i++;
+        continue;
       }
+      const i0 = i;
+      while (i < safeFlags.length && safeFlags[i]) i++;
+      const i1 = i - 1;
+      runs.push({ i0, i1 });
+    }
+
+    if (runs.length === 0) continue;
+
+    // Choose the run with the smallest Lmin (first safe run)
+    const run = runs.reduce((best, r) => (coarseGrid[r.i0] < coarseGrid[best.i0] ? r : best), runs[0]);
+
+    const LminGuess = coarseGrid[run.i0];
+    const LmaxGuess = coarseGrid[run.i1];
+
+    // Refine Lmin using bisection between previous grid point and first safe point
+    let loMin = run.i0 > 0 ? coarseGrid[run.i0 - 1] : 0.5;
+    let hiMin = LminGuess;
+
+    for (let iter = 0; iter < 25; iter++) {
+      const mid = (loMin + hiMin) / 2;
+      if ((hiMin - loMin) * 1000 < 10) break; // < 10 mm in meters scale
+      const ev = evalAt(mid);
+      if (ev.isSafe) hiMin = mid;
+      else loMin = mid;
     }
     let refinedLmin = hiMin;
 
-    // Refine Lmax by bisection
+    // Refine Lmax using bisection between last safe point and next grid point
     let loMax = LmaxGuess;
-    let hiMax = idxMax < coarseGrid.length - 1 ? coarseGrid[idxMax + 1] : LmaxGuess * 1.1;
-    for (let iter = 0; iter < 20; iter++) {
+    let hiMax = run.i1 < coarseGrid.length - 1 ? coarseGrid[run.i1 + 1] : LmaxGuess * 1.1;
+
+    for (let iter = 0; iter < 25; iter++) {
       const mid = (loMax + hiMax) / 2;
       if ((hiMax - loMax) * 1000 < 10) break;
-      const ev = evaluateCandidate(E_mpa, I, c, q, mid, h_fem_mm, nSup, allowable);
-      if (ev.isSafe) {
-        loMax = mid;
-      } else {
-        hiMax = mid;
-      }
+      const ev = evalAt(mid);
+      if (ev.isSafe) loMax = mid;
+      else hiMax = mid;
     }
     let refinedLmax = loMax;
 
-    // Safety verification: shrink endpoints if needed
+    // Endpoint tightening (small steps) to ensure safe
     const eps = 0.5;
-    for (let s = 0; s < 50; s++) {
-      const ev = evaluateCandidate(E_mpa, I, c, q, refinedLmin, h_fem_mm, nSup, allowable);
+    for (let s = 0; s < 80; s++) {
+      const ev = evalAt(refinedLmin);
       if (ev.maxStress <= allowable + eps && ev.contactValid) break;
       refinedLmin += 0.01;
     }
-    for (let s = 0; s < 50; s++) {
-      const ev = evaluateCandidate(E_mpa, I, c, q, refinedLmax, h_fem_mm, nSup, allowable);
+    for (let s = 0; s < 80; s++) {
+      const ev = evalAt(refinedLmax);
       if (ev.maxStress <= allowable + eps && ev.contactValid) break;
       refinedLmax -= 0.01;
     }
 
     if (refinedLmin >= refinedLmax) continue;
 
-    // Compute representative results at clamped midpoint
-    const L_plot = Math.max(refinedLmin, Math.min(refinedLmax, (refinedLmin + refinedLmax) / 2));
-    const evMid = evaluateCandidate(E_mpa, I, c, q, L_plot, h_fem_mm, nSup, allowable);
-    const evLmin = evaluateCandidate(E_mpa, I, c, q, refinedLmin, h_fem_mm, nSup, allowable);
-    const evLmax = evaluateCandidate(E_mpa, I, c, q, refinedLmax, h_fem_mm, nSup, allowable);
+    // Lmid
+    const Lmid = (refinedLmin + refinedLmax) / 2;
+
+    // Lopt: start from best coarse point within the run
+    let bestL = LminGuess;
+    let bestStress = Infinity;
+    for (let k = run.i0; k <= run.i1; k++) {
+      const Lm = coarseGrid[k];
+      const ev = evalAt(Lm);
+      if (ev.isSafe && ev.maxStress < bestStress) {
+        bestStress = ev.maxStress;
+        bestL = Lm;
+      }
+    }
+
+    // Local refinement around bestL using a small bracket + golden-section (limited evals)
+    const leftNeighbor =
+      run.i0 < run.i1 ? coarseGrid[Math.max(run.i0, Math.min(run.i1, coarseGrid.indexOf(bestL) - 1))] : refinedLmin;
+    const rightNeighbor =
+      run.i0 < run.i1 ? coarseGrid[Math.max(run.i0, Math.min(run.i1, coarseGrid.indexOf(bestL) + 1))] : refinedLmax;
+
+    let a = Math.max(refinedLmin, Math.min(leftNeighbor, bestL));
+    let b = Math.min(refinedLmax, Math.max(rightNeighbor, bestL));
+    if (b - a < 0.2) {
+      a = refinedLmin;
+      b = refinedLmax;
+    }
+
+    const phi = 0.61803398875;
+    let c1 = b - phi * (b - a);
+    let c2 = a + phi * (b - a);
+
+    const f = (L: number): number => {
+      const ev = evalAt(L);
+      return ev.isSafe ? ev.maxStress : Number.POSITIVE_INFINITY;
+    };
+
+    let f1 = f(c1);
+    let f2 = f(c2);
+
+    for (let iter = 0; iter < 10; iter++) {
+      if (b - a < 0.02) break;
+      if (f1 > f2) {
+        a = c1;
+        c1 = c2;
+        f1 = f2;
+        c2 = a + phi * (b - a);
+        f2 = f(c2);
+      } else {
+        b = c2;
+        c2 = c1;
+        f2 = f1;
+        c1 = b - phi * (b - a);
+        f1 = f(c1);
+      }
+    }
+
+    const Lopt = f1 < f2 ? c1 : c2;
+
+    // Final full results at the four points
+    const evLmin = evalAt(refinedLmin);
+    const evLmax = evalAt(refinedLmax);
+    const evLmid = evalAt(Lmid);
+    const evLopt = evalAt(Lopt);
 
     return {
       Lmin: Math.round(refinedLmin * 100) / 100,
       Lmax: Math.round(refinedLmax * 100) / 100,
+      Lmid: Math.round(Lmid * 100) / 100,
+      Lopt: Math.round(Lopt * 100) / 100,
       numSupports: nSup,
-      resultAtMid: evMid.result,
+
       resultAtLmin: evLmin.result,
-      L_plot: Math.round(L_plot * 100) / 100,
+      resultAtLmid: evLmid.result,
+      resultAtLopt: evLopt.result,
+      resultAtLmax: evLmax.result,
+
       stressAtLmin: evLmin.maxStress,
+      stressAtLmid: evLmid.maxStress,
+      stressAtLopt: evLopt.maxStress,
       stressAtLmax: evLmax.maxStress,
-      stressAtLplot: evMid.maxStress,
+
       searchLminGuess: LminGuess,
       searchLmaxGuess: LmaxGuess,
     };
@@ -865,7 +891,7 @@ export function findLRangeFEM(
 }
 
 // ══════════════════════════════════════════════════════════════
-// FIND MAX H — with unilateral supports via evaluateCandidate
+// FIND MAX H (uses evaluateCandidate)
 // ══════════════════════════════════════════════════════════════
 export function findMaxHFEM(
   E_mpa: number,
@@ -891,6 +917,7 @@ export function findMaxHFEM(
   let lo = 0,
     hi = 0;
   let bestN = ev0.numSupports;
+
   let testH = 100;
   for (let step = 0; step < 15; step++) {
     const ev = evaluateH(testH);
@@ -906,6 +933,7 @@ export function findMaxHFEM(
       break;
     }
   }
+
   if (hi === 0) {
     const ev = evaluateCandidate(E_mpa, I, c, q, L_m, lo, bestN, allowable);
     return { h_mm: lo, numSupports: bestN, result: ev.result };
@@ -927,13 +955,11 @@ export function findMaxHFEM(
   return { h_mm: lo, numSupports: bestN, result: ev.result };
 }
 
-// ── Helper: build equally spaced support positions ──
+// ── Candidate supports: equally spaced ──
 export function buildEqualSupports(L_mm: number, numSupports: number): number[] {
   if (numSupports <= 0) return [];
   const spacing = L_mm / (numSupports + 1);
   const positions: number[] = [];
-  for (let i = 1; i <= numSupports; i++) {
-    positions.push(i * spacing);
-  }
+  for (let i = 1; i <= numSupports; i++) positions.push(i * spacing);
   return positions;
 }
