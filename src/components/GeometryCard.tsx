@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { SectionProperties, CalcMode } from "@/lib/calculations";
 import { Ruler } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import NumericInput from "@/components/NumericInput";
 
 interface Props {
   Do: number; t: number; L: number; h: number;
@@ -38,11 +39,11 @@ const GeometryCard = ({ Do, t, L, h, section, calcMode, computedLmin, computedLm
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-xs">D₀ (mm)</Label>
-            <Input type="number" value={Do} onChange={e => onChange("Do", +e.target.value)} className="h-8 text-sm" />
+            <NumericInput value={Do} onValueChange={v => onChange("Do", v)} className="h-8 text-sm" />
           </div>
           <div>
             <Label className="text-xs">t (mm)</Label>
-            <Input type="number" value={t} onChange={e => onChange("t", +e.target.value)} className="h-8 text-sm" />
+            <NumericInput value={t} onValueChange={v => onChange("t", v)} className="h-8 text-sm" />
           </div>
           {calcMode === "findL" ? (
             <div className="col-span-2 grid grid-cols-2 gap-3">
@@ -70,7 +71,7 @@ const GeometryCard = ({ Do, t, L, h, section, calcMode, computedLmin, computedLm
           ) : (
             <div>
               <Label className="text-xs">L (m)</Label>
-              <Input type="number" value={L} onChange={e => onChange("L", +e.target.value)} className="h-8 text-sm" />
+              <NumericInput value={L} onValueChange={v => onChange("L", v)} className="h-8 text-sm" />
             </div>
           )}
           <div>
@@ -89,7 +90,7 @@ const GeometryCard = ({ Do, t, L, h, section, calcMode, computedLmin, computedLm
                 />
               )
             ) : (
-              <Input type="number" value={h} onChange={e => onChange("h", +e.target.value)} className="h-8 text-sm" />
+              <NumericInput value={h} onValueChange={v => onChange("h", v)} className="h-8 text-sm" />
             )}
           </div>
         </div>
