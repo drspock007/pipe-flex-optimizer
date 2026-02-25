@@ -1,149 +1,166 @@
 
 
-# Unilateral (One-Way) Support Contact Model
+# Fix h Sign Convention, Unify FindL, and Make Plots Physical
 
 ## Overview
 
-Replace the current bilateral pin support model with a unilateral contact model. Supports can only push upward (resist gravity) but cannot pull downward. The pipe is free to lift off any support. This requires an iterative active-set solver that determines which supports are actually in contact.
+Three interrelated fixes:
+1. User input `h` means "right end is higher by h mm" (positive upward). FEM uses w positive downward, so `h_fem = -h_up`.
+2. Create a single `evaluateCandidate` function used by FindL scan, bisection, and display -- no separate quick path.
+3. Deflection plot shows physical elevation (up is up) as default, with correct h mapping.
 
-Additionally fix the safety status inconsistency in Find L mode and enhance the deflection plot to show active vs inactive supports.
+Plus: contact sanity checks after convergence and FindL display at L_plot = midpoint of interval.
 
 ---
 
 ## Changes by File
 
-### 1. `src/lib/fem-solver.ts` -- Active-Set Contact Solver
+### 1. `src/lib/calculations.ts` -- h Mapping
 
-**New function** `solveWithUnilateralSupports`:
+**Line 7**: Add comment clarifying `h` in `PipeInputs` is positive upward (right end higher).
 
-```text
-function solveWithUnilateralSupports(
-  E_mpa, I, c, q, L_mm, h_mm,
-  candidateSupports_mm[],  // all candidate positions
-  targetElementsPerSpan,
-):
-  { result: FEMResult, activeSupports: number[], allSupportStatus: {x_mm, w_fem, w_ref, active}[] }
+**In `calculate()` (line 136+)**:
+- After extracting `inputs.h`, compute `h_fem = -inputs.h` (negate for FEM).
+- Pass `h_fem` to all FEM calls instead of raw `h`.
+- All theory checks that reference h must also use `h_fem` or `abs(h)` as appropriate.
 
-  tol = 1e-6 * max(1, abs(h_mm))
-  activeSet = []  // start with no supports active
+**FindL branch (line 178-207)**:
+- Pass `h_fem` to `findLRangeFEM`.
+- Change display: use `resultAtMid` (at L_plot = (Lmin+Lmax)/2) for stress/deflection data.
+- Add `L_plot` to results or debug.
 
-  for iter = 0..14:   // max 15 iterations
-    // Solve FEM with only active supports constrained
-    activeSupportPositions = candidateSupports_mm filtered by activeSet indices
-    result = solveFEMCore(E, I, c, q, L_mm, h_mm, activeSupportPositions, targetElem)
+**Add to `CalculationResults`**:
+- `h_up_mm: number` -- the user's positive-upward h for plots.
+- `L_plot?: number` -- the display L in findL mode.
 
-    // Check all candidate supports for penetration
-    newActiveSet = []
-    for each candidate i:
-      x_i = candidateSupports_mm[i]
-      w_ref_i = h_mm * x_i / L_mm            // settlement line elevation
-      w_fem_i = interpolate w at x_i from result.displacements + nodePositions
-      if w_fem_i < w_ref_i - tol:             // pipe sags below support
-        newActiveSet.push(i)
+**Add to `DebugInfo`**:
+- `stressAtLmin?: number`
+- `stressAtLmax?: number`  
+- `stressAtLplot?: number`
+- `L_plot?: number`
 
-    if newActiveSet equals activeSet: break    // converged
-    activeSet = newActiveSet
+### 2. `src/lib/fem-solver.ts` -- Single evaluateCandidate + Contact Checks
 
-  // Final solve with converged active set (adaptive mesh for accuracy)
-  return { result, activeSupports: activeSet, allSupportStatus }
-```
-
-**Key detail**: To evaluate `w(x_i)` at a candidate support position, we find which element contains `x_i` and use the Hermite shape function interpolation. This reuses the existing `elementDeflection` function.
-
-**New helper** `interpolateDeflection(nodeX, U, x_mm)`: finds the element containing x_mm and returns the interpolated w.
-
-**Update all callers**:
-- `solveFEMQuick` -- add a quick version `solveFEMQuickUnilateral` that runs the active-set loop with 8 elements and returns only maxStress. For coarse scan performance, limit to 5 active-set iterations.
-- `autoSupportsFEM` -- use unilateral solver
-- `findLRangeFEM` -- use unilateral quick solver for coarse scan, unilateral full solver for final results
-- `findMaxHFEM` -- use unilateral solver
-
-**Update `FEMResult`** interface:
-- Add `activeSupports: number[]` (indices into candidate array)
-- Add `supportStatus: { x_mm: number; w_fem: number; w_ref: number; active: boolean }[]`
-
-**Fix Find L safety**: After bisection refinement, verify both endpoints are truly safe (maxStress <= allowable + 0.5 MPa). If not, shrink interval by 0.01m steps until safe.
-
-### 2. `src/lib/calculations.ts` -- Types and Entry Point
-
-**Update `CalculationResults`**:
-- Add `activeSupports: number[]` -- indices of active supports
-- Add `supportStatus: { x: number; w_fem: number; w_ref: number; active: boolean }[]` -- in meters/mm for display
-- Add `candidateSupportPositions: number[]` -- all candidate positions in meters
-
-**Update safety logic in Find L mode**:
-- When `calcMode === "findL"` and `computedLmin`/`computedLmax` exist, set `isSafe = true` (the interval itself is feasible)
-- Only show NOT SAFE if no feasible interval was found
-
-**Pass through** `activeSupports` and `supportStatus` from FEM result to UI.
-
-### 3. `src/components/DeflectionChart.tsx` -- Active/Inactive Support Markers
-
-**Replace** simple vertical reference lines with scatter-style markers:
-- Active supports: filled orange dot at (x, w_ref) position
-- Inactive supports: hollow circle at (x, w_ref) position
-- Keep the settlement reference line (dashed)
-
-Use Recharts `ReferenceDot` for support markers. For each support in `supportStatus`:
-- If active: `<ReferenceDot x={pos} y={w_ref} r={4} fill="hsl(34 100% 51%)" stroke="hsl(34 100% 51%)" />`
-- If inactive: `<ReferenceDot x={pos} y={w_ref} r={4} fill="none" stroke="hsl(var(--muted-foreground))" />`
-
-This visually shows that the pipe lifts off inactive supports.
-
-**Update props**: Access `supportStatus` from results.
-
-### 4. `src/components/StressChart.tsx` -- Support Markers
-
-Similarly distinguish active vs inactive supports on the stress chart:
-- Active supports: solid vertical reference line
-- Inactive supports: lighter/dotted vertical reference line
-
-### 5. `src/components/DebugPanel.tsx` -- Contact Debug Info
-
-Add a new section "Support Contact Status":
+**New exported function `evaluateCandidate`** (replaces separate quick/full paths):
 
 ```text
--- Support Contact --
-Candidates: 3
-Active: 2 (indices 0, 2)
-Inactive: 1 (index 1)
-
-  Sup #0  x=7500mm  w_fem=625.0  w_ref=625.0  ACTIVE
-  Sup #1  x=15000mm w_fem=1255.3 w_ref=1250.0 INACTIVE (lifted 5.3mm)
-  Sup #2  x=22500mm w_fem=1875.0 w_ref=1875.0 ACTIVE
+export function evaluateCandidate(
+  E_mpa, I, c, q, L_m, h_fem_mm, supportsCount, allowable
+): {
+  maxStress: number;
+  isSafe: boolean;
+  result: FEMResult;  // full result with plots
+  contactValid: boolean;
+  contactWarnings: string[];
+}
 ```
 
-Show iteration count for convergence.
+Inside:
+1. `L_mm = L_m * 1000`
+2. `candidates = buildEqualSupports(L_mm, supportsCount)`
+3. `{ result, activeSupports, supportStatus } = solveWithUnilateralSupports(E, I, c, q, L_mm, h_fem_mm, candidates, 16)`
+4. Run contact sanity checks:
+   - For inactive supports: verify `w(x_i) <= w_ref(x_i) + tol`
+   - For active supports: verify `|w(x_i) - w_ref(x_i)| <= 10*tol`
+   - If violated: set `contactValid = false`, add warnings
+5. `isSafe = result.maxStress <= allowable + 0.5 && contactValid`
+6. Return everything.
 
-### 6. `src/components/ResultsPanel.tsx` -- Safety Status Fix
+**Update `findLRangeFEM`**:
+- Remove `solveFEMQuickUnilateral` calls in coarse scan and bisection.
+- Replace with `evaluateCandidate(...)`. Since evaluateCandidate does a full solve (16 elem/span), the scan is slower but correct. For the ~150-point coarse scan this is acceptable (each solve is sub-ms with banded solver).
+- After finding Lmin/Lmax, compute `L_plot = (Lmin + Lmax) / 2` and return `resultAtMid` from `evaluateCandidate(L_plot)`.
+- Also return `stressAtLmin`, `stressAtLmax`, `stressAtLplot`.
 
-**Find L mode safety**:
-- When `computedLmin` and `computedLmax` exist, display "FEASIBLE" badge (green) instead of evaluating stress at an arbitrary L
-- Show active/total support count: "Active supports: 2/3"
+**Update `FindLRangeResult`**:
+- Replace `resultAtLmax` with `resultAtMid: FEMResult`.
+- Add `stressAtLmin`, `stressAtLmax`, `L_plot`.
+- Keep `resultAtLmin` for reference.
 
-### 7. `src/pages/Index.tsx` -- Wiring
+**Update `autoSupportsFEM`** and `findMaxHFEM`**: use `evaluateCandidate` internally.
 
-Pass new fields (`supportStatus`, `activeSupports`, `candidateSupportPositions`) through to components. Minimal changes since most data flows through `CalculationResults`.
+**Remove** `solveFEMQuick` and `solveFEMQuickUnilateral` (no longer needed -- single source of truth).
+
+**Contact sanity check helper**:
+```text
+function validateContact(
+  supportStatus: SupportStatus[], h_fem_mm: number
+): { valid: boolean; warnings: string[] }
+```
+
+**Sign convention header update** (lines 1-14):
+- Clarify: `h_fem_mm` is the FEM value (negative when right end is higher).
+- `w_ref(x) = h_fem_mm * x / L` (will be negative when h_up > 0).
+- Contact: active if `w(x_i) > w_ref(x_i) + tol` -- this still works correctly because with h_fem negative, w_ref is negative (upward), and self-weight makes w more positive (downward), so `w > w_ref` means pipe sags below support.
+
+### 3. `src/lib/calculations.ts` -- FindL Branch Update
+
+The findL branch currently uses `resultAtLmax` for display. Change to:
+- Use `r.resultAtMid` for stressData, deflectionData.
+- Set `L = r.L_plot` for debug theory calculations.
+- Set `maxStress = r.stressAtLplot`.
+- Add `r.stressAtLmin` and `r.stressAtLmax` to debug.
+
+### 4. `src/components/DeflectionChart.tsx` -- Physical Elevation Plot
+
+**h_up_mm** is now available in results. Use it for correct elevation:
+
+```text
+// Physical elevation reference line (up-positive):
+//   y_ref(x) = h_up_mm * x / L
+// Pipe elevation:
+//   y_pipe(x) = y_ref(x) - w(x)
+// (subtracting w because w is positive downward)
+```
+
+**Elevation mode** (default):
+- `ref = h_up_mm * (d.x / L_m)` -- physical reference line going up
+- `value = ref - d.w` -- pipe position (deflects down from reference)
+
+**Sag mode**:
+- `value = d.w - w_fem_ref` where `w_fem_ref = h_fem * x/L = -h_up * x/L`
+- Simplifies to: `value = d.w + h_up * x/L` ... but actually sag = w - w_ref_fem. Since w_ref_fem is negative (for h_up > 0), sag = w - (-h_up*x/L) = w + h_up*x/L. Positive sag means pipe below the settlement line.
+
+**Raw mode**: show w(x) as-is with inverted Y axis (unchanged).
+
+**Support markers**: Use `h_up_mm` to compute marker positions in elevation mode.
+
+### 5. `src/components/ResultsPanel.tsx` -- FindL Display
+
+- Show stress at L_plot (midpoint) as the "display stress".
+- Add subtitle text: "Shown at L = XX.XX m (midpoint)".
+- Safety badge logic remains: feasible if window exists.
+
+### 6. `src/components/DebugPanel.tsx` -- Extended Debug
+
+Add rows:
+- `h_up (mm)`: user input
+- `h_fem (mm)`: negated value passed to FEM
+- `L_plot (m)`: display L for findL
+- `σ(Lmin)`, `σ(Lmax)`, `σ(L_plot)`: stress at each boundary and midpoint
+- Contact validation: PASS/FAIL
+
+### 7. `src/pages/Index.tsx` -- No changes needed
+
+Results flow through `CalculationResults` which already passes to all components.
 
 ---
-
-## Performance Considerations
-
-- Quick unilateral solver uses 8 elements/span and max 5 active-set iterations (vs 15 for full)
-- Each active-set iteration is a full FEM solve, so a single quick unilateral call costs ~5x a bilateral quick solve
-- Coarse scan with 150 grid points x 21 support counts x 5 iterations = ~15,750 quick solves worst case
-- Still under 2-3 seconds on modern hardware (each quick solve is sub-millisecond)
-- Web Worker keeps UI responsive
 
 ## Files Modified
 
 | File | Summary |
 |------|---------|
-| `src/lib/fem-solver.ts` | Add `solveWithUnilateralSupports`, `solveFEMQuickUnilateral`, `interpolateDeflection`; update all search functions to use unilateral model |
-| `src/lib/calculations.ts` | Add `activeSupports`, `supportStatus` to results; fix Find L safety logic |
-| `src/components/DeflectionChart.tsx` | Active/inactive support markers (filled vs hollow dots) |
-| `src/components/StressChart.tsx` | Active/inactive support line styling |
-| `src/components/DebugPanel.tsx` | Support contact status table |
-| `src/components/ResultsPanel.tsx` | Fix safety badge for Find L mode; show active/total supports |
-| `src/pages/Index.tsx` | Pass new result fields to components |
+| `src/lib/fem-solver.ts` | Add `evaluateCandidate`, contact validation, remove quick solvers, update FindL/FindH/Auto to use evaluateCandidate, update sign convention docs |
+| `src/lib/calculations.ts` | Add `h_fem = -h` mapping, pass h_fem to FEM, add `h_up_mm`/`L_plot` to results, update FindL branch to use midpoint |
+| `src/components/DeflectionChart.tsx` | Use `h_up_mm` for correct elevation plot, fix reference line direction |
+| `src/components/ResultsPanel.tsx` | Show "at L = X m" subtitle in FindL mode |
+| `src/components/DebugPanel.tsx` | Add h_up, h_fem, L_plot, stress at boundaries, contact validation rows |
+| `src/components/StressChart.tsx` | No changes needed (stress is always positive) |
+
+---
+
+## Technical Notes
+
+- **Why negate h**: The user says "right end is 2500mm higher". In w-positive-downward convention, the right BC is w(L) = -2500mm (the right end moves upward, i.e., negative w). The settlement line w_ref(x) = -2500 * x/L is negative, meaning supports are above the undeflected position. Self-weight makes w positive (downward). The contact condition `w > w_ref + tol` correctly activates when the pipe sags below the (negative) support elevation.
+- **Removing quick solver**: The banded solver with 16 elements/span for a single span is ~40 nodes = 80 DOFs. Even with 20 supports (21 spans), that's 336 nodes = 672 DOFs. The banded LDLT solve is O(n * bw^2) ≈ 672 * 9 ≈ 6000 ops per solve. With 150 grid points × 21 support counts × 15 contact iterations = ~47k solves worst case. At ~6000 ops each, that's ~280M ops, which runs in ~1-2 seconds. Acceptable for correctness-first approach.
 
