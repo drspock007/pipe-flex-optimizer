@@ -16,28 +16,37 @@ interface Props {
 }
 
 const DeflectionChart = ({ results }: Props) => {
-  const { deflectionData, supportStatus } = results;
+  const { deflectionData, supportStatus, h_up_mm } = results;
   const [amplify, setAmplify] = useState(false);
   const [mode, setMode] = useState<PlotMode>("elevation");
 
   if (!deflectionData || deflectionData.length === 0) return null;
 
   const L_m = deflectionData[deflectionData.length - 1]?.x ?? 0;
-  const lastW = deflectionData[deflectionData.length - 1]?.w ?? 0;
   const factor = amplify ? 10 : 1;
 
   // Build chart data based on mode
+  // h_up_mm: positive upward (right end higher)
+  // w: positive downward (FEM convention)
+  // h_fem = -h_up_mm (used in FEM, so w_ref_fem = h_fem * x/L)
   const chartData = deflectionData.map(d => {
-    const w_ref = L_m > 0 ? (d.x / L_m) * lastW : 0;
+    const xRatio = L_m > 0 ? d.x / L_m : 0;
     if (mode === "elevation") {
-      // z(x) = -w(x), physical vertical coordinate (up is up)
-      return { x: d.x, value: -d.w * factor, ref: -w_ref * factor };
+      // Physical elevation: y_ref(x) = h_up_mm * x/L (upward positive)
+      // y_pipe(x) = y_ref(x) - w(x)  (w is downward, so subtract)
+      const ref = h_up_mm * xRatio;
+      const value = ref - d.w;
+      return { x: d.x, value: value * factor, ref: ref * factor };
     } else if (mode === "sag") {
-      // w_rel(x) = w(x) - w_ref(x), positive = sag below settlement line
-      return { x: d.x, value: (d.w - w_ref) * factor, ref: 0 };
+      // Sag = w - w_ref_fem = w - (h_fem * x/L) = w - (-h_up * x/L) = w + h_up * x/L
+      // Positive sag = pipe below settlement line
+      const w_ref_fem = -h_up_mm * xRatio; // h_fem * x/L
+      const sag = d.w - w_ref_fem; // = w + h_up * x/L
+      return { x: d.x, value: sag * factor, ref: 0 };
     } else {
-      // raw: w(x) positive downward
-      return { x: d.x, value: d.w * factor, ref: w_ref * factor };
+      // Raw: w(x) positive downward, with inverted Y axis
+      const w_ref_fem = -h_up_mm * xRatio;
+      return { x: d.x, value: d.w * factor, ref: w_ref_fem * factor };
     }
   });
 
@@ -136,16 +145,18 @@ const DeflectionChart = ({ results }: Props) => {
                 name="value"
               />
 
-              {/* Support markers */}
+              {/* Support markers on the settlement/reference line */}
               {supportStatus.map((sup, i) => {
+                const xRatio = L_m > 0 ? sup.x / L_m : 0;
                 let markerY: number;
-                const w_ref_sup = L_m > 0 ? (sup.x / L_m) * lastW : 0;
                 if (mode === "elevation") {
-                  markerY = -w_ref_sup * factor;
+                  // Support sits on settlement line: y_ref = h_up * x/L
+                  markerY = h_up_mm * xRatio * factor;
                 } else if (mode === "sag") {
                   markerY = 0;
                 } else {
-                  markerY = w_ref_sup * factor;
+                  // Raw: support on w_ref_fem = -h_up * x/L
+                  markerY = -h_up_mm * xRatio * factor;
                 }
                 return (
                   <ReferenceDot

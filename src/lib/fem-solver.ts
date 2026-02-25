@@ -1,14 +1,15 @@
 // ══════════════════════════════════════════════════════════════
-// 1D Euler-Bernoulli Beam FEM Solver (Stiffness Method) — V3
+// 1D Euler-Bernoulli Beam FEM Solver (Stiffness Method) — V4
 // Units: mm, N, MPa throughout
 // 
 // SIGN CONVENTION:
 //   w is POSITIVE DOWNWARD
 //   q (self-weight) is POSITIVE DOWNWARD
-//   h (settlement) is POSITIVE DOWNWARD
-//   Boundary: left w=0,θ=0; right w=+h,θ=0
-//   Support elevation line: w_sup(x) = h·x/L
-//   Contact: ACTIVE if w(x_i) > w_sup(x_i) + tol (pipe sags past support)
+//   h_fem_mm: FEM settlement value (positive = right end lower)
+//     When user says "right end higher by h_up", h_fem = -h_up
+//   Boundary: left w=0,θ=0; right w=h_fem_mm,θ=0
+//   Support elevation line: w_ref(x) = h_fem_mm · x / L
+//   Contact: ACTIVE if w(x_i) > w_ref(x_i) + tol (pipe sags past support)
 //
 // Features: Banded solver, adaptive mesh, unilateral contact supports
 // ══════════════════════════════════════════════════════════════
@@ -34,6 +35,14 @@ export interface FEMResult {
   activeSupports: number[];         // indices into candidate array
   supportStatus: SupportStatus[];   // status of all candidate supports
   contactIterations: number;
+}
+
+export interface EvaluateCandidateResult {
+  maxStress: number;
+  isSafe: boolean;
+  result: FEMResult;
+  contactValid: boolean;
+  contactWarnings: string[];
 }
 
 // ── Performance guardrails ──
@@ -209,7 +218,6 @@ function elementDeflection(
 function interpolateDeflection(
   nodeX: number[], U: number[] | Float64Array, x_mm: number
 ): number {
-  // Find element containing x_mm
   const nNodes = nodeX.length;
   for (let i = 0; i < nNodes - 1; i++) {
     const x1 = nodeX[i];
@@ -222,7 +230,6 @@ function interpolateDeflection(
       return elementDeflection(Le, w1, t1, w2, t2, xi);
     }
   }
-  // Fallback: return value at nearest node
   if (x_mm <= nodeX[0]) return U[0] as number;
   return U[2 * (nNodes - 1)] as number;
 }
@@ -381,15 +388,13 @@ function solveWithUnilateralSupports(
   maxIter: number = 15,
 ): UnilateralResult {
   const tol = 1e-6 * Math.max(1, Math.abs(h_total_mm));
-  let activeSet: number[] = []; // start with no supports active
+  let activeSet: number[] = [];
   let result: FEMResult;
   let iter = 0;
 
   for (iter = 0; iter < maxIter; iter++) {
-    // Build active support positions
     const activeSupportPositions = activeSet.map(i => candidateSupports_mm[i]);
 
-    // Solve FEM with only active supports
     result = solveFEMCore(
       E_mpa, I_mm4, c_mm, q_Nmm,
       L_total_mm, h_total_mm,
@@ -397,19 +402,16 @@ function solveWithUnilateralSupports(
       targetElementsPerSpan,
     );
 
-    // Check all candidates for penetration
     const newActiveSet: number[] = [];
     for (let i = 0; i < candidateSupports_mm.length; i++) {
       const x_i = candidateSupports_mm[i];
       const w_ref_i = h_total_mm * x_i / L_total_mm;
       const w_fem_i = interpolateDeflection(result.nodePositions, result.displacements, x_i);
       if (w_fem_i > w_ref_i + tol) {
-        // Pipe sags below support (w positive downward) → support must be active
         newActiveSet.push(i);
       }
     }
 
-    // Check convergence
     if (newActiveSet.length === activeSet.length &&
         newActiveSet.every((v, idx) => v === activeSet[idx])) {
       iter++;
@@ -418,10 +420,8 @@ function solveWithUnilateralSupports(
     activeSet = newActiveSet;
   }
 
-  // Final result is the last computed one
   result = result!;
 
-  // Build support status for all candidates
   const supportStatus: SupportStatus[] = candidateSupports_mm.map((x_mm, i) => {
     const w_ref = h_total_mm * x_mm / L_total_mm;
     const w_fem = interpolateDeflection(result.nodePositions, result.displacements, x_mm);
@@ -433,7 +433,6 @@ function solveWithUnilateralSupports(
     };
   });
 
-  // Attach contact info to result
   result.activeSupports = activeSet;
   result.supportStatus = supportStatus;
   result.contactIterations = iter;
@@ -441,104 +440,54 @@ function solveWithUnilateralSupports(
   return { result, activeSupports: activeSet, supportStatus, contactIterations: iter };
 }
 
-// ── Quick unilateral solve (stress only, for search) ──
-function solveFEMQuickUnilateral(
-  E_mpa: number, I_mm4: number, c_mm: number, q_Nmm: number,
-  L_total_mm: number, h_total_mm: number,
-  candidateSupports_mm: number[],
-): number {
-  const tol = 1e-6 * Math.max(1, Math.abs(h_total_mm));
-  let activeSet: number[] = [];
-  const EI = E_mpa * I_mm4;
-  const maxIter = 5; // fewer iterations for speed
+// ══════════════════════════════════════════════════════════════
+// CONTACT SANITY CHECK
+// ══════════════════════════════════════════════════════════════
+function validateContact(
+  supportStatus: SupportStatus[],
+  h_fem_mm: number,
+): { valid: boolean; warnings: string[] } {
+  const tol = 1e-6 * Math.max(1, Math.abs(h_fem_mm));
+  const warnings: string[] = [];
+  let valid = true;
 
-  for (let iter = 0; iter < maxIter; iter++) {
-    const activeSupportPositions = activeSet.map(i => candidateSupports_mm[i]);
-    const { nodeX } = buildMesh(activeSupportPositions, L_total_mm, 8);
-    const nNodes = nodeX.length;
-    const nElements = nNodes - 1;
-
-    const elements: { node1: number; node2: number; Le: number }[] = [];
-    for (let i = 0; i < nElements; i++) {
-      elements.push({ node1: i, node2: i + 1, Le: nodeX[i + 1] - nodeX[i] });
-    }
-
-    const { bands, F, nDof, halfBw } = assembleSystemBanded(nNodes, elements, EI, q_Nmm);
-
-    const constraints: { dof: number; value: number }[] = [];
-    constraints.push({ dof: 0, value: 0 }, { dof: 1, value: 0 });
-    const rightNode = nNodes - 1;
-    constraints.push({ dof: 2 * rightNode, value: h_total_mm }, { dof: 2 * rightNode + 1, value: 0 });
-    for (let i = 1; i < nNodes - 1; i++) {
-      const x = nodeX[i];
-      if (activeSupportPositions.some(sp => Math.abs(sp - x) < 0.01)) {
-        constraints.push({ dof: 2 * i, value: (h_total_mm / L_total_mm) * x });
+  for (const s of supportStatus) {
+    if (s.active) {
+      // Active: w should be very close to w_ref
+      if (Math.abs(s.w_fem - s.w_ref) > 10 * tol) {
+        valid = false;
+        warnings.push(`Contact violation (active): x=${s.x_mm.toFixed(0)}mm |w_fem-w_ref|=${Math.abs(s.w_fem - s.w_ref).toFixed(3)}mm > 10·tol`);
+      }
+    } else {
+      // Inactive: w should be <= w_ref + tol (pipe above or at support)
+      if (s.w_fem > s.w_ref + tol) {
+        valid = false;
+        warnings.push(`Contact violation (inactive): x=${s.x_mm.toFixed(0)}mm w_fem=${s.w_fem.toFixed(3)} > w_ref+tol=${(s.w_ref + tol).toFixed(3)}`);
       }
     }
-
-    applyBCBanded(bands, F, nDof, halfBw, constraints);
-    const U = solveBanded(bands, F, nDof, halfBw);
-
-    // Check candidates for penetration
-    const newActiveSet: number[] = [];
-    for (let ci = 0; ci < candidateSupports_mm.length; ci++) {
-      const x_i = candidateSupports_mm[ci];
-      const w_ref_i = h_total_mm * x_i / L_total_mm;
-      const w_fem_i = interpolateDeflection(nodeX, U, x_i);
-      if (w_fem_i > w_ref_i + tol) {
-        newActiveSet.push(ci);
-      }
-    }
-
-    if (newActiveSet.length === activeSet.length &&
-        newActiveSet.every((v, idx) => v === activeSet[idx])) {
-      // Converged — compute max stress from this solution
-      return computeMaxStressFromU(EI, I_mm4, c_mm, elements, nodeX, U);
-    }
-    activeSet = newActiveSet;
   }
 
-  // Not converged — compute stress from last iteration's active set
-  const activeSupportPositions = activeSet.map(i => candidateSupports_mm[i]);
-  const { nodeX } = buildMesh(activeSupportPositions, L_total_mm, 8);
-  const nNodes = nodeX.length;
-  const elements: { node1: number; node2: number; Le: number }[] = [];
-  for (let i = 0; i < nNodes - 1; i++) {
-    elements.push({ node1: i, node2: i + 1, Le: nodeX[i + 1] - nodeX[i] });
-  }
-  const { bands, F, nDof, halfBw } = assembleSystemBanded(nNodes, elements, EI, q_Nmm);
-  const constraints: { dof: number; value: number }[] = [];
-  constraints.push({ dof: 0, value: 0 }, { dof: 1, value: 0 });
-  constraints.push({ dof: 2 * (nNodes - 1), value: h_total_mm }, { dof: 2 * (nNodes - 1) + 1, value: 0 });
-  for (let i = 1; i < nNodes - 1; i++) {
-    if (activeSupportPositions.some(sp => Math.abs(sp - nodeX[i]) < 0.01)) {
-      constraints.push({ dof: 2 * i, value: (h_total_mm / L_total_mm) * nodeX[i] });
-    }
-  }
-  applyBCBanded(bands, F, nDof, halfBw, constraints);
-  const U = solveBanded(bands, F, nDof, halfBw);
-  return computeMaxStressFromU(EI, I_mm4, c_mm, elements, nodeX, U);
+  return { valid, warnings };
 }
 
-// ── Helper: compute max stress from a solved DOF vector ──
-function computeMaxStressFromU(
-  EI: number, I_mm4: number, c_mm: number,
-  elements: { node1: number; node2: number; Le: number }[],
-  nodeX: number[], U: number[] | Float64Array,
-): number {
-  let maxStress = 0;
-  for (let i = 0; i < elements.length; i++) {
-    const el = elements[i];
-    const w1 = U[2 * el.node1] as number, t1 = U[2 * el.node1 + 1] as number;
-    const w2 = U[2 * el.node2] as number, t2 = U[2 * el.node2 + 1] as number;
-    for (const frac of [0.05, 0.25, 0.5, 0.75, 0.95]) {
-      const xi = frac * el.Le;
-      const M = elementMoment(EI, el.Le, w1, t1, w2, t2, xi);
-      const stress = (Math.abs(M) * c_mm) / I_mm4;
-      if (stress > maxStress) maxStress = stress;
-    }
-  }
-  return maxStress;
+// ══════════════════════════════════════════════════════════════
+// SINGLE SOURCE OF TRUTH: evaluateCandidate
+// Used by FindL scan, bisection, auto-supports, and display.
+// ══════════════════════════════════════════════════════════════
+export function evaluateCandidate(
+  E_mpa: number, I: number, c: number, q: number,
+  L_m: number, h_fem_mm: number, supportsCount: number, allowable: number,
+): EvaluateCandidateResult {
+  const L_mm = L_m * 1000;
+  const candidates = buildEqualSupports(L_mm, supportsCount);
+  const { result, supportStatus } = solveWithUnilateralSupports(
+    E_mpa, I, c, q, L_mm, h_fem_mm, candidates, 16
+  );
+
+  const { valid: contactValid, warnings: contactWarnings } = validateContact(supportStatus, h_fem_mm);
+  const isSafe = result.maxStress <= allowable + 0.5 && contactValid;
+
+  return { maxStress: result.maxStress, isSafe, result, contactValid, contactWarnings };
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -570,86 +519,66 @@ export function solveFEM(
   return r20;
 }
 
-// ── Quick solve (bilateral, for backward compat) ──
-function solveFEMQuick(
-  E_mpa: number, I_mm4: number, c_mm: number, q_Nmm: number,
-  L_total_mm: number, h_total_mm: number,
-  supportPositions_mm: number[],
-): number {
-  const EI = E_mpa * I_mm4;
-  const { nodeX } = buildMesh(supportPositions_mm, L_total_mm, 8);
-  const nNodes = nodeX.length;
-  const elements: { node1: number; node2: number; Le: number }[] = [];
-  for (let i = 0; i < nNodes - 1; i++) {
-    elements.push({ node1: i, node2: i + 1, Le: nodeX[i + 1] - nodeX[i] });
-  }
-  const { bands, F, nDof, halfBw } = assembleSystemBanded(nNodes, elements, EI, q_Nmm);
-  const constraints: { dof: number; value: number }[] = [];
-  constraints.push({ dof: 0, value: 0 }, { dof: 1, value: 0 });
-  const rightNode = nNodes - 1;
-  constraints.push({ dof: 2 * rightNode, value: h_total_mm }, { dof: 2 * rightNode + 1, value: 0 });
-  for (let i = 1; i < nNodes - 1; i++) {
-    if (supportPositions_mm.some(sp => Math.abs(sp - nodeX[i]) < 0.01)) {
-      constraints.push({ dof: 2 * i, value: (h_total_mm / L_total_mm) * nodeX[i] });
-    }
-  }
-  applyBCBanded(bands, F, nDof, halfBw, constraints);
-  const U = solveBanded(bands, F, nDof, halfBw);
-  return computeMaxStressFromU(EI, I_mm4, c_mm, elements, nodeX, U);
-}
-
 // ══════════════════════════════════════════════════════════════
-// AUTO-SUPPORT (with unilateral contacts)
+// AUTO-SUPPORT (with unilateral contacts via evaluateCandidate)
 // ══════════════════════════════════════════════════════════════
 export function autoSupportsFEM(
   E_mpa: number, I: number, c: number, q: number,
-  L_mm: number, h_mm: number, allowable: number,
+  L_mm: number, h_fem_mm: number, allowable: number,
 ): { numSupports: number; stress: number; result: FEMResult } {
   let bestN = 0, bestStress = Infinity;
   let bestResult: FEMResult | null = null;
   let prevStress = Infinity;
+  const L_m = L_mm / 1000;
 
   for (let n = 0; n <= MAX_SUPPORTS; n++) {
-    const candidates = buildEqualSupports(L_mm, n);
-    const stress = solveFEMQuickUnilateral(E_mpa, I, c, q, L_mm, h_mm, candidates);
+    const ev = evaluateCandidate(E_mpa, I, c, q, L_m, h_fem_mm, n, allowable);
 
-    if (stress <= allowable) {
-      const { result } = solveWithUnilateralSupports(E_mpa, I, c, q, L_mm, h_mm, candidates, 16);
-      return { numSupports: n, stress: result.maxStress, result };
+    if (ev.isSafe) {
+      return { numSupports: n, stress: ev.maxStress, result: ev.result };
     }
 
-    if (stress < bestStress) {
-      bestStress = stress;
+    if (ev.maxStress < bestStress) {
+      bestStress = ev.maxStress;
       bestN = n;
+      bestResult = ev.result;
     }
 
-    if (n > 0 && stress > prevStress * 1.05) break;
-    prevStress = stress;
+    if (n > 0 && ev.maxStress > prevStress * 1.05) break;
+    prevStress = ev.maxStress;
   }
 
-  const candidates = buildEqualSupports(L_mm, bestN);
-  const { result } = solveWithUnilateralSupports(E_mpa, I, c, q, L_mm, h_mm, candidates, 16);
-  bestResult = result;
-  return { numSupports: bestN, stress: bestResult.maxStress, result: bestResult };
+  if (!bestResult) {
+    const ev = evaluateCandidate(E_mpa, I, c, q, L_m, h_fem_mm, bestN, allowable);
+    bestResult = ev.result;
+    bestStress = ev.maxStress;
+  }
+
+  return { numSupports: bestN, stress: bestStress, result: bestResult };
 }
 
 // ══════════════════════════════════════════════════════════════
 // FIND L RANGE — [Lmin, Lmax] with unilateral supports
+// Uses evaluateCandidate as single source of truth.
 // ══════════════════════════════════════════════════════════════
 
 export interface FindLRangeResult {
   Lmin: number;
   Lmax: number;
   numSupports: number;
-  resultAtLmax: FEMResult;
+  resultAtMid: FEMResult;       // full result at L_plot = (Lmin+Lmax)/2
   resultAtLmin: FEMResult;
+  L_plot: number;               // display L = midpoint
+  stressAtLmin: number;
+  stressAtLmax: number;
+  stressAtLplot: number;
   searchLminGuess: number;
   searchLmaxGuess: number;
 }
 
 export function findLRangeFEM(
   E_mpa: number, I: number, c: number, q: number,
-  h_mm: number, allowable: number,
+  h_fem_mm: number, allowable: number,
 ): FindLRangeResult | undefined {
   const coarseGrid: number[] = [];
   for (let L = 1; L <= 100; L += 1) coarseGrid.push(L);
@@ -659,10 +588,8 @@ export function findLRangeFEM(
   for (let nSup = 0; nSup <= MAX_SUPPORTS; nSup++) {
     const safePoints: number[] = [];
     for (const L_m of coarseGrid) {
-      const L_mm = L_m * 1000;
-      const candidates = buildEqualSupports(L_mm, nSup);
-      const stress = solveFEMQuickUnilateral(E_mpa, I, c, q, L_mm, h_mm, candidates);
-      if (stress <= allowable) {
+      const ev = evaluateCandidate(E_mpa, I, c, q, L_m, h_fem_mm, nSup, allowable);
+      if (ev.isSafe) {
         safePoints.push(L_m);
       }
     }
@@ -676,65 +603,59 @@ export function findLRangeFEM(
     const idxMin = gridIdx(LminGuess);
     const idxMax = gridIdx(LmaxGuess);
 
-    // Refine Lmin
+    // Refine Lmin by bisection
     let loMin = idxMin > 0 ? coarseGrid[idxMin - 1] : 0.5;
     let hiMin = LminGuess;
     for (let iter = 0; iter < 20; iter++) {
       const mid = (loMin + hiMin) / 2;
       if ((hiMin - loMin) * 1000 < 10) break;
-      const candidates = buildEqualSupports(mid * 1000, nSup);
-      const stress = solveFEMQuickUnilateral(E_mpa, I, c, q, mid * 1000, h_mm, candidates);
-      if (stress <= allowable) { hiMin = mid; } else { loMin = mid; }
+      const ev = evaluateCandidate(E_mpa, I, c, q, mid, h_fem_mm, nSup, allowable);
+      if (ev.isSafe) { hiMin = mid; } else { loMin = mid; }
     }
     let refinedLmin = hiMin;
 
-    // Refine Lmax
+    // Refine Lmax by bisection
     let loMax = LmaxGuess;
     let hiMax = idxMax < coarseGrid.length - 1 ? coarseGrid[idxMax + 1] : LmaxGuess * 1.1;
     for (let iter = 0; iter < 20; iter++) {
       const mid = (loMax + hiMax) / 2;
       if ((hiMax - loMax) * 1000 < 10) break;
-      const candidates = buildEqualSupports(mid * 1000, nSup);
-      const stress = solveFEMQuickUnilateral(E_mpa, I, c, q, mid * 1000, h_mm, candidates);
-      if (stress <= allowable) { loMax = mid; } else { hiMax = mid; }
+      const ev = evaluateCandidate(E_mpa, I, c, q, mid, h_fem_mm, nSup, allowable);
+      if (ev.isSafe) { loMax = mid; } else { hiMax = mid; }
     }
     let refinedLmax = loMax;
 
-    // Safety verification: ensure endpoints are truly safe (within 0.5 MPa tolerance)
+    // Safety verification: shrink endpoints if needed
     const eps = 0.5;
-    // Shrink Lmin up if not safe
     for (let s = 0; s < 50; s++) {
-      const candidates = buildEqualSupports(refinedLmin * 1000, nSup);
-      const stress = solveFEMQuickUnilateral(E_mpa, I, c, q, refinedLmin * 1000, h_mm, candidates);
-      if (stress <= allowable + eps) break;
+      const ev = evaluateCandidate(E_mpa, I, c, q, refinedLmin, h_fem_mm, nSup, allowable);
+      if (ev.maxStress <= allowable + eps && ev.contactValid) break;
       refinedLmin += 0.01;
     }
-    // Shrink Lmax down if not safe
     for (let s = 0; s < 50; s++) {
-      const candidates = buildEqualSupports(refinedLmax * 1000, nSup);
-      const stress = solveFEMQuickUnilateral(E_mpa, I, c, q, refinedLmax * 1000, h_mm, candidates);
-      if (stress <= allowable + eps) break;
+      const ev = evaluateCandidate(E_mpa, I, c, q, refinedLmax, h_fem_mm, nSup, allowable);
+      if (ev.maxStress <= allowable + eps && ev.contactValid) break;
       refinedLmax -= 0.01;
     }
 
-    if (refinedLmin >= refinedLmax) continue; // degenerate
+    if (refinedLmin >= refinedLmax) continue;
 
-    // Full unilateral solve at Lmax and Lmin for plots
-    const candLmax = buildEqualSupports(refinedLmax * 1000, nSup);
-    const { result: resultAtLmax } = solveWithUnilateralSupports(
-      E_mpa, I, c, q, refinedLmax * 1000, h_mm, candLmax, 16
-    );
-    const candLmin = buildEqualSupports(refinedLmin * 1000, nSup);
-    const { result: resultAtLmin } = solveWithUnilateralSupports(
-      E_mpa, I, c, q, refinedLmin * 1000, h_mm, candLmin, 16
-    );
+    // Compute results at midpoint, Lmin, and Lmax
+    const L_plot = (refinedLmin + refinedLmax) / 2;
+    const evMid = evaluateCandidate(E_mpa, I, c, q, L_plot, h_fem_mm, nSup, allowable);
+    const evLmin = evaluateCandidate(E_mpa, I, c, q, refinedLmin, h_fem_mm, nSup, allowable);
+    const evLmax = evaluateCandidate(E_mpa, I, c, q, refinedLmax, h_fem_mm, nSup, allowable);
 
     return {
       Lmin: Math.round(refinedLmin * 100) / 100,
       Lmax: Math.round(refinedLmax * 100) / 100,
       numSupports: nSup,
-      resultAtLmax,
-      resultAtLmin,
+      resultAtMid: evMid.result,
+      resultAtLmin: evLmin.result,
+      L_plot: Math.round(L_plot * 100) / 100,
+      stressAtLmin: evLmin.maxStress,
+      stressAtLmax: evLmax.maxStress,
+      stressAtLplot: evMid.maxStress,
       searchLminGuess: LminGuess,
       searchLmaxGuess: LmaxGuess,
     };
@@ -744,17 +665,18 @@ export function findLRangeFEM(
 }
 
 // ══════════════════════════════════════════════════════════════
-// FIND MAX H — with unilateral supports
+// FIND MAX H — with unilateral supports via evaluateCandidate
 // ══════════════════════════════════════════════════════════════
 export function findMaxHFEM(
   E_mpa: number, I: number, c: number, q: number,
   L_mm: number, allowable: number,
 ): { h_mm: number; numSupports: number; result: FEMResult } | undefined {
-  function evaluateH(h: number): { safe: boolean; numSupports: number } {
+  const L_m = L_mm / 1000;
+
+  function evaluateH(h_fem: number): { safe: boolean; numSupports: number } {
     for (let n = 0; n <= MAX_SUPPORTS; n++) {
-      const candidates = buildEqualSupports(L_mm, n);
-      const stress = solveFEMQuickUnilateral(E_mpa, I, c, q, L_mm, h, candidates);
-      if (stress <= allowable) return { safe: true, numSupports: n };
+      const ev = evaluateCandidate(E_mpa, I, c, q, L_m, h_fem, n, allowable);
+      if (ev.isSafe) return { safe: true, numSupports: n };
     }
     return { safe: false, numSupports: MAX_SUPPORTS };
   }
@@ -774,9 +696,8 @@ export function findMaxHFEM(
     if (testH > 100_000) { hi = testH; break; }
   }
   if (hi === 0) {
-    const candidates = buildEqualSupports(L_mm, bestN);
-    const { result } = solveWithUnilateralSupports(E_mpa, I, c, q, L_mm, lo, candidates, 16);
-    return { h_mm: lo, numSupports: bestN, result };
+    const ev = evaluateCandidate(E_mpa, I, c, q, L_m, lo, bestN, allowable);
+    return { h_mm: lo, numSupports: bestN, result: ev.result };
   }
 
   for (let iter = 0; iter < 20; iter++) {
@@ -786,9 +707,8 @@ export function findMaxHFEM(
     if (ev.safe) { lo = mid; bestN = ev.numSupports; } else { hi = mid; }
   }
 
-  const finalCandidates = buildEqualSupports(L_mm, bestN);
-  const { result: finalResult } = solveWithUnilateralSupports(E_mpa, I, c, q, L_mm, lo, finalCandidates, 16);
-  return { h_mm: lo, numSupports: bestN, result: finalResult };
+  const ev = evaluateCandidate(E_mpa, I, c, q, L_m, lo, bestN, allowable);
+  return { h_mm: lo, numSupports: bestN, result: ev.result };
 }
 
 // ── Helper: build equally spaced support positions ──

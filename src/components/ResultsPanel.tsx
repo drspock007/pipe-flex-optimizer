@@ -10,7 +10,7 @@ interface Props {
 
 const ResultsPanel = ({ results }: Props) => {
   const { maxStress, allowableStress, isSafe, numSupports, spanLength, section,
-          computedLmin, computedLmax, computedH, calcMode, activeSupports, supportStatus } = results;
+          computedLmin, computedLmax, computedH, calcMode, supportStatus, L_plot } = results;
   const ratio = maxStress / allowableStress;
 
   const activeCount = supportStatus.filter(s => s.active).length;
@@ -55,6 +55,9 @@ const ResultsPanel = ({ results }: Props) => {
             <span className="text-muted-foreground">Max Stress</span>
             <span className="font-mono font-semibold">{maxStress.toFixed(1)} MPa</span>
           </div>
+          {calcMode === "findL" && L_plot != null && (
+            <p className="text-[9px] text-muted-foreground italic">Shown at L = {L_plot.toFixed(2)} m (midpoint)</p>
+          )}
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">Allowable Stress</span>
             <span className="font-mono font-semibold text-primary">{allowableStress.toFixed(1)} MPa</span>
@@ -88,8 +91,12 @@ const ResultsPanel = ({ results }: Props) => {
               <span className="text-right font-mono font-semibold">{numSupports} (minimum)</span>
               <span className="text-muted-foreground">Active Supports</span>
               <span className="text-right font-mono font-semibold">{activeCount}/{numSupports}</span>
-              <span className="text-muted-foreground">Span at L<sub>max</sub></span>
-              <span className="text-right font-mono">{(computedLmax / (numSupports + 1)).toFixed(2)} m</span>
+              {L_plot != null && (
+                <>
+                  <span className="text-muted-foreground">Display at L</span>
+                  <span className="text-right font-mono font-semibold">{L_plot.toFixed(2)} m</span>
+                </>
+              )}
             </div>
             {numSupports > 0 && (
               <p className="text-[9px] text-muted-foreground mt-1 italic">

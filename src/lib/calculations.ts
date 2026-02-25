@@ -4,7 +4,7 @@ export interface PipeInputs {
   Do: number;           // mm — outer diameter
   t: number;            // mm — wall thickness
   L: number;            // m  — total pipe length
-  h: number;            // mm — total differential settlement
+  h: number;            // mm — total differential settlement (positive upward: right end higher)
   grade: string;
   customYield: number;  // MPa
   E: number;            // GPa (converted to MPa internally)
@@ -61,6 +61,15 @@ export interface DebugInfo {
   contactIterations?: number;
   activeSupportsCount?: number;
   candidateSupportsCount?: number;
+  // h mapping debug
+  h_up_mm?: number;
+  h_fem_mm?: number;
+  // FindL midpoint debug
+  L_plot?: number;
+  stressAtLmin?: number;
+  stressAtLmax?: number;
+  stressAtLplot?: number;
+  contactValid?: boolean;
   warnings: string[];
 }
 
@@ -84,6 +93,9 @@ export interface CalculationResults {
   // Unilateral contact data
   supportStatus: SupportStatusDisplay[];
   activeSupports: number[];
+  // Physical h for plots
+  h_up_mm: number;
+  L_plot?: number;
   debug: DebugInfo;
 }
 
@@ -146,8 +158,13 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
     ? computeQ(density, 9.81, section.A)
     : { q_Nmm: 0, q_Nm: 0 };
 
+  // h sign convention: user input h is positive upward (right end higher)
+  // FEM uses w positive downward, so h_fem = -h_up
+  const h_up_mm = inputs.h;
+  const h_fem = -h_up_mm;
+
   let L = inputs.L;
-  let h = inputs.h;
+  let h = h_fem; // h used for FEM calls
   let computedLmin: number | undefined;
   let computedLmax: number | undefined;
   let computedH: number | undefined;
@@ -170,35 +187,44 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   let candidateSupportsCount: number | undefined;
   let supportStatus: SupportStatusDisplay[] = [];
   let activeSupports: number[] = [];
+  let L_plot: number | undefined;
+  let stressAtLmin: number | undefined;
+  let stressAtLmax: number | undefined;
+  let stressAtLplot: number | undefined;
+  let contactValid: boolean | undefined;
 
   // Unit assertions
   const unitWarnings: string[] = [];
   assertUnits(E_mpa, section.I, q_Nmm, L * 1000, unitWarnings);
 
   if (calcMode === "findL") {
-    const r = findLRangeFEM(E_mpa, section.I, section.c, q_Nmm, h, allowableStress);
+    const r = findLRangeFEM(E_mpa, section.I, section.c, q_Nmm, h_fem, allowableStress);
     if (r) {
       computedLmin = r.Lmin;
       computedLmax = r.Lmax;
       numSupports = r.numSupports;
-      L = r.Lmax;
-      maxStress = r.resultAtLmax.maxStress;
-      maxMoment = r.resultAtLmax.maxMoment;
-      maxMomentLocation = r.resultAtLmax.maxMomentLocation;
-      stressData = r.resultAtLmax.stressData;
-      deflectionData = r.resultAtLmax.deflectionData;
-      elementsPerSpan = r.resultAtLmax.meshInfo.elementsPerSpan;
-      totalDofs = r.resultAtLmax.meshInfo.totalDofs;
-      solveTimeMs = r.resultAtLmax.meshInfo.solveTimeMs;
-      femWarnings = r.resultAtLmax.warnings;
+      L_plot = r.L_plot;
+      L = r.L_plot; // display at midpoint
+      maxStress = r.stressAtLplot;
+      maxMoment = r.resultAtMid.maxMoment;
+      maxMomentLocation = r.resultAtMid.maxMomentLocation;
+      stressData = r.resultAtMid.stressData;
+      deflectionData = r.resultAtMid.deflectionData;
+      elementsPerSpan = r.resultAtMid.meshInfo.elementsPerSpan;
+      totalDofs = r.resultAtMid.meshInfo.totalDofs;
+      solveTimeMs = r.resultAtMid.meshInfo.solveTimeMs;
+      femWarnings = r.resultAtMid.warnings;
       searchSupportsUsed = r.numSupports;
       searchLminGuess = r.searchLminGuess;
       searchLmaxGuess = r.searchLmaxGuess;
-      contactIterations = r.resultAtLmax.contactIterations;
-      activeSupports = r.resultAtLmax.activeSupports;
-      activeSupportsCount = r.resultAtLmax.activeSupports.length;
+      contactIterations = r.resultAtMid.contactIterations;
+      activeSupports = r.resultAtMid.activeSupports;
+      activeSupportsCount = r.resultAtMid.activeSupports.length;
       candidateSupportsCount = numSupports;
-      supportStatus = r.resultAtLmax.supportStatus.map(s => ({
+      stressAtLmin = r.stressAtLmin;
+      stressAtLmax = r.stressAtLmax;
+      stressAtLplot = r.stressAtLplot;
+      supportStatus = r.resultAtMid.supportStatus.map(s => ({
         x: s.x_mm / 1000,
         w_fem: s.w_fem,
         w_ref: s.w_ref,
@@ -207,9 +233,12 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
     }
   } else if (calcMode === "findH") {
     const L_mm = inputs.L * 1000;
+    // findMaxH: h_fem is what we search for (positive downward in FEM convention)
+    // But user sees h as positive upward, so we search h_fem and negate for display
     const r = findMaxHFEM(E_mpa, section.I, section.c, q_Nmm, L_mm, allowableStress);
     if (r) {
-      computedH = r.h_mm;
+      // r.h_mm is in FEM convention (h_fem), user sees -h_fem
+      computedH = Math.abs(r.h_mm); // display as positive
       numSupports = r.numSupports;
       h = r.h_mm;
       maxStress = r.result.maxStress;
@@ -234,7 +263,7 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
     }
   } else {
     const L_mm = L * 1000;
-    const r = autoSupportsFEM(E_mpa, section.I, section.c, q_Nmm, L_mm, h, allowableStress);
+    const r = autoSupportsFEM(E_mpa, section.I, section.c, q_Nmm, L_mm, h_fem, allowableStress);
     numSupports = r.numSupports;
     maxStress = r.stress;
     maxMoment = r.result.maxMoment;
@@ -275,46 +304,47 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
   }
 
   const Nsp = numSupports + 1;
-  // Safety logic: in findL mode, feasibility is determined by existence of interval
   const isSafe = calcMode === "findL"
     ? (computedLmin != null && computedLmax != null)
     : maxStress <= allowableStress + 0.5;
   const spanLength = L / Nsp;
 
-  // Sanity checks
+  // Sanity checks (use abs(h) for theory comparisons)
+  const h_abs = Math.abs(h_up_mm);
   const M_end_theory = q_Nmm > 0 ? (q_Nmm * L_mm * L_mm) / 12 : 0;
-  const femTheoryRatio = M_end_theory > 0 && numSupports === 0 && h === 0 ? maxMoment / M_end_theory : 0;
-  const errorPercent = M_end_theory > 0 && numSupports === 0 && h === 0 ? Math.abs(maxMoment - M_end_theory) / M_end_theory * 100 : 0;
+  const femTheoryRatio = M_end_theory > 0 && numSupports === 0 && h_abs === 0 ? maxMoment / M_end_theory : 0;
+  const errorPercent = M_end_theory > 0 && numSupports === 0 && h_abs === 0 ? Math.abs(maxMoment - M_end_theory) / M_end_theory * 100 : 0;
 
   const Ls_mm = L_mm / Nsp;
-  const hs_mm = h / Nsp;
+  const hs_mm = h_abs / Nsp;
   const M_theory_span = numSupports > 0 && q_Nmm > 0 ? (q_Nmm * Ls_mm * Ls_mm) / 12 : 0;
-  const M_settle_span = numSupports > 0 && h > 0 ? (6 * E_mpa * section.I * hs_mm) / (Ls_mm * Ls_mm) : 0;
+  const M_settle_span = numSupports > 0 && h_abs > 0 ? (6 * E_mpa * section.I * hs_mm) / (Ls_mm * Ls_mm) : 0;
   const spanTheoryTotal = M_theory_span + M_settle_span;
   const spanErrorPercent = numSupports > 0 && spanTheoryTotal > 0
     ? Math.abs(maxMoment - spanTheoryTotal) / spanTheoryTotal * 100 : 0;
 
-  const M_settlement_theory = h > 0 ? (6 * E_mpa * section.I * h) / (L_mm * L_mm) : 0;
+  const M_settlement_theory = h_abs > 0 ? (6 * E_mpa * section.I * h_abs) / (L_mm * L_mm) : 0;
   let M_settlement_fem = 0;
   let settlementErrorPercent = 0;
-  if (h > 0) {
-    const settlementResult = solveFEM(E_mpa, section.I, section.c, 0, L_mm, h, [], false);
+  if (h_abs > 0) {
+    // Use h_fem for FEM settlement check
+    const settlementResult = solveFEM(E_mpa, section.I, section.c, 0, L_mm, h_fem, [], false);
     M_settlement_fem = settlementResult.maxMoment;
     settlementErrorPercent = M_settlement_theory > 0
       ? Math.abs(M_settlement_fem - M_settlement_theory) / M_settlement_theory * 100
       : 0;
   }
 
-  if (numSupports === 0 && h === 0 && q_Nmm > 0 && errorPercent > 5) {
+  if (numSupports === 0 && h_abs === 0 && q_Nmm > 0 && errorPercent > 5) {
     unitWarnings.push(`⚠️ FAIL: Self-weight FEM/theory error ${errorPercent.toFixed(1)}% > 5%`);
   }
-  if (h > 0 && settlementErrorPercent > 5) {
+  if (h_abs > 0 && settlementErrorPercent > 5) {
     unitWarnings.push(`⚠️ FAIL: Settlement FEM/theory error ${settlementErrorPercent.toFixed(1)}% > 5%`);
   }
 
   const validationPassed = !(
-    (numSupports === 0 && h === 0 && q_Nmm > 0 && errorPercent > 5) ||
-    (h > 0 && settlementErrorPercent > 5)
+    (numSupports === 0 && h_abs === 0 && q_Nmm > 0 && errorPercent > 5) ||
+    (h_abs > 0 && settlementErrorPercent > 5)
   );
 
   const allWarnings = [...unitWarnings, ...femWarnings];
@@ -328,6 +358,8 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
     M_theory_span, M_settle_span, spanErrorPercent,
     searchSupportsUsed, searchLminGuess, searchLmaxGuess,
     contactIterations, activeSupportsCount, candidateSupportsCount,
+    h_up_mm, h_fem_mm: h_fem,
+    L_plot, stressAtLmin, stressAtLmax, stressAtLplot, contactValid,
     warnings: allWarnings,
   };
 
@@ -336,6 +368,7 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
     numSupports, spanLength, governingSpan: 0, stressData, deflectionData,
     supportPositions, calcMode, computedLmin, computedLmax, computedH,
     supportStatus, activeSupports,
+    h_up_mm, L_plot,
     debug,
   };
 };

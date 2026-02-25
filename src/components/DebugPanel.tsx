@@ -9,13 +9,8 @@ function computeSagCheck(
   supportStatus: SupportStatusDisplay[],
   numSupports: number
 ): { minSag: number; maxSag: number; warning?: string } | null {
-  // Need deflection data from debug — we approximate from support status + endpoints
-  // Use support positions to define spans, compute w_rel at midpoints
-  // For now, if we have no data, skip
   if (debug.L_mm == null || debug.L_mm <= 0) return null;
 
-  // We can't access full deflection curve here, but we can check support status
-  // If supportStatus has w_fem and w_ref, compute w_rel = w_fem - w_ref
   const sagValues = supportStatus.map(s => s.w_fem - s.w_ref);
   if (sagValues.length === 0) return null;
 
@@ -23,7 +18,6 @@ function computeSagCheck(
   const maxSag = Math.max(...sagValues);
 
   let warning: string | undefined;
-  // If self-weight is on (q > 0) and max sag <= 0, sign convention issue
   if (debug.q_Nmm > 0 && maxSag <= 0 && sagValues.length > 0) {
     warning = "Self-weight sag check failed (sign convention issue)";
   }
@@ -45,6 +39,8 @@ const DebugPanel = ({ debug, numSupports, supportStatus }: Props) => {
   const fmt = (v: number | undefined, fn: (n: number) => string) => v != null && isFinite(v) ? fn(v) : "—";
 
   const rows: [string, string, string][] = [
+    ["h_up (mm)", fmt(debug.h_up_mm, v => v.toFixed(1)), "User input (positive = right end higher)"],
+    ["h_fem (mm)", fmt(debug.h_fem_mm, v => v.toFixed(1)), "FEM value = -h_up (positive downward)"],
     ["L (mm)", fmt(debug.L_mm, v => v.toFixed(1)), "Pipe length in mm"],
     ["q (N/mm)", fmt(debug.q_Nmm, v => v.toFixed(6)), "Self-weight distributed load"],
     ["q (N/m)", fmt(debug.q_Nm, v => v.toFixed(4)), "Self-weight in N/m"],
@@ -76,6 +72,14 @@ const DebugPanel = ({ debug, numSupports, supportStatus }: Props) => {
       ["Lmin guess", fmt(debug.searchLminGuess, v => v.toFixed(1) + " m"), "Coarse scan lower bound"],
       ["Lmax guess", fmt(debug.searchLmaxGuess, v => v.toFixed(1) + " m"), "Coarse scan upper bound"],
     );
+    if (debug.L_plot != null) {
+      rows.push(
+        ["L_plot (m)", fmt(debug.L_plot, v => v.toFixed(2) + " m"), "Display L = midpoint of window"],
+        ["σ(Lmin)", fmt(debug.stressAtLmin, v => v.toFixed(2) + " MPa"), "Stress at Lmin"],
+        ["σ(Lmax)", fmt(debug.stressAtLmax, v => v.toFixed(2) + " MPa"), "Stress at Lmax"],
+        ["σ(L_plot)", fmt(debug.stressAtLplot, v => v.toFixed(2) + " MPa"), "Stress at midpoint"],
+      );
+    }
   }
 
   // Contact solver debug
@@ -85,10 +89,11 @@ const DebugPanel = ({ debug, numSupports, supportStatus }: Props) => {
       ["Contact iterations", String(debug.contactIterations), "Active-set convergence iterations"],
       ["Candidates", String(debug.candidateSupportsCount ?? 0), "Total candidate supports"],
       ["Active", String(debug.activeSupportsCount ?? 0), "Supports in contact"],
+      ["Contact valid", debug.contactValid != null ? (debug.contactValid ? "✅ PASS" : "❌ FAIL") : "—", "Contact sanity check"],
     );
   }
 
-  // Sag check: compute w_rel at midspans
+  // Sag check
   const sagCheck = computeSagCheck(debug, supportStatus, numSupports);
   if (sagCheck) {
     rows.push(
@@ -135,8 +140,8 @@ const DebugPanel = ({ debug, numSupports, supportStatus }: Props) => {
               </div>
             )}
             <div className="space-y-0.5">
-              {rows.map(([label, value, desc]) => (
-                <div key={label} className="grid grid-cols-[1fr_auto] gap-2 text-[11px] py-0.5 border-b border-border/30 last:border-0">
+              {rows.map(([label, value, desc], idx) => (
+                <div key={`${label}-${idx}`} className="grid grid-cols-[1fr_auto] gap-2 text-[11px] py-0.5 border-b border-border/30 last:border-0">
                   <div>
                     <span className="font-mono text-foreground">{label}</span>
                     <span className="text-muted-foreground ml-1.5">— {desc}</span>
