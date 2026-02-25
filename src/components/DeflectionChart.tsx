@@ -1,10 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CalculationResults } from "@/lib/calculations";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis,
-  CartesianGrid, Tooltip, ReferenceDot,
-} from "recharts";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceDot } from "recharts";
 import { ArrowDown } from "lucide-react";
 import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,15 +26,19 @@ const DeflectionChart = ({ results }: Props) => {
   const w0 = deflectionData[0]?.w ?? 0;
   const wL = deflectionData[deflectionData.length - 1]?.w ?? 0;
 
-  const chartData = deflectionData.map(d => {
+  const chartData = deflectionData.map((d) => {
     const xRatio = L_m > 0 ? d.x / L_m : 0;
-    // w_ref interpolated from actual endpoints
+
+    // w_ref interpolated from actual endpoints in FEM sign convention (w positive downward)
     const w_ref = w0 + xRatio * (wL - w0);
+
     if (mode === "elevation") {
-      // Physical elevation: y_ref(x) = h_up_mm * x/L (upward positive)
-      // y_pipe(x) = y_ref(x) - w(x)  (w is downward, so subtract)
+      // Elevation z(x): z positive upward
+      // FEM provides w(x) positive downward (and includes the imposed settlement).
+      // Therefore: z_pipe(x) = -w(x)
+      // Settlement line in elevation is: z_ref(x) = h_up_mm * x/L
       const ref = h_up_mm * xRatio;
-      const value = ref - d.w;
+      const value = -d.w;
       return { x: d.x, value: value * factor, ref: ref * factor };
     } else if (mode === "sag") {
       // Relative sag = w - w_ref (using actual endpoint-based reference)
@@ -50,24 +51,32 @@ const DeflectionChart = ({ results }: Props) => {
     }
   });
 
-  const allVals = chartData.flatMap(d => [d.value, d.ref]);
+  const allVals = chartData.flatMap((d) => [d.value, d.ref]);
   const minV = Math.min(...allVals);
   const maxV = Math.max(...allVals);
   const margin = Math.max(Math.abs(maxV - minV) * 0.2, 1);
 
-  const yLabel = mode === "elevation"
-    ? (amplify ? "z ×10 (mm)" : "z (mm)")
-    : mode === "sag"
-      ? (amplify ? "sag ×10 (mm)" : "sag (mm)")
-      : (amplify ? "w ×10 (mm)" : "w (mm)");
+  const yLabel =
+    mode === "elevation"
+      ? amplify
+        ? "z ×10 (mm)"
+        : "z (mm)"
+      : mode === "sag"
+        ? amplify
+          ? "sag ×10 (mm)"
+          : "sag (mm)"
+        : amplify
+          ? "w ×10 (mm)"
+          : "w (mm)";
 
   const refLabel = mode === "elevation" ? "Settlement line" : mode === "sag" ? "Zero line" : "Settlement line";
   const valueLabel = mode === "elevation" ? "Elevation" : mode === "sag" ? "Sag" : "Deflection (w↓+)";
 
   // Invert Y for raw mode (positive downward → flip axis so down is down)
-  const yDomain: [number, number] = mode === "raw"
-    ? [maxV + margin, minV - margin] // inverted
-    : [minV - margin, maxV + margin]; // normal
+  const yDomain: [number, number] =
+    mode === "raw"
+      ? [maxV + margin, minV - margin] // inverted
+      : [minV - margin, maxV + margin]; // normal
 
   return (
     <Card>
@@ -77,19 +86,21 @@ const DeflectionChart = ({ results }: Props) => {
             <ArrowDown className="h-4 w-4 text-primary" /> Deflection
           </span>
           <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-normal cursor-pointer">
-            <Checkbox
-              checked={amplify}
-              onCheckedChange={(v) => setAmplify(v === true)}
-              className="h-3 w-3"
-            />
+            <Checkbox checked={amplify} onCheckedChange={(v) => setAmplify(v === true)} className="h-3 w-3" />
             Amplify ×10
           </label>
         </CardTitle>
         <Tabs value={mode} onValueChange={(v) => setMode(v as PlotMode)} className="mt-1">
           <TabsList className="h-7">
-            <TabsTrigger value="elevation" className="text-[10px] px-2 py-0.5 h-5">Elevation z(x)</TabsTrigger>
-            <TabsTrigger value="sag" className="text-[10px] px-2 py-0.5 h-5">Relative sag</TabsTrigger>
-            <TabsTrigger value="raw" className="text-[10px] px-2 py-0.5 h-5">w (↓+)</TabsTrigger>
+            <TabsTrigger value="elevation" className="text-[10px] px-2 py-0.5 h-5">
+              Elevation z(x)
+            </TabsTrigger>
+            <TabsTrigger value="sag" className="text-[10px] px-2 py-0.5 h-5">
+              Relative sag
+            </TabsTrigger>
+            <TabsTrigger value="raw" className="text-[10px] px-2 py-0.5 h-5">
+              w (↓+)
+            </TabsTrigger>
           </TabsList>
         </Tabs>
       </CardHeader>
@@ -118,9 +129,9 @@ const DeflectionChart = ({ results }: Props) => {
                 }}
                 formatter={(value: number, name: string) => [
                   `${value.toFixed(3)} mm`,
-                  name === "value" ? (amplify ? `${valueLabel} ×10` : valueLabel) : refLabel
+                  name === "value" ? (amplify ? `${valueLabel} ×10` : valueLabel) : refLabel,
                 ]}
-                labelFormatter={l => `x = ${l} m`}
+                labelFormatter={(l) => `x = ${l} m`}
               />
 
               {/* Reference/settlement line */}
@@ -134,7 +145,7 @@ const DeflectionChart = ({ results }: Props) => {
                 name="ref"
               />
 
-              {/* Main deflection curve */}
+              {/* Main curve */}
               <Line
                 type="monotone"
                 dataKey="value"
@@ -149,14 +160,16 @@ const DeflectionChart = ({ results }: Props) => {
               {supportStatus.map((sup, i) => {
                 const xRatio = L_m > 0 ? sup.x / L_m : 0;
                 const w_ref_here = w0 + xRatio * (wL - w0);
+
                 let markerY: number;
                 if (mode === "elevation") {
-                  markerY = h_up_mm * xRatio * factor;
+                  markerY = h_up_mm * xRatio * factor; // z_ref
                 } else if (mode === "sag") {
                   markerY = 0;
                 } else {
                   markerY = w_ref_here * factor;
                 }
+
                 return (
                   <ReferenceDot
                     key={`sup-${i}`}
