@@ -35,8 +35,8 @@ const Index = () => {
     <UnitProvider>
       <div className="min-h-screen grid-background">
         <Header />
-        <div className="container px-4 pt-4">
-          <div className="rounded-lg border bg-muted/50 px-4 py-3 text-xs text-muted-foreground leading-relaxed max-w-4xl">
+        <main className="container px-4 py-6 space-y-6">
+          <div className="rounded-lg border bg-muted/50 px-4 py-3 text-xs text-muted-foreground leading-relaxed">
             <p>
               This calculation applies, for example, to a <strong>trench lowering-in with sidebooms</strong>.
               The height <strong>h</strong> represents the trench depth plus the pipe lifting height from ground level.
@@ -45,8 +45,6 @@ const Index = () => {
             </p>
           </div>
           <PipeSchematicSVG />
-        </div>
-        <main className="container px-4 py-6 space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="space-y-4">
               <GeometryCard
