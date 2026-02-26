@@ -44,7 +44,7 @@ const GeometryCard = ({ Do, t, L, h, section, calcMode, computedLmin, computedLm
           </div>
           <div>
             <Label className="text-xs">t ({label("mm")})</Label>
-            <NumericInput value={conv(t, "mm")} onValueChange={v => onChange("t", parse(v, "mm"))} className="h-8 text-sm" decimals={2} />
+            <NumericInput value={conv(t, "mm")} onValueChange={v => onChange("t", parse(v, "mm"))} className="h-8 text-sm" decimals={3} />
           </div>
           {calcMode === "findL" ? (
             <div className="col-span-2 grid grid-cols-2 gap-3">
@@ -72,7 +72,7 @@ const GeometryCard = ({ Do, t, L, h, section, calcMode, computedLmin, computedLm
           ) : (
             <div>
               <Label className="text-xs">L ({label("m")})</Label>
-              <NumericInput value={conv(L, "m")} onValueChange={v => onChange("L", parse(v, "m"))} className="h-8 text-sm" decimals={2} />
+              <NumericInput value={conv(L, "m")} onValueChange={v => onChange("L", parse(v, "m"))} className="h-8 text-sm" decimals={0} />
             </div>
           )}
           <div>
@@ -91,7 +91,7 @@ const GeometryCard = ({ Do, t, L, h, section, calcMode, computedLmin, computedLm
                 />
               )
             ) : (
-              <NumericInput value={conv(h, "mm")} onValueChange={v => onChange("h", parse(v, "mm"))} className="h-8 text-sm" decimals={2} />
+              <NumericInput value={conv(h, "mm")} onValueChange={v => onChange("h", parse(v, "mm"))} className="h-8 text-sm" decimals={0} />
             )}
           </div>
         </div>
