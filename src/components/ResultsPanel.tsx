@@ -23,7 +23,7 @@ const labelFor = (m: FindLDisplayMode) => {
 const ResultsPanel = ({ results, onChange }: Props) => {
   const { conv, label } = useUnits();
   const {
-    maxStress, maxStrain, allowableStress, isSafeNow, hasWindow, numSupports,
+    maxStress, maxStrain = 0, allowableStress, isSafeNow, hasWindow, numSupports,
     spanLength, section, computedLmin, computedLmax, computedH,
     calcMode, supportStatus, L_plot, findLDisplay, findLPoints,
   } = results;
