@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getGradeOptions } from "@/lib/calculations";
+import { GRADES } from "@/lib/calculations";
 import { Layers } from "lucide-react";
 import { useUnits } from "@/contexts/UnitContext";
 
@@ -27,13 +27,16 @@ const MaterialCard = ({ grade, E, customYield, onChange }: Props) => {
           <Select value={grade} onValueChange={v => onChange("grade", v)}>
             <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {getGradeOptions().map(g => (
-                <SelectItem key={g} value={g}>{g}</SelectItem>
+              {GRADES.map(g => (
+                <SelectItem key={g.key} value={g.key}>
+                  {g.label} — {conv(g.smys, "MPa").toFixed(0)} {label("MPa")}
+                </SelectItem>
               ))}
+              <SelectItem value="CUSTOM">Custom</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        {grade === "Custom" && (
+        {grade === "CUSTOM" && (
           <div>
             <Label className="text-xs">Yield Strength Rₑ ({label("MPa")})</Label>
             <Input type="number" value={+conv(customYield, "MPa").toFixed(2)} onChange={e => onChange("customYield", parse(+e.target.value, "MPa"))} className="h-8 text-sm" />

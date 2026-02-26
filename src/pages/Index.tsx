@@ -19,7 +19,7 @@ import { UnitProvider } from "@/contexts/UnitContext";
 const Index = () => {
   const [inputs, setInputs] = useState<PipeInputs>({
     Do: 114.3, t: 6.02, L: 30, h: 2500,
-    grade: "API 5L X52", customYield: 359, E: 210,
+    grade: "X52", customYield: 359, E: 210,
     allowablePercent: 80, includeSelfWeight: true, density: 7850,
     calcMode: "standard", targetSupports: 0, findLDisplay: "Lmid",
   });
