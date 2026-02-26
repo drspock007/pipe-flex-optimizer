@@ -7,16 +7,22 @@ interface NumericInputProps {
   onValueChange: (value: number) => void;
   className?: string;
   readOnly?: boolean;
+  decimals?: number;
 }
 
-const NumericInput = ({ value, onValueChange, className, readOnly }: NumericInputProps) => {
-  const [display, setDisplay] = useState(String(value));
+const formatValue = (v: number, decimals: number): string => {
+  const rounded = parseFloat(v.toFixed(decimals));
+  return String(rounded);
+};
+
+const NumericInput = ({ value, onValueChange, className, readOnly, decimals = 4 }: NumericInputProps) => {
+  const [display, setDisplay] = useState(formatValue(value, decimals));
   const isFocused = useRef(false);
 
   // Sync display when value changes externally (e.g. reset, computed)
   useEffect(() => {
     if (!isFocused.current) {
-      setDisplay(String(value));
+      setDisplay(formatValue(value, decimals));
     }
   }, [value]);
 
