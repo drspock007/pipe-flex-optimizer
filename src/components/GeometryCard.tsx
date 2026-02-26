@@ -139,16 +139,6 @@ const GeometryCard = ({ Do, t, L, h, section, calcMode, computedLmin, computedLm
           </div>
         </div>
 
-        {/* Computed section props */}
-        <div className="rounded-md bg-muted p-2.5 space-y-1">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Computed</p>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
-            <span className="text-muted-foreground">Dᵢ</span><span className="text-right font-mono">{conv(section.Di, "mm").toFixed(2)} {label("mm")}</span>
-            <span className="text-muted-foreground">A</span><span className="text-right font-mono">{conv(section.A, "mm2").toFixed(2)} {label("mm2")}</span>
-            <span className="text-muted-foreground">I</span><span className="text-right font-mono">{conv(section.I, "mm4").toExponential(3)} {label("mm4")}</span>
-            <span className="text-muted-foreground">c</span><span className="text-right font-mono">{conv(section.c, "mm").toFixed(2)} {label("mm")}</span>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );
