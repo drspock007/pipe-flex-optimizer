@@ -76,7 +76,7 @@ const Index = () => {
               </Tabs>
 
               <ResultsPanel results={results} onChange={update} />
-              <DebugPanel debug={results.debug} numSupports={results.numSupports} supportStatus={results.supportStatus} />
+              {/* <DebugPanel debug={results.debug} numSupports={results.numSupports} supportStatus={results.supportStatus} /> */}
             </div>
           </div>
         </main>
