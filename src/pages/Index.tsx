@@ -110,7 +110,7 @@ const Index = () => {
             The user assumes full responsibility for the use and interpretation of the output.
           </p>
           <p className="text-[10px] text-muted-foreground/60">
-            © {new Date().getFullYear()} Pipe Lowering — All rights reserved. — v202602262100
+            © {new Date().getFullYear()} Giovanni Malagnino Consulting — Pipe Lowering — All rights reserved. — v202602262100
           </p>
         </footer>
       </div>
