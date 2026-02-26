@@ -15,6 +15,7 @@ import { useFEMWorker } from "@/hooks/use-fem-worker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 import { UnitProvider } from "@/contexts/UnitContext";
+import PipeSchematicSVG from "@/components/PipeSchematicSVG";
 
 const Index = () => {
   const [inputs, setInputs] = useState<PipeInputs>({
@@ -43,6 +44,7 @@ const Index = () => {
               Additional sideboom(s) may be positioned in between if intermediate support(s) are required.
             </p>
           </div>
+          <PipeSchematicSVG />
         </div>
         <main className="container px-4 py-6 space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
