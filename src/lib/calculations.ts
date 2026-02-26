@@ -17,7 +17,10 @@ export interface PipeInputs {
   density: number; // kg/m³
   calcMode: CalcMode;
   targetSupports: number; // legacy
-  findLDisplay: FindLDisplayMode; // NEW: which point to display in FindL
+  findLDisplay: FindLDisplayMode; // which point to display in FindL
+  coatingType: string; // CoatingType
+  coatingThickness: number; // mm
+  coatingDensity: number; // kg/m³
 }
 
 export interface SectionProperties {
@@ -26,6 +29,7 @@ export interface SectionProperties {
   I: number; // mm⁴
   c: number; // mm
   weightPerMeter: number; // kg/m
+  coatingWeightPerMeter: number; // kg/m
 }
 
 export interface SupportStatusDisplay {
@@ -134,13 +138,27 @@ export const getYieldStrength = (grade: string, customYield: number): number =>
   GRADES.find(g => g.key === grade)?.smys ?? customYield;
 
 // ── Section properties (mm-based) ──
-export const calcSectionProperties = (Do: number, t: number, density: number): SectionProperties => {
+export const calcSectionProperties = (
+  Do: number, t: number, density: number,
+  coatingType: string, coatingThickness: number, coatingDensity: number, nps?: string,
+): SectionProperties => {
   const Di = Do - 2 * t;
   const A = (Math.PI / 4) * (Do * Do - Di * Di);
   const I = (Math.PI / 64) * (Math.pow(Do, 4) - Math.pow(Di, 4));
   const c = Do / 2;
   const weightPerMeter = density * A * 1e-6; // kg/m
-  return { Di, A, I, c, weightPerMeter };
+
+  // Coating weight
+  const ct = coatingType as CoatingType;
+  const effDensity = getCoatingDensity(ct, coatingDensity);
+  let effThickness = coatingThickness;
+  if (ct === "yellowJacket" && nps) {
+    const autoT = getYellowJacketThickness(nps);
+    if (autoT != null) effThickness = autoT;
+  }
+  const coatingWeightPerMeter = calcCoatingWeight(Do, effThickness, effDensity);
+
+  return { Di, A, I, c, weightPerMeter, coatingWeightPerMeter };
 };
 
 function computeQ(density: number, g: number, A_mm2: number): { q_Nmm: number; q_Nm: number } {
@@ -157,18 +175,27 @@ function assertUnits(E_mpa: number, I: number, q: number, L_mm: number, warnings
   if (L_mm < 100) warnings.push(`⚠️ L=${L_mm} mm seems very short`);
 }
 
+// ── Coating import ──
+import { CoatingType, getCoatingDensity, calcCoatingWeight, getYellowJacketThickness } from "./coating-presets";
 // ── FEM imports ──
 import { solveFEM, autoSupportsFEM, findLRangeFEM, findMaxHFEM, buildEqualSupports } from "./fem-solver";
 
 export const calculate = (inputs: PipeInputs): CalculationResults => {
   const { Do, t, grade, customYield, E, allowablePercent, includeSelfWeight, density, calcMode } = inputs;
 
-  const section = calcSectionProperties(Do, t, density);
+  const section = calcSectionProperties(Do, t, density, inputs.coatingType, inputs.coatingThickness, inputs.coatingDensity);
   const yieldStrength = getYieldStrength(grade, customYield);
   const allowableStress = yieldStrength * (allowablePercent / 100);
 
   const E_mpa = E * 1000;
-  const { q_Nmm, q_Nm } = includeSelfWeight ? computeQ(density, 9.81, section.A) : { q_Nmm: 0, q_Nm: 0 };
+  let { q_Nmm, q_Nm } = includeSelfWeight ? computeQ(density, 9.81, section.A) : { q_Nmm: 0, q_Nm: 0 };
+
+  // Add coating weight to distributed load
+  if (includeSelfWeight && section.coatingWeightPerMeter > 0) {
+    const q_coating_Nm = section.coatingWeightPerMeter * 9.81;
+    q_Nm += q_coating_Nm;
+    q_Nmm += q_coating_Nm / 1000;
+  }
 
   // User: h_up positive (right end higher). FEM: w positive downward => h_fem = -h_up.
   const h_up_mm = inputs.h;

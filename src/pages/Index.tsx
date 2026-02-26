@@ -16,6 +16,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 import { UnitProvider } from "@/contexts/UnitContext";
 import PipeSchematicSVG from "@/components/PipeSchematicSVG";
+import CoatingCard from "@/components/CoatingCard";
+import { findNpsByOd } from "@/lib/pipe-presets";
 
 const Index = () => {
   const [inputs, setInputs] = useState<PipeInputs>({
@@ -23,6 +25,7 @@ const Index = () => {
     grade: "X52", customYield: 359, E: 207,
     allowablePercent: 80, includeSelfWeight: true, density: 7850,
     calcMode: "standard", targetSupports: 0, findLDisplay: "Lmid",
+    coatingType: "none", coatingThickness: 1.5, coatingDensity: 950,
   });
 
   const update = (field: string, value: string | number | boolean) => {
@@ -58,9 +61,19 @@ const Index = () => {
                 allowablePercent={inputs.allowablePercent} yieldStrength={results.yieldStrength}
                 allowableStress={results.allowableStress} onChange={(v) => update("allowablePercent", v)}
               />
+              <CoatingCard
+                coatingType={inputs.coatingType as any}
+                coatingThickness={inputs.coatingThickness}
+                coatingDensity={inputs.coatingDensity}
+                Do={inputs.Do}
+                nps={findNpsByOd(inputs.Do)}
+                onChange={update}
+              />
               <LoadCard
                 includeSelfWeight={inputs.includeSelfWeight} density={inputs.density}
-                q={results.q} weightPerMeter={results.section.weightPerMeter} onChange={update}
+                q={results.q} weightPerMeter={results.section.weightPerMeter}
+                coatingWeightPerMeter={results.section.coatingWeightPerMeter}
+                onChange={update}
               />
             </div>
 
@@ -97,7 +110,7 @@ const Index = () => {
             The user assumes full responsibility for the use and interpretation of the output.
           </p>
           <p className="text-[10px] text-muted-foreground/60">
-            © {new Date().getFullYear()} Pipe Lowering — All rights reserved. — v202602261730
+            © {new Date().getFullYear()} Pipe Lowering — All rights reserved. — v202602262100
           </p>
         </footer>
       </div>
