@@ -89,6 +89,7 @@ export interface CalculationResults {
   allowableStress: number;
   q: number; // N/mm
   maxStress: number;
+  maxStrain: number; // in % (ε = σ/E × 100)
   isSafe: boolean;
 
   hasWindow: boolean;
@@ -506,6 +507,7 @@ export const calculate = (inputs: PipeInputs): CalculationResults => {
     allowableStress,
     q: q_Nmm,
     maxStress,
+    maxStrain: (maxStress / E_mpa) * 100,
     isSafe,
 
     hasWindow,
