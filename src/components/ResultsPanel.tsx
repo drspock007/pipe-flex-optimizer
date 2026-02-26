@@ -23,7 +23,7 @@ const labelFor = (m: FindLDisplayMode) => {
 const ResultsPanel = ({ results, onChange }: Props) => {
   const { conv, label } = useUnits();
   const {
-    maxStress, allowableStress, isSafeNow, hasWindow, numSupports,
+    maxStress, maxStrain, allowableStress, isSafeNow, hasWindow, numSupports,
     spanLength, section, computedLmin, computedLmax, computedH,
     calcMode, supportStatus, L_plot, findLDisplay, findLPoints,
   } = results;
@@ -80,6 +80,12 @@ const ResultsPanel = ({ results, onChange }: Props) => {
               Shown at L = {conv(L_plot, "m").toFixed(2)} {lengthUnit} ({labelFor(findLDisplay)})
             </p>
           )}
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">Max Strain</span>
+            <span className={`font-mono font-semibold ${!isSafeNow ? "text-destructive" : ""}`}>
+              {maxStrain.toFixed(4)} %
+            </span>
+          </div>
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">Allowable Stress</span>
             <span className="font-mono font-semibold text-primary">{conv(allowableStress, "MPa").toFixed(1)} {stressUnit}</span>
