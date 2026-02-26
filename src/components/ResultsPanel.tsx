@@ -1,5 +1,4 @@
 // src/components/ResultsPanel.tsx
-// Modifié par Giovanni Malagnino, 2026-02-25 16:46 UTC.
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CalculationResults, FindLDisplayMode } from "@/lib/calculations";
 import { BarChart3, CircleCheck, CircleX, AlertTriangle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useUnits } from "@/contexts/UnitContext";
 
 interface Props {
   results: CalculationResults;
@@ -21,26 +21,17 @@ const labelFor = (m: FindLDisplayMode) => {
 };
 
 const ResultsPanel = ({ results, onChange }: Props) => {
+  const { conv, label } = useUnits();
   const {
-    maxStress,
-    allowableStress,
-    isSafeNow,
-    hasWindow,
-    numSupports,
-    spanLength,
-    section,
-    computedLmin,
-    computedLmax,
-    computedH,
-    calcMode,
-    supportStatus,
-    L_plot,
-    findLDisplay,
-    findLPoints,
+    maxStress, allowableStress, isSafeNow, hasWindow, numSupports,
+    spanLength, section, computedLmin, computedLmax, computedH,
+    calcMode, supportStatus, L_plot, findLDisplay, findLPoints,
   } = results;
 
   const ratio = maxStress / allowableStress;
   const activeCount = supportStatus.filter((s) => s.active).length;
+  const stressUnit = label("MPa");
+  const lengthUnit = label("m");
 
   return (
     <Card>
@@ -55,38 +46,18 @@ const ResultsPanel = ({ results, onChange }: Props) => {
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Safety Status</span>
-
             {calcMode === "findL" ? (
               hasWindow ? (
-                <Badge className="bg-safe text-safe-foreground hover:bg-safe/90">
-                  <CircleCheck className="h-3 w-3 mr-1" /> FEASIBLE WINDOW FOUND
-                </Badge>
+                <Badge className="bg-safe text-safe-foreground hover:bg-safe/90"><CircleCheck className="h-3 w-3 mr-1" /> FEASIBLE WINDOW FOUND</Badge>
               ) : (
-                <Badge className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  <CircleX className="h-3 w-3 mr-1" /> NO SOLUTION
-                </Badge>
+                <Badge className="bg-destructive text-destructive-foreground hover:bg-destructive/90"><CircleX className="h-3 w-3 mr-1" /> NO SOLUTION</Badge>
               )
             ) : (
-              <Badge
-                className={
-                  isSafeNow
-                    ? "bg-safe text-safe-foreground hover:bg-safe/90"
-                    : "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                }
-              >
-                {isSafeNow ? (
-                  <>
-                    <CircleCheck className="h-3 w-3 mr-1" /> SAFE
-                  </>
-                ) : (
-                  <>
-                    <CircleX className="h-3 w-3 mr-1" /> NOT SAFE
-                  </>
-                )}
+              <Badge className={isSafeNow ? "bg-safe text-safe-foreground hover:bg-safe/90" : "bg-destructive text-destructive-foreground hover:bg-destructive/90"}>
+                {isSafeNow ? <><CircleCheck className="h-3 w-3 mr-1" /> SAFE</> : <><CircleX className="h-3 w-3 mr-1" /> NOT SAFE</>}
               </Badge>
             )}
           </div>
-
           {calcMode === "findL" && hasWindow && !isSafeNow && (
             <div className="flex items-center justify-end">
               <Badge className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-[9px]">
@@ -101,88 +72,65 @@ const ResultsPanel = ({ results, onChange }: Props) => {
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">Max Stress</span>
             <span className={`font-mono font-semibold ${!isSafeNow ? "text-destructive" : ""}`}>
-              {maxStress.toFixed(1)} MPa
+              {conv(maxStress, "MPa").toFixed(1)} {stressUnit}
             </span>
           </div>
-
           {calcMode === "findL" && L_plot != null && (
             <p className="text-[9px] text-muted-foreground italic">
-              Shown at L = {L_plot.toFixed(2)} m ({labelFor(findLDisplay)})
+              Shown at L = {conv(L_plot, "m").toFixed(2)} {lengthUnit} ({labelFor(findLDisplay)})
             </p>
           )}
-
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">Allowable Stress</span>
-            <span className="font-mono font-semibold text-primary">{allowableStress.toFixed(1)} MPa</span>
+            <span className="font-mono font-semibold text-primary">{conv(allowableStress, "MPa").toFixed(1)} {stressUnit}</span>
           </div>
-
           <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${isSafeNow ? "bg-safe" : "bg-destructive"}`}
-              style={{ width: `${Math.min(ratio * 100, 100)}%` }}
-            />
+            <div className={`h-full rounded-full transition-all duration-500 ${isSafeNow ? "bg-safe" : "bg-destructive"}`} style={{ width: `${Math.min(ratio * 100, 100)}%` }} />
           </div>
-
           <p className="text-[10px] text-muted-foreground text-right">Utilization: {(ratio * 100).toFixed(1)}%</p>
         </div>
 
-        {/* FindL window + selector */}
+        {/* FindL window */}
         {calcMode === "findL" && hasWindow && computedLmin != null && computedLmax != null && (
           <div className="rounded-md border border-primary bg-primary/10 p-2.5 space-y-1">
             <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Admissible Length Range</p>
-
             <div className="flex items-baseline gap-3">
               <div>
-                <span className="text-[10px] text-muted-foreground">
-                  L<sub>min</sub>
-                </span>
-                <p className="text-lg font-mono font-bold text-primary">{computedLmin.toFixed(2)} m</p>
+                <span className="text-[10px] text-muted-foreground">L<sub>min</sub></span>
+                <p className="text-lg font-mono font-bold text-primary">{conv(computedLmin, "m").toFixed(2)} {lengthUnit}</p>
               </div>
               <span className="text-muted-foreground">—</span>
               <div>
-                <span className="text-[10px] text-muted-foreground">
-                  L<sub>max</sub>
-                </span>
-                <p className="text-lg font-mono font-bold text-primary">{computedLmax.toFixed(2)} m</p>
+                <span className="text-[10px] text-muted-foreground">L<sub>max</sub></span>
+                <p className="text-lg font-mono font-bold text-primary">{conv(computedLmax, "m").toFixed(2)} {lengthUnit}</p>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs mt-1">
               <span className="text-muted-foreground">Supports Used</span>
               <span className="text-right font-mono font-semibold">{numSupports} (minimum)</span>
-
               <span className="text-muted-foreground">Active Supports</span>
-              <span className="text-right font-mono font-semibold">
-                {activeCount}/{numSupports}
-              </span>
-
+              <span className="text-right font-mono font-semibold">{activeCount}/{numSupports}</span>
               <span className="text-muted-foreground">Display Mode</span>
               <div className="flex justify-end">
                 <Select value={findLDisplay} onValueChange={(v) => onChange?.("findLDisplay", v as FindLDisplayMode)}>
-                  <SelectTrigger className="h-7 w-[210px] text-[11px]">
-                    <SelectValue placeholder="Choose…" />
-                  </SelectTrigger>
+                  <SelectTrigger className="h-7 w-[210px] text-[11px]"><SelectValue placeholder="Choose…" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Lmin">Lmin{findLPoints ? ` = ${findLPoints.Lmin.toFixed(2)} m` : ""}</SelectItem>
-                    <SelectItem value="Lmid">Lmid{findLPoints ? ` = ${findLPoints.Lmid.toFixed(2)} m` : ""}</SelectItem>
-                    <SelectItem value="Lopt">Lopt{findLPoints ? ` = ${findLPoints.Lopt.toFixed(2)} m` : ""}</SelectItem>
-                    <SelectItem value="Lmax">Lmax{findLPoints ? ` = ${findLPoints.Lmax.toFixed(2)} m` : ""}</SelectItem>
+                    <SelectItem value="Lmin">Lmin{findLPoints ? ` = ${conv(findLPoints.Lmin, "m").toFixed(2)} ${lengthUnit}` : ""}</SelectItem>
+                    <SelectItem value="Lmid">Lmid{findLPoints ? ` = ${conv(findLPoints.Lmid, "m").toFixed(2)} ${lengthUnit}` : ""}</SelectItem>
+                    <SelectItem value="Lopt">Lopt{findLPoints ? ` = ${conv(findLPoints.Lopt, "m").toFixed(2)} ${lengthUnit}` : ""}</SelectItem>
+                    <SelectItem value="Lmax">Lmax{findLPoints ? ` = ${conv(findLPoints.Lmax, "m").toFixed(2)} ${lengthUnit}` : ""}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-
               {L_plot != null && (
                 <>
                   <span className="text-muted-foreground">Display at L</span>
-                  <span className="text-right font-mono font-semibold">{L_plot.toFixed(2)} m</span>
+                  <span className="text-right font-mono font-semibold">{conv(L_plot, "m").toFixed(2)} {lengthUnit}</span>
                 </>
               )}
             </div>
-
             {numSupports > 0 && (
-              <p className="text-[9px] text-muted-foreground mt-1 italic">
-                Unilateral supports on settlement line — pipe lifts off inactive supports
-              </p>
+              <p className="text-[9px] text-muted-foreground mt-1 italic">Unilateral supports on settlement line — pipe lifts off inactive supports</p>
             )}
           </div>
         )}
@@ -198,16 +146,13 @@ const ResultsPanel = ({ results, onChange }: Props) => {
         {calcMode === "findH" && computedH != null && (
           <div className="rounded-md border border-primary bg-primary/10 p-2.5 space-y-1">
             <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Computed Max Settlement</p>
-            <p className="text-lg font-mono font-bold text-primary">{computedH.toFixed(2)} mm</p>
-
+            <p className="text-lg font-mono font-bold text-primary">{conv(computedH, "mm").toFixed(2)} {label("mm")}</p>
             {numSupports > 0 && (
               <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs mt-1">
                 <span className="text-muted-foreground">Supports Used</span>
                 <span className="text-right font-mono font-semibold">{numSupports}</span>
                 <span className="text-muted-foreground">Active Supports</span>
-                <span className="text-right font-mono font-semibold">
-                  {activeCount}/{numSupports}
-                </span>
+                <span className="text-right font-mono font-semibold">{activeCount}/{numSupports}</span>
               </div>
             )}
           </div>
@@ -222,16 +167,14 @@ const ResultsPanel = ({ results, onChange }: Props) => {
 
         {/* Support info */}
         <div className="rounded-md bg-muted p-2.5 space-y-1">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Support Optimization
-          </p>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Support Optimization</p>
           <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
             <span className="text-muted-foreground">Candidate Supports</span>
             <span className="text-right font-mono font-semibold">{numSupports}</span>
             <span className="text-muted-foreground">Active (in contact)</span>
             <span className="text-right font-mono font-semibold">{activeCount}</span>
             <span className="text-muted-foreground">Span Length</span>
-            <span className="text-right font-mono">{spanLength.toFixed(2)} m</span>
+            <span className="text-right font-mono">{conv(spanLength, "m").toFixed(2)} {lengthUnit}</span>
           </div>
         </div>
 
@@ -240,11 +183,11 @@ const ResultsPanel = ({ results, onChange }: Props) => {
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Section Properties</p>
           <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
             <span className="text-muted-foreground">A</span>
-            <span className="text-right font-mono">{section.A.toFixed(1)} mm²</span>
+            <span className="text-right font-mono">{conv(section.A, "mm2").toFixed(2)} {label("mm2")}</span>
             <span className="text-muted-foreground">I</span>
-            <span className="text-right font-mono">{section.I.toExponential(3)} mm⁴</span>
+            <span className="text-right font-mono">{conv(section.I, "mm4").toExponential(3)} {label("mm4")}</span>
             <span className="text-muted-foreground">Weight/m</span>
-            <span className="text-right font-mono">{section.weightPerMeter.toFixed(2)} kg/m</span>
+            <span className="text-right font-mono">{conv(section.weightPerMeter, "kg/m").toFixed(2)} {label("kg/m")}</span>
           </div>
         </div>
       </CardContent>
