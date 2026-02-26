@@ -1,25 +1,24 @@
 
 
-## Plan : Ajout d'un bandeau explicatif en haut de page
+## Plan : Ajout d'un schéma SVG du tuyau déformé
 
-### Modification unique — `src/pages/Index.tsx`
+### 1. Créer `src/components/PipeSchematicSVG.tsx`
 
-Ajouter un bloc informatif entre `<Header />` et `<main>`, sous forme d'un petit encadré discret :
+Composant React qui rend un SVG inline représentant le scénario de mise en tranchée :
 
-```tsx
-<div className="container px-4 pt-4">
-  <div className="rounded-lg border bg-muted/50 px-4 py-3 text-xs text-muted-foreground leading-relaxed max-w-4xl">
-    <p>
-      This calculation applies, for example, to a <strong>trench lowering-in with sidebooms</strong>.
-      The height <strong>h</strong> represents the trench depth plus the pipe lifting height from ground level.
-      The length <strong>L</strong> is the distance from the last sideboom to the point where the pipe contacts the trench bottom.
-      Additional sideboom(s) may be positioned in between if intermediate support(s) are required.
-    </p>
-  </div>
-</div>
-```
+- **Pipe en forme de S** : courbe de Bézier partant du sideboom (en haut à gauche) jusqu'au fond de tranchée (en bas à droite)
+- **Tranchée** : représentée par un profil rectangulaire en bas à droite
+- **Sideboom** : triangle/flèche en haut à gauche
+- **Annotations** : flèches cotées pour `h` (verticale) et `L` (horizontale)
+- **Sol** : ligne horizontale avec hachures
+- **Support intermédiaire optionnel** : petit triangle au milieu de la courbe (en pointillés)
 
-- Texte en anglais, cohérent avec le reste de l'UI
-- Style discret (`muted/50`, `text-xs`) pour ne pas surcharger visuellement
-- Responsive par défaut (conteneur fluide, `max-w-4xl`)
+Dimensions SVG : `viewBox="0 0 600 250"`, responsive via `w-full max-w-2xl`
+
+Style : traits fins, couleurs `currentColor` / `muted-foreground`, cohérent avec le thème sombre/clair.
+
+### 2. Modifier `src/pages/Index.tsx`
+
+- Importer `PipeSchematicSVG`
+- L'insérer juste après le `<div>` du texte explicatif, dans le même conteneur
 
