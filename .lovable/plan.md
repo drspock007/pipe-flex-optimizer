@@ -1,20 +1,25 @@
 
 
-## Plan : Ajout du logo comme favicon et dans le Header
+## Plan : Ajout d'un bandeau explicatif en haut de page
 
-### Modifications
+### Modification unique — `src/pages/Index.tsx`
 
-**1. Copier l'image dans le projet**
-- Copier `user-uploads://ChatGPT_Image_26_févr._2026_17_25_48.png` → `public/logo.png` (pour le favicon)
-- Copier aussi → `src/assets/logo.png` (pour l'import dans le Header)
+Ajouter un bloc informatif entre `<Header />` et `<main>`, sous forme d'un petit encadré discret :
 
-**2. `index.html`**
-- Remplacer le favicon `public/favicon.ico` par `<link rel="icon" type="image/png" href="/logo.png" />`
-- Mettre à jour le `<title>` → "Pipe Settlement — Flexibility Optimizer"
-- Mettre à jour les balises `og:title` et description
+```tsx
+<div className="container px-4 pt-4">
+  <div className="rounded-lg border bg-muted/50 px-4 py-3 text-xs text-muted-foreground leading-relaxed max-w-4xl">
+    <p>
+      This calculation applies, for example, to a <strong>trench lowering-in with sidebooms</strong>.
+      The height <strong>h</strong> represents the trench depth plus the pipe lifting height from ground level.
+      The length <strong>L</strong> is the distance from the last sideboom to the point where the pipe contacts the trench bottom.
+      Additional sideboom(s) may be positioned in between if intermediate support(s) are required.
+    </p>
+  </div>
+</div>
+```
 
-**3. `src/components/Header.tsx`**
-- Remplacer le bloc `<div className="rounded-lg bg-primary p-1.5"><Activity ... /></div>` par une balise `<img>` importée depuis `@/assets/logo.png`
-- Taille : `h-9` (~36px) avec `rounded-lg`
-- Supprimer l'import `Activity` de lucide-react
+- Texte en anglais, cohérent avec le reste de l'UI
+- Style discret (`muted/50`, `text-xs`) pour ne pas surcharger visuellement
+- Responsive par défaut (conteneur fluide, `max-w-4xl`)
 
