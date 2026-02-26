@@ -80,6 +80,16 @@ const Index = () => {
             </div>
           </div>
         </main>
+
+        <footer className="border-t py-4 px-4 text-center space-y-1">
+          <p className="text-[11px] text-muted-foreground leading-snug max-w-2xl mx-auto">
+            Disclaimer — Results are provided for informational purposes only and shall not replace verification by a qualified engineer.
+            The user assumes full responsibility for the use and interpretation of the output.
+          </p>
+          <p className="text-[10px] text-muted-foreground/60">
+            © {new Date().getFullYear()} Pipe Settlement — All rights reserved. — v202602261730
+          </p>
+        </footer>
       </div>
     </UnitProvider>
   );
