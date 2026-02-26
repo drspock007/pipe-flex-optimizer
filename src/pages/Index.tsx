@@ -57,10 +57,6 @@ const Index = () => {
                 computedH={results.computedH} onChange={update}
               />
               <MaterialCard grade={inputs.grade} E={inputs.E} customYield={inputs.customYield} onChange={update} />
-              <AllowableStressCard
-                allowablePercent={inputs.allowablePercent} yieldStrength={results.yieldStrength}
-                allowableStress={results.allowableStress} onChange={(v) => update("allowablePercent", v)}
-              />
               <CoatingCard
                 coatingType={inputs.coatingType as any}
                 coatingThickness={inputs.coatingThickness}
@@ -68,6 +64,10 @@ const Index = () => {
                 Do={inputs.Do}
                 nps={findNpsByOd(inputs.Do)}
                 onChange={update}
+              />
+              <AllowableStressCard
+                allowablePercent={inputs.allowablePercent} yieldStrength={results.yieldStrength}
+                allowableStress={results.allowableStress} onChange={(v) => update("allowablePercent", v)}
               />
               <LoadCard
                 includeSelfWeight={inputs.includeSelfWeight} density={inputs.density}
