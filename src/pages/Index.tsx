@@ -97,7 +97,7 @@ const Index = () => {
             The user assumes full responsibility for the use and interpretation of the output.
           </p>
           <p className="text-[10px] text-muted-foreground/60">
-            © {new Date().getFullYear()} Pipe Settlement — All rights reserved. — v202602261730
+            © {new Date().getFullYear()} Pipe Lowering — All rights reserved. — v202602261730
           </p>
         </footer>
       </div>

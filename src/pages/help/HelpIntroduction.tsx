@@ -4,7 +4,7 @@ const HelpIntroduction = () => (
   <section id="introduction" className="space-y-3">
     <h2 className="text-xl font-bold tracking-tight">1. Introduction</h2>
     <p className="text-sm text-muted-foreground leading-relaxed">
-      <strong>Pipe Settlement — Flexibility Optimizer</strong> is a specialized engineering tool designed for
+      <strong>Pipe Lowering — Flexibility Optimizer</strong> is a specialized engineering tool designed for
       mechanical and structural engineers working in the oil &amp; gas industry. It performs{" "}
       <strong>pipeline flexibility and differential settlement analysis</strong> using the Finite Element Method (FEM).
     </p>
