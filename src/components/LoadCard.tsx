@@ -10,10 +10,11 @@ interface Props {
   density: number;
   q: number;
   weightPerMeter: number;
+  coatingWeightPerMeter: number;
   onChange: (field: string, value: boolean | number) => void;
 }
 
-const LoadCard = ({ includeSelfWeight, density, q, weightPerMeter, onChange }: Props) => {
+const LoadCard = ({ includeSelfWeight, density, q, weightPerMeter, coatingWeightPerMeter, onChange }: Props) => {
   const { conv, parse, label } = useUnits();
 
   return (
@@ -36,10 +37,18 @@ const LoadCard = ({ includeSelfWeight, density, q, weightPerMeter, onChange }: P
         )}
         <div className="rounded-md bg-muted p-2.5 space-y-0.5">
           <div className="grid grid-cols-2 gap-x-4 text-xs">
-            <span className="text-muted-foreground">q</span>
+            <span className="text-muted-foreground">q (total)</span>
             <span className="text-right font-mono">{conv(q, "N/mm").toFixed(4)} {label("N/mm")}</span>
-            <span className="text-muted-foreground">Weight</span>
+            <span className="text-muted-foreground">Steel weight</span>
             <span className="text-right font-mono">{conv(weightPerMeter, "kg/m").toFixed(2)} {label("kg/m")}</span>
+            {coatingWeightPerMeter > 0 && (
+              <>
+                <span className="text-muted-foreground">Coating weight</span>
+                <span className="text-right font-mono">{conv(coatingWeightPerMeter, "kg/m").toFixed(3)} {label("kg/m")}</span>
+                <span className="text-muted-foreground font-medium">Total weight</span>
+                <span className="text-right font-mono font-medium">{conv(weightPerMeter + coatingWeightPerMeter, "kg/m").toFixed(2)} {label("kg/m")}</span>
+              </>
+            )}
           </div>
         </div>
       </CardContent>
