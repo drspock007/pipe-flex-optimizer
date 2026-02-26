@@ -1,24 +1,17 @@
 
 
-## Plan : Ajout d'un schéma SVG du tuyau déformé
+## Plan : Élargir le texte explicatif et le schéma SVG
 
-### 1. Créer `src/components/PipeSchematicSVG.tsx`
+### Constat
 
-Composant React qui rend un SVG inline représentant le scénario de mise en tranchée :
+Le texte et le SVG sont dans un `<div className="container px-4 pt-4">` avec un `max-w-4xl` sur le texte et un `max-w-2xl` sur le SVG. Le graphe Stress est dans la grille `container` sans limite de largeur — il faut aligner.
 
-- **Pipe en forme de S** : courbe de Bézier partant du sideboom (en haut à gauche) jusqu'au fond de tranchée (en bas à droite)
-- **Tranchée** : représentée par un profil rectangulaire en bas à droite
-- **Sideboom** : triangle/flèche en haut à gauche
-- **Annotations** : flèches cotées pour `h` (verticale) et `L` (horizontale)
-- **Sol** : ligne horizontale avec hachures
-- **Support intermédiaire optionnel** : petit triangle au milieu de la courbe (en pointillés)
+### Modifications — `src/pages/Index.tsx`
 
-Dimensions SVG : `viewBox="0 0 600 250"`, responsive via `w-full max-w-2xl`
+1. Retirer `max-w-4xl` du `<div>` du texte explicatif (ligne 39)
+2. Déplacer le bloc texte + SVG à l'intérieur du `<main>` existant, avant la grille, pour qu'il hérite du même `container px-4`
 
-Style : traits fins, couleurs `currentColor` / `muted-foreground`, cohérent avec le thème sombre/clair.
+### Modification — `src/components/PipeSchematicSVG.tsx`
 
-### 2. Modifier `src/pages/Index.tsx`
-
-- Importer `PipeSchematicSVG`
-- L'insérer juste après le `<div>` du texte explicatif, dans le même conteneur
+1. Retirer `max-w-2xl` de la classe du SVG pour qu'il occupe toute la largeur disponible
 
