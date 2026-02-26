@@ -118,14 +118,20 @@ export interface CalculationResults {
 }
 
 // ── Material grades ──
-const GRADES: Record<string, number> = {
-  "API 5L X52": 359,
-  "API 5L X60": 415,
-  "API 5L X65": 450,
-  "API 5L X70": 485,
-};
-export const getGradeOptions = () => [...Object.keys(GRADES), "Custom"];
-export const getYieldStrength = (grade: string, customYield: number): number => GRADES[grade] ?? customYield;
+export const GRADES: { key: string; label: string; smys: number }[] = [
+  { key: "Grade B", label: "Grade B", smys: 241 },
+  { key: "X42", label: "X42", smys: 290 },
+  { key: "X46", label: "X46", smys: 317 },
+  { key: "X52", label: "X52", smys: 359 },
+  { key: "X56", label: "X56", smys: 386 },
+  { key: "X60", label: "X60", smys: 414 },
+  { key: "X65", label: "X65", smys: 448 },
+  { key: "X70", label: "X70", smys: 483 },
+  { key: "X80", label: "X80", smys: 552 },
+];
+export const getGradeOptions = () => [...GRADES.map(g => g.key), "CUSTOM"];
+export const getYieldStrength = (grade: string, customYield: number): number =>
+  GRADES.find(g => g.key === grade)?.smys ?? customYield;
 
 // ── Section properties (mm-based) ──
 export const calcSectionProperties = (Do: number, t: number, density: number): SectionProperties => {
