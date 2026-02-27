@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SectionProperties, CalcMode } from "@/lib/calculations";
 import { Ruler } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import NumericInput from "@/components/NumericInput";
 import { useUnits } from "@/contexts/UnitContext";
@@ -22,8 +23,7 @@ interface Props {
 }
 
 const GeometryCard = ({ Do, t, L, h, section, calcMode, computedLmin, computedLmax, computedH, onChange }: Props) => {
-  const { conv, parse, label } = useUnits();
-
+  const { conv, parse, label, system, toggle } = useUnits();
   // Local state for selectors — derived from global Do/t on mount
   const [selectedNps, setSelectedNps] = useState(() => findNpsByOd(Do));
   const [selectedSchedule, setSelectedSchedule] = useState(() => findScheduleByWt(findNpsByOd(Do), t));
@@ -57,9 +57,16 @@ const GeometryCard = ({ Do, t, L, h, section, calcMode, computedLmin, computedLm
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-sm">
-          <Ruler className="h-4 w-4 text-primary" /> Geometry
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Ruler className="h-4 w-4 text-primary" /> Geometry
+          </CardTitle>
+          <div className="flex items-center gap-1.5">
+            <span className={`text-[10px] font-medium ${system === "SI" ? "text-foreground" : "text-muted-foreground"}`}>SI</span>
+            <Switch checked={system === "Imperial"} onCheckedChange={toggle} className="h-5 w-9" />
+            <span className={`text-[10px] font-medium ${system === "Imperial" ? "text-foreground" : "text-muted-foreground"}`}>IMP</span>
+          </div>
+        </div>
         <ToggleGroup
           type="single" value={calcMode}
           onValueChange={(v) => { if (v) onChange("calcMode", v); }}

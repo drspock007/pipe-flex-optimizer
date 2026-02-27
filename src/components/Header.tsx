@@ -1,11 +1,8 @@
 import { HelpCircle } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Switch } from "@/components/ui/switch";
-import { useUnits } from "@/contexts/UnitContext";
 import logo from "@/assets/logo.png";
 
 const Header = () => {
-  const { system, toggle } = useUnits();
 
   return (
     <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50">
@@ -18,11 +15,6 @@ const Header = () => {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className={`text-[10px] font-medium ${system === "SI" ? "text-foreground" : "text-muted-foreground"}`}>SI</span>
-            <Switch checked={system === "Imperial"} onCheckedChange={toggle} className="h-5 w-9" />
-            <span className={`text-[10px] font-medium ${system === "Imperial" ? "text-foreground" : "text-muted-foreground"}`}>IMP</span>
-          </div>
           <Link to="/help" className="text-muted-foreground hover:text-foreground transition-colors" title="Help">
             <HelpCircle className="h-5 w-5" />
           </Link>
