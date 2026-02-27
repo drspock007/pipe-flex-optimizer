@@ -18,6 +18,7 @@ import { UnitProvider } from "@/contexts/UnitContext";
 import PipeSchematicSVG from "@/components/PipeSchematicSVG";
 import CoatingCard from "@/components/CoatingCard";
 import { findNpsByOd } from "@/lib/pipe-presets";
+import heroPipeline from "@/assets/hero-pipeline.png";
 
 const Index = () => {
   const [inputs, setInputs] = useState<PipeInputs>({
@@ -38,6 +39,14 @@ const Index = () => {
     <UnitProvider>
       <div className="min-h-screen grid-background">
         <Header />
+        <div className="relative w-full h-40 sm:h-52 md:h-64 overflow-hidden">
+          <img
+            src={heroPipeline}
+            alt="Pipeline lowering-in with sidebooms"
+            className="w-full h-full object-cover object-center"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
+        </div>
         <main className="container px-4 py-6 space-y-6">
           <div className="rounded-lg border bg-muted/50 px-4 py-3 text-xs text-muted-foreground leading-relaxed">
             <p>
