@@ -1,5 +1,6 @@
 // src/pages/HelpPage.tsx
 
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import HelpIntroduction from "./help/HelpIntroduction";
@@ -30,7 +31,18 @@ const tocItems = [
   { id: "limitations", label: "12. Limitations" },
 ];
 
-const HelpPage = () => (
+const HelpPage = () => {
+  useEffect(() => {
+    document.title = "Help & Documentation — Pipe Lowering | Pipeline Engineering Reference";
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.setAttribute("content", "Technical documentation for the Pipe Lowering tool: mechanical model, FEM solver, calculation modes, safety criteria and validation for pipeline lowering-in operations.");
+    return () => {
+      document.title = "Pipe Lowering — Flexibility Optimizer | Pipeline Stress Analysis Tool";
+      if (meta) meta.setAttribute("content", "Free online pipe lowering stress analysis tool for pipeline engineers. Compute bending stress, deflection and optimal support spacing during trench lowering-in operations.");
+    };
+  }, []);
+
+  return (
   <div className="min-h-screen grid-background">
     <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50">
       <div className="container flex h-14 items-center gap-3 px-4">
@@ -82,6 +94,7 @@ const HelpPage = () => (
       </footer>
     </main>
   </div>
-);
+  );
+};
 
 export default HelpPage;
