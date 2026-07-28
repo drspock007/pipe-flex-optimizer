@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow:
 
-Sitemap: https://pipe-lowering.lovable.app/sitemap.xml
+Sitemap: https://pipe-lowering.giovannimalagninoconsulting.com/sitemap.xml
