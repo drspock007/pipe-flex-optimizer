@@ -87,12 +87,8 @@ export const Footer = () => {
           </div>
         </div>
 
-        {/* Disclaimer + version bar (project-specific requirement) */}
-        <div className="mt-8 pt-4 border-t border-border text-center space-y-1">
-          <p className="text-[11px] text-muted-foreground leading-snug max-w-2xl mx-auto">
-            Disclaimer — Results are provided for informational purposes only and shall not replace verification by a qualified engineer.
-            The user assumes full responsibility for the use and interpretation of the output.
-          </p>
+        {/* Copyright + version bar */}
+        <div className="mt-8 pt-4 border-t border-border text-center">
           <p className="text-[10px] text-muted-foreground/60">
             © {new Date().getFullYear()}{" "}
             <a
@@ -103,7 +99,7 @@ export const Footer = () => {
             >
               Giovanni Malagnino Consulting
             </a>
-            {" "}— Pipe Lowering — All rights reserved. — v202607281045
+            {" "}— Pipe Lowering — All rights reserved. — v202607281120
           </p>
         </div>
       </div>
