@@ -115,6 +115,9 @@ const Index = () => {
           </div>
         </main>
 
+        <div className="container px-4 pb-6">
+          <Disclaimer />
+        </div>
         <Footer />
       </div>
     </UnitProvider>
