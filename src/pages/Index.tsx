@@ -20,6 +20,7 @@ import CoatingCard from "@/components/CoatingCard";
 import { findNpsByOd } from "@/lib/pipe-presets";
 import heroPipeline from "@/assets/hero-pipeline.png";
 import Footer from "@/components/Footer";
+import Disclaimer from "@/components/Disclaimer";
 
 const Index = () => {
   const [inputs, setInputs] = useState<PipeInputs>({
@@ -114,6 +115,9 @@ const Index = () => {
           </div>
         </main>
 
+        <div className="container px-4 pb-6">
+          <Disclaimer />
+        </div>
         <Footer />
       </div>
     </UnitProvider>

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import Disclaimer from "@/components/Disclaimer";
 import HelpIntroduction from "./help/HelpIntroduction";
 import HelpInputs from "./help/HelpInputs";
 import HelpSectionProperties from "./help/HelpSectionProperties";
@@ -78,6 +79,9 @@ const HelpPage = () => {
       <HelpLimitations />
     </main>
 
+    <div className="container max-w-4xl mx-auto px-4 pb-6">
+      <Disclaimer />
+    </div>
     <Footer />
   </div>
   );
