@@ -99,7 +99,7 @@ export const Footer = () => {
             >
               Giovanni Malagnino Consulting
             </a>
-            {" "}— Pipe Lowering — All rights reserved. — v202607281410
+            {" "}— Pipe Lowering — All rights reserved. — v202607281420
           </p>
         </div>
       </div>
