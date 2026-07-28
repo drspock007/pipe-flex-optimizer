@@ -56,6 +56,41 @@ const HelpPage = () => {
     const prevCanonical = canonical?.getAttribute("href") ?? null;
     if (canonical) canonical.setAttribute("href", pageUrl);
 
+    // Inject TechArticle JSON-LD for the documentation page
+    const techArticleLd = document.createElement("script");
+    techArticleLd.type = "application/ld+json";
+    techArticleLd.id = "help-techarticle-jsonld";
+    techArticleLd.text = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "Pipe Lowering Documentation",
+      "description": pageDesc,
+      "url": pageUrl,
+      "inLanguage": "en",
+      "proficiencyLevel": "Expert",
+      "dependencies": "Web browser",
+      "about": [
+        "Pipe lowering-in stress analysis",
+        "Beam deflection (Euler-Bernoulli FEM)",
+        "Pipeline support spacing optimization",
+      ],
+      "audience": {
+        "@type": "Audience",
+        "audienceType": "Mechanical and structural engineers (oil & gas)",
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "Giovanni Malagnino Consulting",
+        "url": "https://www.giovannimalagninoconsulting.com",
+      },
+      "isPartOf": {
+        "@type": "WebApplication",
+        "name": "Pipe Lowering — Flexibility Optimizer",
+        "url": "https://pipe-lowering.giovannimalagninoconsulting.com",
+      },
+    });
+    document.head.appendChild(techArticleLd);
+
     return () => {
       document.title = homeTitle;
       setMeta('meta[name="description"]', homeDesc);
@@ -65,6 +100,7 @@ const HelpPage = () => {
       setMeta('meta[name="twitter:title"]', homeTitle);
       setMeta('meta[name="twitter:description"]', homeDesc);
       if (canonical && prevCanonical) canonical.setAttribute("href", prevCanonical);
+      techArticleLd.parentNode?.removeChild(techArticleLd);
     };
   }, []);
 
