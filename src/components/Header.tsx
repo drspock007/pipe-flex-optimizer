@@ -28,6 +28,10 @@ const Header = () => {
               <img
                 src={logo}
                 alt="Giovanni Malagnino Consulting"
+                width={500}
+                height={500}
+                fetchPriority="high"
+                decoding="async"
                 className="h-24 w-auto hover:opacity-80 transition-opacity"
               />
             </a>
