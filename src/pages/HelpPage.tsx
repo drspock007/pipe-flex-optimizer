@@ -34,12 +34,17 @@ const tocItems = [
 
 const HelpPage = () => {
   useEffect(() => {
-    document.title = "Help & Documentation — Pipe Lowering | Pipeline Engineering Reference";
+    document.title = "Help & Documentation — Pipe Lowering Reference";
     const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute("content", "Technical documentation for the Pipe Lowering tool: mechanical model, FEM solver, calculation modes, safety criteria and validation for pipeline lowering-in operations.");
+    if (meta) meta.setAttribute("content", "Technical documentation for Pipe Lowering: mechanical model, FEM solver, calculation modes, safety criteria, and validation for pipeline operations.");
+    // Update canonical to self-reference this route
+    const canonical = document.querySelector('link[rel="canonical"]');
+    const prevCanonical = canonical?.getAttribute("href") ?? null;
+    if (canonical) canonical.setAttribute("href", "https://pipe-lowering.giovannimalagninoconsulting.com/help");
     return () => {
-      document.title = "Pipe Lowering — Flexibility Optimizer | Pipeline Stress Analysis Tool";
-      if (meta) meta.setAttribute("content", "Free online pipe lowering stress analysis tool for pipeline engineers. Compute bending stress, deflection and optimal support spacing during trench lowering-in operations.");
+      document.title = "Pipe Lowering — Pipeline Stress Analysis Tool";
+      if (meta) meta.setAttribute("content", "Online pipe lowering stress analysis tool for engineers. Compute bending stress, deflection and optimal support spacing for trench lowering-in operations.");
+      if (canonical && prevCanonical) canonical.setAttribute("href", prevCanonical);
     };
   }, []);
 
