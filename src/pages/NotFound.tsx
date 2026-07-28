@@ -6,6 +6,22 @@ const NotFound = () => {
 
   useEffect(() => {
     console.error("404 Error: User attempted to access non-existent route:", location.pathname);
+
+    const prevTitle = document.title;
+    document.title = "Page Not Found (404) — Pipe Lowering";
+    const meta = document.querySelector('meta[name="description"]');
+    const prevDesc = meta?.getAttribute("content") ?? null;
+    if (meta) meta.setAttribute("content", "The page you are looking for does not exist. Return to the Pipe Lowering stress analysis tool home page.");
+    // Self-referencing canonical for the current 404 path
+    const canonical = document.querySelector('link[rel="canonical"]');
+    const prevCanonical = canonical?.getAttribute("href") ?? null;
+    if (canonical) canonical.setAttribute("href", `https://pipe-lowering.giovannimalagninoconsulting.com${location.pathname}`);
+
+    return () => {
+      document.title = prevTitle;
+      if (meta && prevDesc !== null) meta.setAttribute("content", prevDesc);
+      if (canonical && prevCanonical !== null) canonical.setAttribute("href", prevCanonical);
+    };
   }, [location.pathname]);
 
   return (
