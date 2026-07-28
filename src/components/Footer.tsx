@@ -89,7 +89,7 @@ export const Footer = () => {
 
         {/* Copyright + version bar */}
         <div className="mt-8 pt-4 border-t border-border text-center">
-          <p className="text-[10px] text-muted-foreground/60">
+          <p className="text-xs text-muted-foreground">
             © {new Date().getFullYear()}{" "}
             <a
               href="https://www.giovannimalagninoconsulting.com"
@@ -99,7 +99,7 @@ export const Footer = () => {
             >
               Giovanni Malagnino Consulting
             </a>
-            {" "}— Pipe Lowering — All rights reserved. — v202607281340
+            {" "}— Pipe Lowering — All rights reserved. — v202607281354
           </p>
         </div>
       </div>
