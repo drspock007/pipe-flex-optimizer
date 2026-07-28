@@ -48,6 +48,10 @@ const HelpPage = () => {
     <Header />
 
     <main className="container max-w-4xl mx-auto px-4 py-8 space-y-10 flex-1">
+      <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">
+        Pipe Lowering Documentation
+      </h1>
+
       {/* Table of contents */}
       <nav className="rounded-lg border bg-card p-4">
         <h2 className="text-sm font-semibold mb-2">Table of Contents</h2>

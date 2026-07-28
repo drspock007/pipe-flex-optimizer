@@ -50,6 +50,10 @@ const Index = () => {
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
         </div>
         <main className="container px-4 py-6 space-y-6">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">
+            Pipe Lowering Analysis &amp; Stress Calculator
+          </h1>
+
           <div className="rounded-lg border bg-muted/50 px-4 py-3 text-xs text-muted-foreground leading-relaxed">
             <p>
               This calculation applies, for example, to a <strong>trench lowering-in with sidebooms</strong>.

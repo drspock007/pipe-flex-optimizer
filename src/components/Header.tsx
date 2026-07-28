@@ -66,6 +66,8 @@ const Header = () => {
               <Link
                 key={item.path}
                 to={item.path}
+                aria-label={item.label}
+                aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-md transition-colors",
                   isActive
@@ -73,8 +75,9 @@ const Header = () => {
                     : "text-muted-foreground hover:text-foreground hover:bg-secondary hover:text-secondary-foreground"
                 )}
               >
-                <Icon className="w-4 h-4" />
-                <span className="hidden sm:inline">{item.label}</span>
+                <Icon className="w-4 h-4" aria-hidden="true" />
+                <span className="sr-only">{item.label}</span>
+                <span className="hidden sm:inline" aria-hidden="true">{item.label}</span>
               </Link>
             );
           })}
