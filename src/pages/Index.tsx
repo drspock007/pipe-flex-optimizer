@@ -19,6 +19,7 @@ import PipeSchematicSVG from "@/components/PipeSchematicSVG";
 import CoatingCard from "@/components/CoatingCard";
 import { findNpsByOd } from "@/lib/pipe-presets";
 import heroPipeline from "@/assets/hero-pipeline.png";
+import Footer from "@/components/Footer";
 
 const Index = () => {
   const [inputs, setInputs] = useState<PipeInputs>({
@@ -113,17 +114,7 @@ const Index = () => {
           </div>
         </main>
 
-        <footer className="border-t py-4 px-4 text-center space-y-1">
-          <p className="text-[11px] text-muted-foreground leading-snug max-w-2xl mx-auto">
-            Disclaimer — Results are provided for informational purposes only and shall not replace verification by a qualified engineer.
-            The user assumes full responsibility for the use and interpretation of the output.
-          </p>
-          <p className="text-[10px] text-muted-foreground/60">
-            © {new Date().getFullYear()}{" "}
-              <a href="https://www.giovannimalagninoconsulting.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground transition-colors">Giovanni Malagnino Consulting</a>
-              {" "}— Pipe Lowering — All rights reserved. — v202602271430
-          </p>
-        </footer>
+        <Footer />
       </div>
     </UnitProvider>
   );

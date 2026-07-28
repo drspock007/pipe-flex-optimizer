@@ -1,8 +1,8 @@
 // src/pages/HelpPage.tsx
 
 import { useEffect } from "react";
-import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import HelpIntroduction from "./help/HelpIntroduction";
 import HelpInputs from "./help/HelpInputs";
 import HelpSectionProperties from "./help/HelpSectionProperties";
@@ -43,22 +43,10 @@ const HelpPage = () => {
   }, []);
 
   return (
-  <div className="min-h-screen grid-background">
-    <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50">
-      <div className="container flex h-14 items-center gap-3 px-4">
-        <Link
-          to="/"
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Link>
-        <div className="h-5 w-px bg-border" />
-        <h1 className="text-sm font-bold tracking-tight">Help &amp; Documentation</h1>
-      </div>
-    </header>
+  <div className="min-h-screen grid-background flex flex-col">
+    <Header />
 
-    <main className="container max-w-4xl mx-auto px-4 py-8 space-y-10">
+    <main className="container max-w-4xl mx-auto px-4 py-8 space-y-10 flex-1">
       {/* Table of contents */}
       <nav className="rounded-lg border bg-card p-4">
         <h2 className="text-sm font-semibold mb-2">Table of Contents</h2>
@@ -88,11 +76,9 @@ const HelpPage = () => {
       <HelpSafetyCriteria />
       <HelpValidation />
       <HelpLimitations />
-
-      <footer className="pt-6 border-t text-center text-[10px] text-muted-foreground">
-        v202602252100
-      </footer>
     </main>
+
+    <Footer />
   </div>
   );
 };
