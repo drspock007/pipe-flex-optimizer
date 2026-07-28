@@ -2,91 +2,96 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Design system aligned with "Surface Load Calc" for cross-app consistency.
+   Giovanni Malagnino Consulting branding: primary orange #ff8e04, black text,
+   white background, 24px orange side borders on body. All values HSL. */
+
 @layer base {
   :root {
-    --background: 0 0% 97%;
-    --foreground: 220 20% 10%;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 10%;
+    --card-foreground: 0 0% 0%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 10%;
+    --popover-foreground: 0 0% 0%;
 
-    --primary: 34 100% 51%;
+    --primary: 28 100% 51%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 14% 92%;
-    --secondary-foreground: 220 20% 10%;
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 220 14% 95%;
-    --muted-foreground: 220 10% 46%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 35%;
 
-    --accent: 34 100% 95%;
-    --accent-foreground: 34 80% 30%;
+    --accent: 28 100% 51%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
 
+    /* Kept for pipe-lowering result badges (not present in Surface Load Calc). */
     --safe: 142 71% 45%;
     --safe-foreground: 0 0% 100%;
 
-    --border: 220 13% 90%;
-    --input: 220 13% 90%;
-    --ring: 34 100% 51%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 28 100% 51%;
 
-    --radius: 0.5rem;
+    --radius: 0.375rem;
 
     --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 34 100% 51%;
+    --sidebar-foreground: 0 0% 10%;
+    --sidebar-primary: 28 100% 51%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 34 100% 95%;
-    --sidebar-accent-foreground: 34 80% 30%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 34 100% 51%;
+    --sidebar-accent: 28 100% 96%;
+    --sidebar-accent-foreground: 0 0% 10%;
+    --sidebar-border: 0 0% 89.8%;
+    --sidebar-ring: 28 100% 51%;
   }
 
   .dark {
-    --background: 220 20% 7%;
-    --foreground: 210 20% 92%;
+    --background: 0 0% 10%;
+    --foreground: 0 0% 98%;
 
-    --card: 220 18% 10%;
-    --card-foreground: 210 20% 92%;
+    --card: 0 0% 15%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 220 18% 10%;
-    --popover-foreground: 210 20% 92%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 34 100% 51%;
+    --primary: 28 100% 51%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 14% 16%;
-    --secondary-foreground: 210 20% 92%;
+    --secondary: 0 0% 20%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 220 14% 16%;
-    --muted-foreground: 220 10% 60%;
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 63.9%;
 
-    --accent: 34 60% 15%;
-    --accent-foreground: 34 100% 70%;
+    --accent: 28 100% 51%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62% 35%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
 
     --safe: 142 60% 35%;
     --safe-foreground: 0 0% 100%;
 
-    --border: 220 14% 18%;
-    --input: 220 14% 18%;
-    --ring: 34 100% 51%;
+    --border: 0 0% 25%;
+    --input: 0 0% 25%;
+    --ring: 28 100% 51%;
 
-    --sidebar-background: 220 20% 7%;
-    --sidebar-foreground: 210 20% 92%;
-    --sidebar-primary: 34 100% 51%;
+    --sidebar-background: 0 0% 10%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 28 100% 51%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 34 60% 15%;
-    --sidebar-accent-foreground: 34 100% 70%;
-    --sidebar-border: 220 14% 18%;
-    --sidebar-ring: 34 100% 51%;
+    --sidebar-accent: 0 0% 20%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 0 0% 25%;
+    --sidebar-ring: 28 100% 51%;
   }
 }
 
@@ -97,12 +102,14 @@
 
   body {
     @apply bg-background text-foreground;
+    border-left: 24px solid hsl(var(--primary));
+    border-right: 24px solid hsl(var(--primary));
+    min-height: 100vh;
   }
 }
 
+/* Legacy grid background utility — kept as no-op to preserve any references.
+   The new design uses a plain white background matching Surface Load Calc. */
 .grid-background {
-  background-image: 
-    linear-gradient(hsl(var(--border) / 0.4) 1px, transparent 1px),
-    linear-gradient(90deg, hsl(var(--border) / 0.4) 1px, transparent 1px);
-  background-size: 40px 40px;
+  background-color: hsl(var(--background));
 }
