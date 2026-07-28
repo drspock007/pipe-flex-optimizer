@@ -34,16 +34,36 @@ const tocItems = [
 
 const HelpPage = () => {
   useEffect(() => {
-    document.title = "Help & Documentation — Pipe Lowering Reference";
-    const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute("content", "Technical documentation for Pipe Lowering: mechanical model, FEM solver, calculation modes, safety criteria, and validation for pipeline operations.");
-    // Update canonical to self-reference this route
+    const pageTitle = "Help & Documentation — Pipe Lowering Reference";
+    const pageDesc = "Technical documentation for Pipe Lowering: mechanical model, FEM solver, calculation modes, safety criteria, and validation for pipeline operations.";
+    const pageUrl = "https://pipe-lowering.giovannimalagninoconsulting.com/help";
+    const homeTitle = "Pipe Lowering — Pipeline Stress Analysis Tool";
+    const homeDesc = "Online pipe lowering stress analysis tool for engineers. Compute bending stress, deflection and optimal support spacing for trench lowering-in operations.";
+    const homeUrl = "https://pipe-lowering.giovannimalagninoconsulting.com/";
+
+    document.title = pageTitle;
+    const setMeta = (selector: string, value: string) => {
+      const el = document.querySelector(selector);
+      if (el) el.setAttribute("content", value);
+    };
+    setMeta('meta[name="description"]', pageDesc);
+    setMeta('meta[property="og:title"]', pageTitle);
+    setMeta('meta[property="og:description"]', pageDesc);
+    setMeta('meta[property="og:url"]', pageUrl);
+    setMeta('meta[name="twitter:title"]', pageTitle);
+    setMeta('meta[name="twitter:description"]', pageDesc);
     const canonical = document.querySelector('link[rel="canonical"]');
     const prevCanonical = canonical?.getAttribute("href") ?? null;
-    if (canonical) canonical.setAttribute("href", "https://pipe-lowering.giovannimalagninoconsulting.com/help");
+    if (canonical) canonical.setAttribute("href", pageUrl);
+
     return () => {
-      document.title = "Pipe Lowering — Pipeline Stress Analysis Tool";
-      if (meta) meta.setAttribute("content", "Online pipe lowering stress analysis tool for engineers. Compute bending stress, deflection and optimal support spacing for trench lowering-in operations.");
+      document.title = homeTitle;
+      setMeta('meta[name="description"]', homeDesc);
+      setMeta('meta[property="og:title"]', homeTitle);
+      setMeta('meta[property="og:description"]', homeDesc);
+      setMeta('meta[property="og:url"]', homeUrl);
+      setMeta('meta[name="twitter:title"]', homeTitle);
+      setMeta('meta[name="twitter:description"]', homeDesc);
       if (canonical && prevCanonical) canonical.setAttribute("href", prevCanonical);
     };
   }, []);
