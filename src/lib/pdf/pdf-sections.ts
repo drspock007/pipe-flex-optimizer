@@ -2,7 +2,7 @@
 
 import { PipeInputs, CalculationResults } from "@/lib/calculations";
 import { UnitSystem, UnitType, toDisplay, unitLabel } from "@/lib/unit-conversions";
-import { COATING_OPTIONS } from "@/lib/coating-presets";
+import { COATING_LABELS, CoatingType } from "@/lib/coating-presets";
 
 export type Row = [string, string];
 export interface Section {
@@ -27,7 +27,7 @@ export const buildSections = (
     `${c(v, unit).toFixed(digits)} ${u(unit)}`;
 
   const coatingLabel =
-    COATING_OPTIONS.find((o) => o.key === inputs.coatingType)?.label ?? inputs.coatingType;
+    COATING_LABELS[inputs.coatingType as CoatingType] ?? inputs.coatingType;
 
   const geometry: Row[] = [
     ["Outside diameter (Do)", fmt(inputs.Do, "mm")],
