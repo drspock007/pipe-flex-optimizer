@@ -21,6 +21,8 @@ import { findNpsByOd } from "@/lib/pipe-presets";
 import heroPipeline from "@/assets/hero-pipeline.png";
 import Footer from "@/components/Footer";
 import Disclaimer from "@/components/Disclaimer";
+import ExportPdfCard from "@/components/ExportPdfCard";
+
 
 const Index = () => {
   const [inputs, setInputs] = useState<PipeInputs>({
@@ -114,6 +116,8 @@ const Index = () => {
               </Tabs>
 
               <ResultsPanel results={results} onChange={update} />
+              <ExportPdfCard inputs={inputs} results={results} />
+
               {/* <DebugPanel debug={results.debug} numSupports={results.numSupports} supportStatus={results.supportStatus} /> */}
             </div>
           </div>
