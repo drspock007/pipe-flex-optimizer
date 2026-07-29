@@ -12,7 +12,9 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  // jsxSource: false keeps Lovable visual editing while avoiding the invalid
+  // ref injection that produced React warnings / gray preview in the iframe.
+  plugins: [react(), mode === "development" && componentTagger({ jsxSource: false })].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

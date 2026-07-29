@@ -1,7 +1,13 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
-import { initAnalytics } from "./lib/analytics.ts";
+import { initUsageMetrics } from "./lib/usageMetrics.ts";
 import "./index.css";
 
-initAnalytics();
-createRoot(document.getElementById("root")!).render(<App />);
+initUsageMetrics();
+
+const rootElement = document.getElementById("root");
+if (rootElement) {
+  createRoot(rootElement).render(<App />);
+} else {
+  console.error("[bootstrap] Root element #root was not found");
+}
