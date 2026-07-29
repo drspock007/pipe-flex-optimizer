@@ -30,7 +30,8 @@ const Header = () => {
                 alt="Giovanni Malagnino Consulting"
                 width={500}
                 height={500}
-                fetchPriority="high"
+                // Lowercase DOM attribute passed via spread to avoid a React warning.
+                {...{ fetchpriority: "high" }}
                 decoding="async"
                 className="h-24 w-auto hover:opacity-80 transition-opacity"
               />
