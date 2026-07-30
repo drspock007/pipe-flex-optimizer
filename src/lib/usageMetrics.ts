@@ -14,15 +14,29 @@ declare global {
   }
 }
 
-const measurementId = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_ANALYTICS_API_KEY as
+const rawMeasurementId = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_ANALYTICS_API_KEY as
   | string
   | undefined;
+
+// A GA4 measurement ID always looks like "G-XXXXXXXXXX".
+const MEASUREMENT_ID_PATTERN = /^G-[A-Z0-9]+$/;
+const measurementId =
+  rawMeasurementId && MEASUREMENT_ID_PATTERN.test(rawMeasurementId.trim())
+    ? rawMeasurementId.trim()
+    : undefined;
 
 let enabled = false;
 
 /** Load the measurement script. Called only after an explicit visitor choice. */
 export function enableUsageMetrics(): void {
-  if (enabled || !measurementId) return;
+  if (enabled) return;
+  if (!measurementId) {
+    console.warn(
+      "[usageMetrics] invalid-measurement-id — measurement disabled, received:",
+      rawMeasurementId ?? "(none)",
+    );
+    return;
+  }
   enabled = true;
 
   try {
