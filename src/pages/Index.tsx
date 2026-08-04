@@ -22,6 +22,7 @@ import heroPipeline from "@/assets/hero-pipeline.png";
 import Footer from "@/components/Footer";
 import Disclaimer from "@/components/Disclaimer";
 import ExportPdfCard from "@/components/ExportPdfCard";
+import PresetsCard from "@/components/presets/PresetsCard";
 
 
 const Index = () => {
@@ -121,6 +122,11 @@ const Index = () => {
               {/* <DebugPanel debug={results.debug} numSupports={results.numSupports} supportStatus={results.supportStatus} /> */}
             </div>
           </div>
+
+          <PresetsCard
+            inputs={inputs}
+            onLoad={(values) => setInputs((prev) => ({ ...prev, ...values }))}
+          />
         </main>
 
         <div className="container px-4 pb-6">
