@@ -13,7 +13,16 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "monospace"],
+        tagline: ['"Habibi"', "Georgia", '"Times New Roman"', "serif"],
+      },
       colors: {
+        "primary-strong": "hsl(var(--primary-strong))",
+        "success-strong": "hsl(var(--success-strong))",
+        "warning-strong": "hsl(var(--warning-strong))",
+        "danger-strong": "hsl(var(--danger-strong))",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
