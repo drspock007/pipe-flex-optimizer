@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Home, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/logo-gmc.png";
+import ThemeToggle from "@/components/ThemeToggle";
 
 /** Main application header with GMC logo, tagline and navigation.
  *  Mirrors the shared layout used across Giovanni Malagnino Consulting apps. */
@@ -41,7 +42,6 @@ const Header = () => {
             className="text-left text-foreground"
             style={{
               backgroundColor: 'transparent',
-              color: '#020202',
               display: 'block',
               fontFamily: '"Habibi", Georgia, "Times New Roman", serif',
               fontSize: '27px',
@@ -86,6 +86,9 @@ const Header = () => {
               </Link>
             );
           })}
+          <div className="ml-2">
+            <ThemeToggle />
+          </div>
         </nav>
       </div>
     </header>
