@@ -42,7 +42,6 @@ const Header = () => {
             className="text-left text-foreground"
             style={{
               backgroundColor: 'transparent',
-              color: '#020202',
               display: 'block',
               fontFamily: '"Habibi", Georgia, "Times New Roman", serif',
               fontSize: '27px',
