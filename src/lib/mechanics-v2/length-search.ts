@@ -63,7 +63,7 @@ function computeWindow(input: LengthSearchInput, n: SearchedSupports): LengthWin
   if (s < sigmaMin) return { ...base, status: "none", lower: null, upper: null, optimum, infimum };
 
   const rhoM2 = ((s - sigmaMin) / Hs) * ((s + sigmaMin) / b);
-  const tauBig = (rhoM2 + 4 + Math.sqrt(rhoM2 * (rhoM2 + 4))) / 2;
+  const tauBig = (rhoM2 + 2 + Math.sqrt(rhoM2 * (rhoM2 + 4))) / 2;
   const r = Math.pow(tauBig, 0.25);
   const Lmin = Lopt / r;
   const Lmax = Lopt * r;
