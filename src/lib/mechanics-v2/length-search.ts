@@ -68,14 +68,14 @@ function computeWindowRaw(input: LengthSearchInput, n: SearchedSupports): Length
   }
   if (b === 0) {
     // Offsets only: sigma = Hs / L^2, decreasing towards 0 as L -> infinity.
-    return { ...base, status: "window", lower: finiteBound(Math.sqrt(Hs / s)),
+    return { ...base, status: "window", lower: finiteBound(sqrtRatio(Hs, s)),
       upper: { value: null, included: false, kind: "unbounded" }, optimum: null,
       infimum: { sigma: 0, attained: false, approachedAs: "L-to-infinity" } };
   }
   if (Hs === 0) {
     // Weight only: sigma = b L^2, L = 0 excluded.
     return { ...base, status: "window", lower: { value: null, included: false, kind: "zero-excluded" },
-      upper: finiteBound(Math.sqrt(s / b)), optimum: null,
+      upper: finiteBound(sqrtRatio(s, b)), optimum: null,
       infimum: { sigma: 0, attained: false, approachedAs: "L-to-zero" } };
   }
 
