@@ -1,4 +1,5 @@
 // créé par Giovanni Malagnino, 2026-09-24 03:27 CEST (Europe/Rome, UTC+2)
+// Modifié par Giovanni malagnino, 2026-09-24 03:33 CEST (Europe/Rome, UTC+2)
 // Support, contact, continuity, equilibrium and numerical reference tests.
 
 import { describe, expect, it } from "vitest";
@@ -75,7 +76,8 @@ describe("mechanics-v2 supports and contact", () => {
     const sumM = r.endReactions.left.couple + r.endReactions.right.couple + r.endReactions.right.force * L +
       r.supports.reduce((t, s) => t + s.reaction * s.x, 0);
     expect(rel(sumM, (q * L * L) / 2)).toBeLessThan(1e-10);
-    expect(r.modelValid).toBe(true);
+    expect(r.numericalValid).toBe(true);
+    expect(r.physicalValidity).toBe("not-assessed");
   });
 
   it("numerical references (linear model)", () => {
@@ -90,7 +92,6 @@ describe("mechanics-v2 supports and contact", () => {
       expect(Math.abs(r.maxStress - k.s)).toBeLessThan(1e-7);
       expect(Math.abs(r.critical.x - L)).toBeLessThan(1e-6);
       expect(r.bendingCriterionMet).toBe(r.maxStress <= REF.sigmaAllow);
-      console.log(`[mechanics-v2-ref] hl=${k.hl} n=${k.n} sigma=${r.maxStress.toFixed(10)}`);
     }
     const r = solveOk({ numSupports: 1 });
     expect(Math.abs(r.endReactions.left.force - 480.2997584331)).toBeLessThan(1e-6);

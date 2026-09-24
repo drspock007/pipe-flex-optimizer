@@ -1,4 +1,5 @@
 // créé par Giovanni Malagnino, 2026-09-24 03:27 CEST (Europe/Rome, UTC+2)
+// Modifié par Giovanni malagnino, 2026-09-24 03:33 CEST (Europe/Rome, UTC+2)
 // Unilateral contact by a primal-feasible active-set method on the condensed
 // problem: minimize 0.5 R'CR + g0'R subject to R >= 0 (g = g0 + C R).
 // Deterministic rules: the most negative gap enters first (lowest index on ties);
@@ -10,6 +11,8 @@ export interface ContactOutcome {
   R: number[];
   converged: boolean;
   iterations: number;
+  /** Number of contacts released by step limiting (diagnostic). */
+  releases: number;
   message: string;
 }
 
@@ -23,6 +26,7 @@ export function solveContact(
   const R = new Array<number>(n).fill(0);
   const inSet = new Array<boolean>(n).fill(false);
   let iter = 0;
+  let releases = 0;
 
   while (iter < maxIter) {
     const g = gaps(g0, C, R);
@@ -34,7 +38,7 @@ export function solveContact(
         enter = i;
       }
     }
-    if (enter < 0) return { R, converged: true, iterations: iter, message: "converged" };
+    if (enter < 0) return { R, converged: true, iterations: iter, releases, message: "converged" };
     inSet[enter] = true;
 
     // Inner loop: keep reactions feasible by step limiting.
@@ -56,6 +60,7 @@ export function solveContact(
         if (R[i] <= tolForce) {
           R[i] = 0;
           inSet[i] = false;
+          releases++;
         }
       });
     }
@@ -64,6 +69,7 @@ export function solveContact(
     R,
     converged: false,
     iterations: iter,
+    releases,
     message: `Active-set contact did not converge within ${maxIter} iterations`,
   };
 }
