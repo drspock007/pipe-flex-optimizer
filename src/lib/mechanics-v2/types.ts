@@ -1,4 +1,5 @@
 // créé par Giovanni Malagnino, 2026-09-24 03:27 CEST (Europe/Rome, UTC+2)
+// Modifié par Giovanni malagnino, 2026-09-24 03:33 CEST (Europe/Rome, UTC+2)
 // Public contract of the V2 biaxial bending engine (fixed length).
 // Units used everywhere in this engine: mm, N, MPa, N*mm, mm^2, mm^4.
 
@@ -60,17 +61,33 @@ export interface CriticalPoint {
   phiCompression: number | null;
 }
 
+/** Equilibrium residual set, each entry in its own unit. */
+export interface EquilibriumSet {
+  translation: number; // max |Kd - F - R_applied| over free translation DOFs (N)
+  rotation: number; // max |Kd - F| over free rotation DOFs (N*mm)
+  globalForce: number; // |sum of vertical reactions - qL| (N)
+  globalMoment: number; // |sum of reaction moments about x=0 - qL^2/2| (N*mm)
+}
+
 export interface Diagnostics {
   converged: boolean;
   iterations: number;
   contactValid: boolean;
-  forceResidual: number;
-  momentResidual: number;
-  freeDofResidual: number;
+  /** Reference scales: force (N) and moment = force * L (N*mm). */
+  scales: { force: number; moment: number; displacement: number };
+  residuals: EquilibriumSet;
+  /** Tolerances with the same units as residuals. */
+  residualTolerances: EquilibriumSet;
+  /** Dimensionless residuals (raw residual / matching scale). */
+  normalizedResiduals: EquilibriumSet;
+  equilibriumOk: boolean;
   tolDisp: number;
   tolForce: number;
   messages: string[];
 }
+
+/** Physical-domain validity (small rotations, etc.) is not checked in this step. */
+export type PhysicalValidity = "not-assessed";
 
 export interface BiaxialSuccess {
   status: "ok";
@@ -85,8 +102,10 @@ export interface BiaxialSuccess {
   sigmaAllow: number;
   /** Bending stress criterion only: maxStress <= sigmaAllow (no hidden buffer). */
   bendingCriterionMet: boolean;
-  /** Numerical / contact validity of the linear model (independent of the criterion). */
-  modelValid: boolean;
+  /** Numerical validity only: contact convergence + contact conditions + equilibrium. */
+  numericalValid: boolean;
+  /** Never implied by numericalValid or bendingCriterionMet. */
+  physicalValidity: PhysicalValidity;
   diagnostics: Diagnostics;
 }
 
@@ -95,7 +114,8 @@ export type BiaxialResult =
   | { status: "invalid-input"; errors: string[] }
   | { status: "not-implemented"; message: string }
   | { status: "solver-error"; message: string }
-  | { status: "contact-not-converged"; diagnostics: Diagnostics };
+  | { status: "contact-not-converged"; diagnostics: Diagnostics }
+  | { status: "numerical-failure"; message: string; diagnostics?: Diagnostics };
 
 export interface FieldValues {
   x: number;

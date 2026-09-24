@@ -1,15 +1,18 @@
 // créé par Giovanni Malagnino, 2026-09-24 03:27 CEST (Europe/Rome, UTC+2)
+// Modifié par Giovanni malagnino, 2026-09-24 03:33 CEST (Europe/Rome, UTC+2)
 // Orchestration of the V2 fixed-length biaxial solver (linear, axial mode "free").
 // In "free" mode the global longitudinal force is neglected (ideal frictionless
-// sliding); L is the projected length. Large-rotation kinematics are not solved.
+// sliding); L is the projected length. Large-rotation kinematics are not solved
+// and physical validity (small rotations) is reported as "not-assessed".
 
-import { BiaxialInput, BiaxialResult, Diagnostics, MemberResult, SupportResult } from "./types";
+import { BiaxialInput, BiaxialResult, BiaxialSuccess, Diagnostics, MemberResult, SupportResult } from "./types";
 import { validateInput } from "./validate";
 import { buildVerticalSystem, condense, nodalReactions, solveDisplacements } from "./vertical-system";
 import { solveContact } from "./contact";
 import { memberEndActions } from "./beam-member";
 import { fibreAngles, memberMaximum } from "./biaxial";
 import { LinearSolveError } from "./linear-algebra";
+import { checkEquilibrium, equilibriumResiduals, equilibriumTolerances, normalizeResiduals } from "./equilibrium";
 
 export function solveBiaxialFixedLength(input: BiaxialInput): BiaxialResult {
   const errors = validateInput(input);
@@ -25,11 +28,17 @@ export function solveBiaxialFixedLength(input: BiaxialInput): BiaxialResult {
   }
 }
 
+const allFinite = (v: number[]) => v.every(Number.isFinite);
+
 function run(input: BiaxialInput): BiaxialResult {
   const { L, hv, hl, E, I, c, q, sigmaAllow, numSupports: n } = input;
   const EI = E * I;
-  const dispScale = Math.max(Math.abs(hv), Math.abs(hl), (q * L ** 4) / (384 * EI), 1e-3);
-  const forceScale = Math.max(q * L, (12 * EI * Math.max(Math.abs(hv), Math.abs(hl))) / L ** 3, 1e-6);
+  const hMax = Math.max(Math.abs(hv), Math.abs(hl));
+  const dispScale = Math.max(hMax, (q * L ** 4) / (384 * EI), 1e-3);
+  const forceScale = Math.max(q * L, (12 * EI * hMax) / L ** 3, 1e-6);
+  if (!allFinite([EI, L ** 4, L ** 3, dispScale, forceScale, forceScale * L])) {
+    return { status: "numerical-failure", message: "Derived scales overflow (EI, L^3, L^4 or force scale)" };
+  }
   const tolDisp = 1e-8 * dispScale;
   const tolForce = 1e-8 * forceScale;
 
@@ -38,32 +47,22 @@ function run(input: BiaxialInput): BiaxialResult {
   let contact = { converged: true, iterations: 0, message: "no supports" };
   if (n > 0) {
     const { g0, C } = condense(sys);
+    if (!allFinite([...g0, ...C.flat()])) {
+      return { status: "numerical-failure", message: "Non-finite condensed contact data" };
+    }
     const out = solveContact(g0, C, tolDisp, tolForce);
     R = out.R;
     contact = out;
   }
   const d = solveDisplacements(sys, R);
   const Rall = nodalReactions(sys, d);
-  const nd = d.length;
 
   // Post-solve validation on unrounded values.
   const messages: string[] = contact.converged ? [] : [contact.message];
-  let freeDofResidual = 0;
-  sys.free.forEach((dof, k) => {
-    const applied = k % 2 === 0 ? R[k / 2] : 0;
-    freeDofResidual = Math.max(freeDofResidual, Math.abs(Rall[dof] - applied));
-  });
-  let sumF = 0;
-  let sumM = 0;
-  const reactionNodes = [0, ...sys.levels.map((_, s) => s + 1), sys.nodesX.length - 1];
-  for (const node of reactionNodes) {
-    const Fz = node === 0 || node === sys.nodesX.length - 1 ? Rall[2 * node] : R[node - 1];
-    const Ct = node === 0 || node === sys.nodesX.length - 1 ? Rall[2 * node + 1] : 0;
-    sumF += Fz;
-    sumM += Fz * sys.nodesX[node] + Ct;
-  }
-  const forceResidual = Math.abs(sumF - q * L);
-  const momentResidual = Math.abs(sumM - (q * L * L) / 2);
+  const residuals = equilibriumResiduals(sys, Rall, R, q, L);
+  const residualTolerances = equilibriumTolerances(forceScale, L);
+  const eq = checkEquilibrium(residuals, residualTolerances);
+  messages.push(...eq.failures);
 
   const supports: SupportResult[] = sys.levels.map((level, s) => {
     const z = d[2 * (s + 1)];
@@ -73,22 +72,23 @@ function run(input: BiaxialInput): BiaxialResult {
   let contactValid = true;
   for (const s of supports) {
     const complementary = Math.min(Math.abs(s.gap) / tolDisp, Math.abs(s.reaction) / tolForce) <= 1;
-    if (s.gap < -tolDisp || s.reaction < -tolForce || !complementary) {
+    if (!(s.gap >= -tolDisp) || !(s.reaction >= -tolForce) || !complementary) {
       contactValid = false;
       messages.push(`Contact condition violated at support ${s.index}`);
     }
   }
-  const equilibriumOk =
-    forceResidual <= 1e-7 * forceScale &&
-    momentResidual <= 1e-7 * forceScale * L &&
-    freeDofResidual <= 1e-7 * forceScale * Math.max(L, 1);
-  if (!equilibriumOk) messages.push("Equilibrium residuals exceed tolerance");
 
   const diagnostics: Diagnostics = {
     converged: contact.converged, iterations: contact.iterations, contactValid,
-    forceResidual, momentResidual, freeDofResidual, tolDisp, tolForce, messages,
+    scales: { force: forceScale, moment: forceScale * L, displacement: dispScale },
+    residuals, residualTolerances,
+    normalizedResiduals: normalizeResiduals(residuals, forceScale, L),
+    equilibriumOk: eq.ok, tolDisp, tolForce, messages,
   };
   if (!contact.converged || !contactValid) return { status: "contact-not-converged", diagnostics };
+  if (!eq.ok || !allFinite([...d, ...Rall])) {
+    return { status: "numerical-failure", message: "Equilibrium check failed or non-finite solution", diagnostics };
+  }
 
   const members: MemberResult[] = sys.nodesX.slice(0, -1).map((x0, e) => {
     const length = sys.nodesX[e + 1] - x0;
@@ -107,18 +107,28 @@ function run(input: BiaxialInput): BiaxialResult {
   const maxStress = (c * critical.Mres) / I;
   const angles = fibreAngles(critical.Mv, critical.Ml, 1e-12 * Math.max(forceScale * L, 1));
 
-  return {
+  const result: BiaxialSuccess = {
     status: "ok", input, L,
     nodes: sys.nodesX.map((x, i) => ({ x, z: d[2 * i], theta: d[2 * i + 1] })),
     members, supports,
     endReactions: {
       left: { force: Rall[0], couple: Rall[1] },
-      right: { force: Rall[nd - 2], couple: Rall[nd - 1] },
+      right: { force: Rall[Rall.length - 2], couple: Rall[Rall.length - 1] },
     },
     critical: { ...critical, sigma: maxStress, ...angles },
     maxStress, sigmaAllow,
     bendingCriterionMet: maxStress <= sigmaAllow,
-    modelValid: contact.converged && contactValid && equilibriumOk,
+    numericalValid: contact.converged && contactValid && eq.ok,
+    physicalValidity: "not-assessed",
     diagnostics,
   };
+  const published = [
+    maxStress, critical.x, critical.Mv, critical.Ml,
+    ...members.flatMap((m) => [m.endActions.Fi, m.endActions.Ci, m.endActions.Fj, m.endActions.Cj]),
+    ...supports.flatMap((s) => [s.z, s.gap, s.reaction]),
+  ];
+  if (!allFinite(published)) {
+    return { status: "numerical-failure", message: "Non-finite derived results", diagnostics };
+  }
+  return result;
 }
