@@ -59,6 +59,10 @@ function computeWindowRaw(input: LengthSearchInput, n: SearchedSupports): Length
   const b = (q * c) / (k * I);
   const Hs = Math.hypot(av, al);
   if (![av, al, b, Hs].every(Number.isFinite)) throw new RangeError("Coefficient overflow");
+  // Underflow of a non-zero load or offset must not masquerade as an exact zero case.
+  if ((q > 0 && b === 0) || (hv !== 0 && av === 0) || (hl !== 0 && al === 0)) {
+    throw new RangeError("Coefficient underflow");
+  }
   const base = { numSupports: n, coefficients: { av, al, b, k: k as 12 | 48 }, sigmaAllow: s };
 
   if (Hs === 0 && b === 0) {
