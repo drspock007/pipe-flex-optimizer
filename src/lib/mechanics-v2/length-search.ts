@@ -1,9 +1,13 @@
 // créé par Giovanni Malagnino, 2026-09-24 03:38 CEST (Europe/Rome, UTC+2)
+// Modifié par Giovanni malagnino, 2026-09-24 03:46 CEST (Europe/Rome, UTC+2)
 // Closed-form admissible lengths for 0 supports (k = 12) or 1 central support (k = 48).
 // sigmaMax(L) = hypot(av/L^2 + b L^2, al/L^2), av = 6Ec|hv|, al = 6Ec|hl|, b = qc/(kI).
 // With T = L^4 and T0 = Lopt^4 = hypot(av,al)/b, tau = T/T0 satisfies
 // tau + 1/tau = rho, rho - 2 = (s - sMin)(s + sMin)/(hypot(av,al) b),
-// which avoids cancellation (small root = 1/large root) and overflow.
+// which avoids cancellation (small root = 1/large root) and limits overflow.
+// Intermediate products (coefficients, rho, tau) can still overflow for extreme
+// inputs: every published finite bound is therefore checked centrally and any
+// non-representable value yields an explicit numerical failure, never "unbounded".
 // No length sweep and no arbitrary length cap are used.
 
 import { validateInput } from "./validate";
@@ -17,12 +21,37 @@ export const TANGENCY_REL_TOL = 1e-12;
 
 const finiteBound = (value: number, included = true) => ({ value, included, kind: "finite" as const });
 
+/** sqrt(a/b) without forming a/b (avoids intermediate overflow/underflow). */
+const sqrtRatio = (a: number, b: number) => Math.sqrt(a) / Math.sqrt(b);
+
 export function analyticSigmaMax(av: number, al: number, b: number, L: number): number {
   const L2 = L * L;
   return Math.hypot(av / L2 + b * L2, al / L2);
 }
 
+/** Central guarantee: every "finite" bound is finite and strictly positive. */
+function assertFiniteBounds(w: LengthWindow): LengthWindow {
+  for (const [name, bound] of [["lower", w.lower], ["upper", w.upper]] as const) {
+    if (bound && bound.kind === "finite") {
+      const v = bound.value;
+      if (v === null || !Number.isFinite(v) || !(v > 0)) {
+        throw new RangeError(`Non-representable ${name} bound (${v}) for ${w.numSupports} support(s)`);
+      }
+    } else if (bound && bound.value !== null) {
+      throw new RangeError(`Inconsistent ${name} bound: kind ${bound.kind} with value ${bound.value}`);
+    }
+  }
+  if (w.optimum && !(Number.isFinite(w.optimum.Lopt) && w.optimum.Lopt > 0 && Number.isFinite(w.optimum.sigmaMin))) {
+    throw new RangeError("Non-representable optimum");
+  }
+  return w;
+}
+
 function computeWindow(input: LengthSearchInput, n: SearchedSupports): LengthWindow {
+  return assertFiniteBounds(computeWindowRaw(input, n));
+}
+
+function computeWindowRaw(input: LengthSearchInput, n: SearchedSupports): LengthWindow {
   const { E, c, I, q, hv, hl, sigmaAllow: s } = input;
   const k = n === 0 ? 12 : 48;
   const av = 6 * E * c * Math.abs(hv);
