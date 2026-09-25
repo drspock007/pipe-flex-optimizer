@@ -151,12 +151,7 @@ export const calcSectionProperties = (
 
   // Coating weight
   const ct = coatingType as CoatingType;
-  const effDensity = getCoatingDensity(ct, coatingDensity);
-  let effThickness = coatingThickness;
-  if (ct === "yellowJacket" && nps) {
-    const autoT = getYellowJacketThickness(nps);
-    if (autoT != null) effThickness = autoT;
-  }
+  const { thickness: effThickness, density: effDensity } = effectiveCoating(ct, coatingThickness, coatingDensity, nps);
   const coatingWeightPerMeter = calcCoatingWeight(Do, effThickness, effDensity);
 
   return { Di, A, I, c, weightPerMeter, coatingWeightPerMeter };
@@ -177,7 +172,7 @@ function assertUnits(E_mpa: number, I: number, q: number, L_mm: number, warnings
 }
 
 // ── Coating import ──
-import { CoatingType, getCoatingDensity, calcCoatingWeight, getYellowJacketThickness } from "./coating-presets";
+import { CoatingType, calcCoatingWeight, effectiveCoating } from "./coating-presets";
 // ── FEM imports ──
 import { solveFEM, autoSupportsFEM, findLRangeFEM, findMaxHFEM, buildEqualSupports } from "./fem-solver";
 
