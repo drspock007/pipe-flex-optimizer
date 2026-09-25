@@ -7,6 +7,6 @@ it("p", () => {
     const r:any = solveGroundFixedLength({ ...REF, hv:1000, hl, groundZ:0 }, {minElements:mn,maxElements:mx});
     if (r.status!=="ok") { console.log(mn,hl,r.status, JSON.stringify(r.refinement?.map((x:any)=>[x.elements,x.groundReaction.toFixed(4),x.maxStress.toFixed(5)]))); continue; }
     const g=r.ground; const last=g.contactZones.at(-1);
-    console.log(mn,hl,g.elements,(g.totalReaction+r.endReactions.left.force).toFixed(4),r.maxStress.toFixed(5),last?.xEnd.toFixed(1), JSON.stringify(g.refinement.map((x:any)=>[x.elements,x.groundReaction.toFixed(4)])));
+    console.log(mn,hl,g.elements,g.contactTotal.toFixed(4),g.precisionLoss,r.maxStress.toFixed(5),last?.xEnd.toFixed(1), JSON.stringify(g.refinement.map((x:any)=>[x.elements,x.contactTotal.toFixed(4)])));
   }}
 });
