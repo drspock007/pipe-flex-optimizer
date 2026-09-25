@@ -17,12 +17,14 @@ import Disclaimer from "@/components/Disclaimer";
 import PresetsCard from "@/components/presets/PresetsCard";
 import AnalysisCard from "@/components/v2/AnalysisCard";
 import V2Workspace from "@/components/v2/V2Workspace";
-import { AppInputs, DEFAULT_INPUTS } from "@/lib/v2-app/inputs";
+import { AppInputs, DEFAULT_INPUTS, normalizeAppInputs } from "@/lib/v2-app/inputs";
 import { derive } from "@/lib/v2-app/bridge";
 
 
 const Index = () => {
-  const [inputs, setInputs] = useState<AppInputs>(DEFAULT_INPUTS);
+  const [rawInputs, setInputs] = useState<AppInputs>(DEFAULT_INPUTS);
+  // Normalized so that a state kept from an older input shape (hot reload) is always complete.
+  const inputs = useMemo(() => normalizeAppInputs(rawInputs as unknown as Record<string, unknown>), [rawInputs]);
 
   const update = (field: string, value: string | number | boolean) => {
     setInputs((prev) => ({ ...prev, [field]: value }));
