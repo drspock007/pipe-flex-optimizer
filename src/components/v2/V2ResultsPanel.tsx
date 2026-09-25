@@ -59,7 +59,7 @@ const V2ResultsPanel = ({ s, rangeExists, infimum, atBound, mode }: Props) => {
           <Row k="Max resultant bending stress" v={mpa(s.maxStress)} strong />
           <Row k="Allowable stress" v={mpa(s.sigmaAllow)} />
           <Row k="Position of the maximum" v={m(s.critical.x)} />
-          <Row k="Moments at max (vertical / lateral)" v={`${(s.critical.Mv / 1e6).toFixed(2)} / ${(s.critical.Ml / 1e6).toFixed(2)} kN·m`} />
+          <Row k="Moments at max (vertical / lateral)" v={formatMomentPair(s.critical.Mv, s.critical.Ml, system)} />
           <Row k="Installed supports / active contacts" v={`${s.supports.length} / ${active}`} />
           {infimum && (
             <Row k={infimum.attained ? "Minimum stress (attained)" : "Stress infimum (not attained)"}

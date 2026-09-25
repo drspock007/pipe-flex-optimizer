@@ -6,7 +6,7 @@ export type UnitSystem = "SI" | "Imperial";
 
 export type UnitType =
   | "mm" | "m" | "MPa" | "GPa"
-  | "kg/m3" | "kg/m" | "mm2" | "mm4" | "N/mm" | "N";
+  | "kg/m3" | "kg/m" | "mm2" | "mm4" | "N/mm" | "N" | "kN·m";
 
 interface UnitDef {
   impLabel: string;
@@ -24,6 +24,7 @@ const UNIT_DEFS: Record<UnitType, UnitDef> = {
   mm4:     { impLabel: "in⁴",    factor: 416231.426 },
   "N/mm":  { impLabel: "lbf/in", factor: 0.17513 },
   N:       { impLabel: "lbf",    factor: 4.44822 },
+  "kN·m":  { impLabel: "kip·ft", factor: 1.35582 },
 };
 
 /** Convert an internal SI value to the display value for the active system. */
@@ -37,3 +38,7 @@ export const fromDisplay = (value: number, unit: UnitType, system: UnitSystem): 
 /** Return the unit label string for the active system. */
 export const unitLabel = (unit: UnitType, system: UnitSystem): string =>
   system === "SI" ? unit : UNIT_DEFS[unit].impLabel;
+
+/** Shared moment formatter (screen and PDF): moments given in N·mm. */
+export const formatMomentPair = (mvNmm: number, mlNmm: number, system: UnitSystem, digits = 2): string =>
+  `${toDisplay(mvNmm / 1e6, "kN·m", system).toFixed(digits)} / ${toDisplay(mlNmm / 1e6, "kN·m", system).toFixed(digits)} ${unitLabel("kN·m", system)}`;
