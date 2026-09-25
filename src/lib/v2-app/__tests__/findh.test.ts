@@ -52,3 +52,18 @@ describe("Find h through the worker protocol", () => {
     expect(normalizeAppInputs({ calcMode: "findH" }).mode).toBe("findH");
   });
 });
+
+import { normalizeAppInputs as norm5 } from "../inputs";
+import { groundBlocksSearch } from "../bridge";
+describe("ground contact wiring (V2-5)", () => {
+  it("legacy presets load with ground disabled; groundZ passed only when enabled", () => {
+    const legacy = norm5({ calcMode: "standard", targetSupports: 0 });
+    expect(legacy.groundEnabled).toBe(false);
+    expect(legacy.numSupports).toBe(0);
+    expect("groundZ" in toFixedInput(legacy, 30000, 0)).toBe(false);
+    const g = { ...legacy, groundEnabled: true, groundContactZ: -50 };
+    expect(toFixedInput(g, 30000, 0).groundZ).toBe(-50);
+    expect(groundBlocksSearch({ ...g, mode: "findH" })).toBe(true);
+    expect(groundBlocksSearch(g)).toBe(false);
+  });
+});

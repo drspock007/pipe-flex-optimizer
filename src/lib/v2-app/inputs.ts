@@ -3,6 +3,7 @@
 // units as before: L in m, h/hl/Do/t in mm, E in GPa). Conversion to engine
 // units happens only in bridge.ts. Legacy presets are normalized here with
 // explicit defaults for the new fields.
+// Modifié par Giovanni Malagnino, 2026-09-25 20:10 CEST: ground contact (V2-5).
 
 import { MAX_SUPPORTS } from "@/lib/mechanics-v2";
 
@@ -28,6 +29,8 @@ export interface AppInputs {
   numSupports: number; // installed candidate supports, integer 0..20
   maxSupports: number; // search ceiling, integer 0..20
   axialMode: AppAxialMode;
+  groundEnabled: boolean; // rigid horizontal frictionless ground (Fixed L only)
+  groundContactZ: number; // mm, minimum pipe-AXIS elevation (ground + outer radius incl. coating)
 }
 
 export const DEFAULT_INPUTS: AppInputs = {
@@ -36,6 +39,7 @@ export const DEFAULT_INPUTS: AppInputs = {
   allowablePercent: 80, includeSelfWeight: true, density: 7850,
   coatingType: "none", coatingThickness: 1.5, coatingDensity: 950,
   mode: "fixedLength", numSupports: 0, maxSupports: MAX_SUPPORTS, axialMode: "free",
+  groundEnabled: false, groundContactZ: 0,
 };
 
 const LEGACY_MODE: Record<string, AppMode> = {
@@ -64,5 +68,8 @@ export function normalizeAppInputs(values: Record<string, unknown>, base: AppInp
   out.mode = MODES.includes(m as AppMode) ? (m as AppMode) : LEGACY_MODE[m as string] ?? base.mode;
   out.numSupports = count(values.numSupports ?? values.targetSupports, 0);
   out.maxSupports = count(values.maxSupports, MAX_SUPPORTS);
+  // Legacy presets: ground disabled.
+  out.groundEnabled = values.groundEnabled === true;
+  out.groundContactZ = num(values.groundContactZ, 0);
   return out;
 }

@@ -1,8 +1,9 @@
 // créé par Giovanni Malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
+// Modifié par Giovanni Malagnino, 2026-09-25 20:10 CEST: ground level and contact zones (V2-5).
 // Display-only curves from sampleCurve. Design maxima come from the engine.
 
 import { useState } from "react";
-import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Line, ReferenceArea, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { BiaxialSuccess, CurveSample } from "@/lib/mechanics-v2";
@@ -13,14 +14,17 @@ interface Props { solution: BiaxialSuccess; samples: CurveSample[] }
 const V2Charts = ({ solution, samples }: Props) => {
   const { conv, label } = useUnits();
   const [deviation, setDeviation] = useState(false);
+  const gz = solution.ground ? solution.ground.level : null;
   const data = samples.map((p) => ({
     x: conv(p.x / 1000, "m"),
     sigma: conv(p.sigma, "MPa"),
     z: conv(deviation ? p.deltaZ : p.z, "mm"),
     y: conv(deviation ? p.deltaY : p.y, "mm"),
+    // Ground level in the same axes; in chord coordinates it becomes groundZ - hv*x/L (not horizontal).
+    ...(gz === null ? {} : { ground: conv(deviation ? gz - (solution.input.hv * p.x) / solution.L : gz, "mm") }),
   }));
   const supports = solution.supports.map((s) => ({ x: conv(s.x / 1000, "m"), active: s.active, i: s.index }));
-  const chart = (key: "sigma" | "z" | "y", unit: "MPa" | "mm", name: string, extra?: JSX.Element) => (
+  const chart = (key: "sigma" | "z" | "y", unit: "MPa" | "mm", name: string, extra?: JSX.Element | JSX.Element[]) => (
     <div className="h-80 w-full">
       <ResponsiveContainer>
         <LineChart data={data} margin={{ top: 16, right: 16, left: 8, bottom: 8 }}>
@@ -57,7 +61,14 @@ const V2Charts = ({ solution, samples }: Props) => {
         {chart("sigma", "MPa", "Resultant bending stress",
           <ReferenceLine y={conv(solution.sigmaAllow, "MPa")} stroke="hsl(var(--destructive))" strokeDasharray="6 3" label={{ value: "allowable", fontSize: 9, position: "insideTopRight" }} />)}
       </TabsContent>
-      <TabsContent value="z">{chart("z", "mm", deviation ? "Δz = z − hv·x/L" : "Absolute vertical z (up +)")}</TabsContent>
+      <TabsContent value="z">{chart("z", "mm", deviation ? "Δz = z − hv·x/L" : "Absolute vertical z (up +)", solution.ground ? [
+        ...solution.ground.contactZones.map((z, i) => (
+          <ReferenceArea key={`gz${i}`} x1={conv(z.xStart / 1000, "m")} x2={conv(Math.max(z.xEnd, z.xStart + solution.L / 400) / 1000, "m")} fill="hsl(var(--muted-foreground))" fillOpacity={0.15} strokeOpacity={0} />
+        )),
+        <Line key="ground" type="linear" dataKey="ground" name="Ground (min. axis level)" stroke="hsl(var(--muted-foreground))" strokeDasharray="6 4" dot={false} strokeWidth={1.5} isAnimationActive={false} />,
+      ] : undefined)}
+        {solution.ground && <p className="text-[11px] text-muted-foreground">Dashed grey: minimum pipe-axis elevation (ground). Shaded: estimated ground contact zones; unshaded: lifted. Orange lines: installed supports.</p>}
+      </TabsContent>
       <TabsContent value="y">{chart("y", "mm", deviation ? "Δy = y − hl·x/L" : "Absolute lateral y")}</TabsContent>
       <p className="text-[11px] text-muted-foreground mt-1">Curves are sampled for display only; the maximum stress shown in the results is computed exactly by the engine.</p>
     </Tabs>

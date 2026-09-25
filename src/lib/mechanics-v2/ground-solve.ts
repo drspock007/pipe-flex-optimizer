@@ -1,0 +1,87 @@
+// créé par Giovanni Malagnino, 2026-09-25 20:10 CEST (Europe/Rome, UTC+2)
+// Dedicated fixed-length branch with a rigid horizontal frictionless ground.
+// The no-ground solver (solve.ts) is not modified. Mesh refined by doubling
+// until displacements, maximum stress and reactions converge and the interior
+// penetration is controlled; otherwise an explicit "incomplete" is returned.
+// Distributed contact is a controlled numerical approximation, not exact.
+
+import { BiaxialInput, BiaxialResult } from "./types";
+import { validateInput } from "./validate";
+import { LinearSolveError } from "./linear-algebra";
+import { buildGroundMesh, GroundMesh } from "./ground-mesh";
+import { maxPenetration, refineActive, solveGroundContact } from "./ground-contact";
+import { buildLevelResult, LevelResult } from "./ground-result";
+import { GROUND_CONV_REL, GROUND_MAX_ELEMENTS, GROUND_MIN_ELEMENTS, GROUND_PEN_REL, RefinementLevel } from "./ground-types";
+
+export interface GroundInput extends BiaxialInput { groundZ: number }
+export interface GroundLimits { maxElements?: number; minElements?: number }
+
+export function solveGroundFixedLength(input: GroundInput, limits: GroundLimits = {}): BiaxialResult {
+  const errors = validateInput(input);
+  if (typeof input.groundZ !== "number" || !Number.isFinite(input.groundZ)) errors.push("groundZ must be a finite number");
+  if (errors.length) return { status: "invalid-input", errors };
+  if (input.axialMode === "restrained") return { status: "not-implemented", message: 'axialMode "restrained" is not implemented' };
+  const { groundZ, hv } = input;
+  if (0 < groundZ || hv < groundZ) {
+    const which = [0 < groundZ ? "left end (z = 0)" : "", hv < groundZ ? `right end (z = hv = ${hv} mm)` : ""].filter(Boolean).join(" and ");
+    return { status: "geometry-incompatible", message: `Imposed ${which} below the minimum pipe-axis elevation ${groundZ} mm` };
+  }
+  try { return run(input, limits.maxElements ?? GROUND_MAX_ELEMENTS, limits.minElements ?? GROUND_MIN_ELEMENTS); }
+  catch (e) {
+    if (e instanceof LinearSolveError) return { status: "solver-error", message: e.message };
+    throw e;
+  }
+}
+
+function run(input: GroundInput, maxElements: number, minElements: number): BiaxialResult {
+  const { L, hv, hl, E, I, q, numSupports: n, groundZ } = input;
+  const EI = E * I;
+  const hMax = Math.max(Math.abs(hv), Math.abs(hl), Math.abs(groundZ));
+  const dispScale = Math.max(hMax, (q * L ** 4) / (384 * EI), 1e-3);
+  const forceScale = Math.max(q * L, (12 * EI * hMax) / L ** 3, 1e-6);
+  if (![EI, L ** 4, dispScale, forceScale].every(Number.isFinite)) return { status: "numerical-failure", message: "Derived scales overflow" };
+  const tolDisp = 1e-8 * dispScale, tolForce = 1e-8 * forceScale, tolPen = GROUND_PEN_REL * dispScale;
+  const scales = { force: forceScale, displacement: dispScale };
+
+  let perSpan = Math.max(1, Math.ceil(minElements / (n + 1)));
+  let prev: { mesh: GroundMesh; active: boolean[]; lvl: LevelResult; perSpan: number } | null = null;
+  const refinement: RefinementLevel[] = [];
+  let coarse: number | null = null;
+  while ((n + 1) * perSpan <= maxElements) {
+    const mesh = buildGroundMesh(L, hv, EI, q, n, groundZ, perSpan, tolDisp);
+    const init = prev ? refineActive(prev.mesh, prev.active) : mesh.x.map(() => false);
+    const out = solveGroundContact(mesh, init, tolDisp, tolForce, 50 + 4 * mesh.x.length);
+    const pen = maxPenetration(mesh, out.state);
+    const lvl = buildLevelResult(input, mesh, out.state, out.active, scales, tolDisp, tolForce, out.iterations, pen);
+    refinement.push({ elements: mesh.x.length - 1, maxStress: lvl.success.maxStress, groundReaction: lvl.ground.totalReaction, maxPenetration: pen, iterations: out.iterations, contactConverged: out.converged });
+    if (!out.converged) return { status: "contact-not-converged", diagnostics: { ...lvl.success.diagnostics, converged: false, messages: [out.message] } };
+    if (coarse === null) coarse = perSpan;
+    if (prev && pen <= tolPen && lvl.success.numericalValid && same(prev.lvl, lvl, prev.perSpan, perSpan, coarse, input.sigmaAllow, forceScale, dispScale)) {
+      lvl.success.ground = { ...lvl.ground, refinement, converged: true, tolPenetration: tolPen, elements: mesh.x.length - 1 };
+      return lvl.success;
+    }
+    prev = { mesh, active: out.active, lvl, perSpan };
+    perSpan *= 2;
+  }
+  const last = prev?.lvl.success.diagnostics;
+  return {
+    status: "incomplete",
+    message: `Mesh convergence not reached within ${maxElements} elements (last change criteria or penetration above tolerance)`,
+    refinement, ...(last ? { diagnostics: last } : {}),
+  };
+}
+
+/** Convergence test between two successive meshes (see tolerances in ground-types.ts). */
+function same(a: LevelResult, b: LevelResult, pa: number, pb: number, coarse: number, sigmaAllow: number, F: number, D: number): boolean {
+  const sa = a.success, sb = b.success;
+  if (Math.abs(sa.maxStress - sb.maxStress) > GROUND_CONV_REL * Math.max(sb.maxStress, 1e-3 * sigmaAllow)) return false;
+  // Ground + coinciding supports: only their sum is determinate.
+  const tot = (x: LevelResult) => x.ground.totalReaction + x.ground.combinedReaction;
+  if (Math.abs(tot(a) - tot(b)) > GROUND_CONV_REL * F) return false;
+  if (sa.supports.some((s, k) => !s.sharedWithGround && Math.abs(s.reaction - sb.supports[k].reaction) > GROUND_CONV_REL * F)) return false;
+  const stepA = pa / coarse, stepB = pb / coarse;
+  for (let k = 0; k * stepA < sa.nodes.length; k++) {
+    if (Math.abs(sa.nodes[k * stepA].z - sb.nodes[k * stepB].z) > GROUND_CONV_REL * D) return false;
+  }
+  return true;
+}

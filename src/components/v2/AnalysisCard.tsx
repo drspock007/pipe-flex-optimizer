@@ -1,4 +1,5 @@
 // créé par Giovanni Malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
+// Modifié par Giovanni Malagnino, 2026-09-25 20:10 CEST: ground contact controls (V2-5).
 // Calculation mode, installed supports, search ceiling and axial mode.
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,10 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Settings2 } from "lucide-react";
 import { AppInputs } from "@/lib/v2-app/inputs";
 import { MAX_SUPPORTS } from "@/lib/mechanics-v2";
+import GroundControls from "./GroundControls";
 
 interface Props {
   inputs: AppInputs;
-  onChange: (field: string, value: number | string) => void;
+  onChange: (field: string, value: number | string | boolean) => void;
 }
 
 /** Explicit string label so that 0 is always rendered. */
@@ -67,6 +69,7 @@ const AnalysisCard = ({ inputs, onChange }: Props) => (
           </SelectContent>
         </Select>
       </div>
+      <GroundControls inputs={inputs} onChange={onChange} />
       <p className="col-span-2 text-[11px] text-muted-foreground">
         Supports are equally spaced candidate vertical supports (unilateral contact). Fixed-end pipe, linear model.
       </p>
