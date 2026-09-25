@@ -57,7 +57,10 @@ export function searchRegime(w: RegimeWindowInput): { ranges: LengthRange[]; min
   if (w.bZero || w.aZero) {
     // Monotone: decreasing in L when bZero, increasing when aZero.
     const end = w.bZero ? thi : tlo;
-    if (Number.isFinite(end)) { tmin = end; fmin = fEnd(!w.bZero); min = { sigma: fmin, L: Math.exp(end), attained: true, approachedAs: "attained" }; if (w.bZero) min.L = w.upper.value; else min.L = w.lower.value; }
+    if (Number.isFinite(end)) {
+      tmin = end; fmin = fEnd(!w.bZero);
+      min = { sigma: fmin, L: (w.bZero ? w.upper : w.lower).value, attained: true, approachedAs: "attained" };
+    }
     else { tmin = end; fmin = 0; min = { sigma: 0, L: null, attained: false, approachedAs: w.bZero ? "L-to-infinity" : "L-to-zero" }; }
   } else {
     let x1: number, x2: number;
