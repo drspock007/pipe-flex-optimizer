@@ -4,6 +4,7 @@
 // conversions to engine units (mm, N, MPa) are centralized here:
 //   L: m -> mm (x1000); E: GPa -> MPa (x1000); Do, t, h, hl already in mm;
 //   A in mm2, I in mm4 (calcSectionProperties); q in N/mm; sigmaAllow in MPa.
+// Modifié par Giovanni Malagnino, 2026-09-25 20:10 CEST: groundZ (mm) passed only when enabled.
 // hv = h exactly (positive upward); the legacy vertical sign inversion is not used.
 
 import { calcSectionProperties, getYieldStrength, SectionProperties } from "@/lib/calculations";
@@ -39,8 +40,11 @@ export function toSearchInput(i: AppInputs, d: Derived = derive(i)): LengthSearc
 }
 
 /** hv defaults to the entered h; Find h passes the represented hv instead. */
-export function toFixedInput(i: AppInputs, L_mm: number, numSupports: number, d: Derived = derive(i), hv: number = i.h): BiaxialInput {
-  return { ...toSearchInput(i, d), hv, L: L_mm, numSupports };
+export type FixedInput = BiaxialInput & { groundZ?: number };
+
+export function toFixedInput(i: AppInputs, L_mm: number, numSupports: number, d: Derived = derive(i), hv: number = i.h): FixedInput {
+  const base = { ...toSearchInput(i, d), hv, L: L_mm, numSupports };
+  return i.groundEnabled ? { ...base, groundZ: i.groundContactZ } : base;
 }
 
 /** Find h input: fixed L (m -> mm) and hl; hv is the searched quantity. */
@@ -51,6 +55,8 @@ export function toHeightInput(i: AppInputs, d: Derived = derive(i)): HeightSearc
 
 /** Key of everything that influences the search: length searches ignore L,
  *  Find h ignores the entered h (it neither limits nor drives the search). */
+export const groundBlocksSearch = (i: AppInputs) => i.groundEnabled && i.mode !== "fixedLength";
+
 export function searchKey(i: AppInputs): string {
   if (i.mode === "findH") { const { h: _h, ...rest } = i; return JSON.stringify(rest); }
   const { L: _L, ...rest } = i;

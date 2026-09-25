@@ -10,7 +10,7 @@
 
 import { useEffect, useReducer, useRef, useState } from "react";
 import { AppInputs } from "@/lib/v2-app/inputs";
-import { derive, Derived, searchKey, solveKeyOf, toFixedInput, toHeightInput, toSearchInput } from "@/lib/v2-app/bridge";
+import { derive, Derived, groundBlocksSearch, searchKey, solveKeyOf, toFixedInput, toHeightInput, toSearchInput } from "@/lib/v2-app/bridge";
 import { EngineRequest, SearchOutcome, SolveOutcome, WorkerRequestMsg, WorkerResponseMsg } from "@/lib/v2-app/protocol";
 import { ChannelAction, ChannelState, channelReducer, initialChannel } from "@/lib/v2-app/channel-state";
 
@@ -67,7 +67,8 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
   };
 
   const sKey = searchKey(inputs);
-  const searchActive = isSearchMode(inputs.mode) || inputs.mode === "findH";
+  // Ground contact is Fixed L only: never run a no-ground search while ground is enabled.
+  const searchActive = (isSearchMode(inputs.mode) || inputs.mode === "findH") && !groundBlocksSearch(inputs);
   useEffect(() => {
     if (!searchActive) { dSearch({ type: "reset" }); return; }
     const id = begin("search");

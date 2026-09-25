@@ -3,13 +3,14 @@
 // Details and charts always come from the same fixed-length solution.
 // Modifié par Giovanni Malagnino, 2026-09-25 01:43 CEST: export only from a coherent, current request.
 // Modifié par Giovanni Malagnino, 2026-09-25 17:40 CEST: Find h (V2-4).
+// Modifié par Giovanni Malagnino, 2026-09-25 20:10 CEST: ground contact, Fixed L only (V2-5).
 
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search } from "lucide-react";
 import { useV2Engine, isSearchMode, SolveTarget } from "@/hooks/useV2Engine";
 import { AppInputs } from "@/lib/v2-app/inputs";
-import { Derived, solveKeyOf } from "@/lib/v2-app/bridge";
+import { Derived, groundBlocksSearch, solveKeyOf } from "@/lib/v2-app/bridge";
 import { buildReport } from "@/lib/v2-app/report-build";
 import { initialChoice, lengthOptions, searchView } from "@/lib/v2-app/selection";
 import { describeSearch, StatusText } from "@/lib/v2-app/status-text";
@@ -27,6 +28,8 @@ const solveText = (r: BiaxialResult): StatusText | null => {
     case "ok": return null;
     case "invalid-input": return { tone: "error", title: "Invalid input", detail: r.errors.join("; ") };
     case "not-implemented": return { tone: "info", title: "Not implemented", detail: r.message };
+    case "geometry-incompatible": return { tone: "error", title: "Geometric incompatibility", detail: r.message };
+    case "incomplete": return { tone: "warn", title: "Calculation incomplete (no result published)", detail: r.message };
     case "contact-not-converged": return { tone: "error", title: "Contact did not converge", detail: r.diagnostics.messages.join("; ") };
     default: return { tone: "error", title: "Numerical failure", detail: r.message };
   }
@@ -35,10 +38,11 @@ const solveText = (r: BiaxialResult): StatusText | null => {
 const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
   const { search, solve, setSolveTarget } = useV2Engine(inputs);
   const fmt = useFmtLength();
-  const searchMode = isSearchMode(inputs.mode);
+  const blocked = groundBlocksSearch(inputs);
+  const searchMode = isSearchMode(inputs.mode) && !blocked;
   const view = searchMode && search.data ? searchView(search.data) : null;
   const [selection, setSelection] = useState<Selection | null>(null);
-  const heightMode = inputs.mode === "findH";
+  const heightMode = inputs.mode === "findH" && !blocked;
   const fmtH = useFmtHeight();
   const hRanges = heightMode ? heightRanges(search.data) : [];
   const [hSel, setHSel] = useState<HeightSelection | null>(null);
@@ -54,6 +58,7 @@ const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
   const options = view && selection && view.ranges[selection.rangeIndex] ? lengthOptions(view.ranges[selection.rangeIndex], view.infimum) : [];
   const selectedL = selection?.optionId === "custom" ? selection.customL : options.find((o) => o.id === selection?.optionId)?.L ?? null;
   const target: SolveTarget | null = useMemo(() => {
+    if (blocked) return null;
     if (inputs.mode === "findH") {
       if (search.status !== "ready" || selectedH === null) return null;
       return { L_mm: inputs.L * 1000, numSupports: inputs.numSupports, hv_mm: selectedH };
@@ -61,7 +66,7 @@ const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
     if (inputs.mode === "fixedLength") return { L_mm: inputs.L * 1000, numSupports: inputs.numSupports };
     if (search.status !== "ready" || !view || view.numSupports === null || selectedL === null) return null;
     return { L_mm: selectedL, numSupports: view.numSupports };
-  }, [inputs.mode, inputs.L, inputs.numSupports, search.status, view?.numSupports, selectedL, selectedH]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [blocked, inputs.mode, inputs.L, inputs.numSupports, search.status, view?.numSupports, selectedL, selectedH]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => setSolveTarget(target), [target?.L_mm, target?.numSupports, target?.hv_mm]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sol = solve.data?.result.status === "ok" ? solve.data.result : null;
@@ -77,6 +82,7 @@ const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
 
   return (
     <div className="space-y-4">
+      {blocked && <StatusBanner s={{ tone: "warn", title: "Ground contact is currently available in Fixed L only", detail: "No search is run while ground contact is enabled. Switch to Fixed L or disable ground contact." }} />}
       {heightMode && (
         <HeightSearchCard loading={search.status === "loading"} refreshing={search.refreshing} error={search.status === "error" ? search.error : null}
           status={searchStatus} ranges={hRanges} selection={hSel} selectedH={selectedH} onChange={setHSel} />
@@ -103,7 +109,7 @@ const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
         <div className={solve.refreshing || stale ? "opacity-60" : ""}>
           <Card><CardContent className="pt-4"><V2Charts solution={sol} samples={solve.data.samples} /></CardContent></Card>
           <div className="mt-4">
-            <V2ResultsPanel s={sol} rangeExists={rangeExists} infimum={view?.infimum ?? null}
+            <V2ResultsPanel s={sol} mode={inputs.mode} rangeExists={rangeExists} infimum={view?.infimum ?? null}
               atBound={searchMode ? ["lower", "upper", "point"].includes(selection?.optionId ?? "") : heightMode && ["lower", "upper", "point"].includes(hSel?.optionId ?? "")} />
           </div>
         </div>

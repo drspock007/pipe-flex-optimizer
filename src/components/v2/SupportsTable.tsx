@@ -24,7 +24,7 @@ const SupportsTable = ({ supports }: { supports: SupportResult[] }) => {
               <td className="text-right pr-2">{conv(s.x / 1000, "m").toFixed(3)}</td>
               <td className="text-right pr-2">{conv(s.reaction, "N").toFixed(1)}</td>
               <td className="text-right pr-2">{conv(s.gap, "mm").toFixed(2)}</td>
-              <td className={`text-right ${s.active ? "text-primary font-semibold" : "text-muted-foreground"}`}>{s.active ? "active" : "open"}</td>
+              <td className={`text-right ${s.active ? "text-primary font-semibold" : "text-muted-foreground"}`}>{s.active ? "active" : "open"}{s.sharedWithGround ? " (support + ground, combined)" : ""}</td>
             </tr>
           ))}
         </tbody>

@@ -1,7 +1,10 @@
 // créé par Giovanni Malagnino, 2026-09-24 03:27 CEST (Europe/Rome, UTC+2)
 // Modifié par Giovanni malagnino, 2026-09-24 03:33 CEST (Europe/Rome, UTC+2)
 // Public contract of the V2 biaxial bending engine (fixed length).
+// Modifié par Giovanni Malagnino, 2026-09-25 20:10 CEST: optional ground data (V2-5).
 // Units used everywhere in this engine: mm, N, MPa, N*mm, mm^2, mm^4.
+
+import type { GroundReport, RefinementLevel } from "./ground-types";
 
 export type AxialMode = "free" | "restrained";
 
@@ -42,6 +45,8 @@ export interface SupportResult {
   gap: number; // g = z - zs (>= 0 when admissible)
   reaction: number; // upward positive (>= 0 when admissible)
   active: boolean;
+  /** Ground branch: support at the ground level; reaction is the combined support + ground value. */
+  sharedWithGround?: boolean;
 }
 
 export interface EndReaction {
@@ -107,6 +112,8 @@ export interface BiaxialSuccess {
   /** Never implied by numericalValid or bendingCriterionMet. */
   physicalValidity: PhysicalValidity;
   diagnostics: Diagnostics;
+  /** Present only for the ground-contact branch. */
+  ground?: GroundReport;
 }
 
 export type BiaxialResult =
@@ -115,7 +122,9 @@ export type BiaxialResult =
   | { status: "not-implemented"; message: string }
   | { status: "solver-error"; message: string }
   | { status: "contact-not-converged"; diagnostics: Diagnostics }
-  | { status: "numerical-failure"; message: string; diagnostics?: Diagnostics };
+  | { status: "numerical-failure"; message: string; diagnostics?: Diagnostics }
+  | { status: "geometry-incompatible"; message: string }
+  | { status: "incomplete"; message: string; refinement: RefinementLevel[]; diagnostics?: Diagnostics };
 
 export interface FieldValues {
   x: number;

@@ -18,3 +18,6 @@ export { searchLengthGeneral, searchMinSupportsGeneral } from "./general-search"
 export type { LengthRange, RegimeMin } from "./window-search";
 export * from "./height-search-types";
 export { searchHeightFixedSupports, heightCap } from "./height-search";
+export * from "./ground-types";
+export { solveGroundFixedLength } from "./ground-solve";
+export type { GroundInput, GroundLimits } from "./ground-solve";

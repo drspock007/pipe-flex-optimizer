@@ -1,4 +1,5 @@
 // Modifié par Giovanni malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
+// Modifié par Giovanni Malagnino, 2026-09-25 20:10 CEST: ground contact rows, Find h labels (V2-5).
 // Builds structured report rows (label / value) from V2 inputs and results.
 
 import { UnitSystem, UnitType, toDisplay, unitLabel } from "@/lib/unit-conversions";
@@ -37,7 +38,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
   ];
   if (rep.searchStatus) results.push(["Search status", rep.searchStatus]);
   rep.ranges.forEach((r, i) => results.push([inputs.mode === "findH" ? `Admissible hv range ${i + 1}` : `Admissible range ${i + 1}`, r]));
-  if (inputs.mode === "findH") results.push(["Fixed length L", fmt(s.L / 1000, "m", 3)], ["Fixed lateral offset hl", fmt(inputs.hl, "mm")], ["Represented hv (up +)", fmt(inputs.h, "mm")]);
+  if (inputs.mode === "findH") results.push(["Fixed length L", fmt(s.L / 1000, "m", 3)], ["Fixed lateral offset hl", fmt(inputs.hl, "mm")], ["Represented vertical offset hv", fmt(inputs.h, "mm")]);
   results.push(
     ...(inputs.mode === "findH" ? [] : [["Represented length L", fmt(s.L / 1000, "m", 3)] as Row]),
     ["Installed supports / active contacts", `${s.supports.length} / ${s.supports.filter((x) => x.active).length}`],
@@ -84,12 +85,27 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
     ["Supports", "Equally spaced, unilateral vertical contact, no lateral restraint"],
     ["Not covered", "Axial restraint, large displacements, 3D effects"],
   ];
+  const g = s.ground;
+  const ground: Row[] = [["Ground contact", g ? "enabled" : "disabled"]];
+  if (g) {
+    ground.push(
+      ["Minimum pipe-axis elevation", fmt(g.level, "mm", 1)],
+      ["Assumptions", "Rigid, horizontal, frictionless ground over the full length, vertical plane only"],
+      ["Total vertical ground reaction", `${fmt(g.totalReaction, "N", 1)} (sum of discrete nodal forces)`],
+      ...(g.combinedReaction > 0 ? [["Supports at ground level (combined)", fmt(g.combinedReaction, "N", 1)] as Row] : []),
+      ["Estimated contact zones", g.contactZones.length ? g.contactZones.map((z) => `${fmt(z.xStart / 1000, "m", 3)} - ${fmt(z.xEnd / 1000, "m", 3)}`).join("; ") : "none"],
+      ["Max residual penetration", `${c(g.maxPenetration, "mm").toExponential(2)} ${u("mm")}`],
+      ["Convergence", `${g.converged ? "converged" : "NOT converged"} (${g.elements} elements, ${g.refinement.length} levels)`],
+      ["Model limits", "Numerical approximation (beam elements + nodal unilateral contacts), not an exact analytical solution"],
+    );
+  }
 
   const sections: Section[] = [
     { title: "Results summary", rows: results },
     { title: "Geometry", rows: geometry },
     { title: "Material, section & loading", rows: material },
   ];
+  sections.push({ title: "Ground contact", rows: ground });
   if (supports.length) sections.push({ title: "Supports", rows: supports });
   sections.push({ title: "Model limits", rows: limits });
   return sections;

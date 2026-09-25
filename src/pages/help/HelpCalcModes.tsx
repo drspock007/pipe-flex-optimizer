@@ -60,6 +60,18 @@ const HelpCalcModes = () => (
       full solver. The initial represented h<sub>v</sub> is the upper bound of the range with the largest admissible value;
       midpoint, bounds or a signed custom value can be chosen. Details and charts come from a full solution at that h<sub>v</sub>.
     </P>
+    <h3 className="text-base font-semibold mt-4">9.6 Ground contact (Fixed L only)</h3>
+    <p className="text-sm text-muted-foreground">
+      Optional rigid, horizontal, frictionless ground over the full length, vertical plane only. The input is the minimum
+      pipe-axis elevation (ground elevation + outer radius, coating included), in the same axes as h<sub>v</sub>
+      (z(0) = 0, z(L) = h<sub>v</sub>). An imposed end below that level is reported as a geometric incompatibility.
+      The pipe is meshed with exact beam members (installed supports are mesh nodes) and nodal unilateral contacts are
+      solved by an active-set method without penalty. The mesh is doubled until the maximum stress, the reactions and
+      the displacements converge (relative 1e-3) and the penetration between nodes, checked on the exact minima of each
+      member, stays below 1e-5 of the displacement scale; otherwise no result is published. Ground reactions are
+      discrete nodal forces (not pressures); contact zones are estimates. Find L, Min. supports and Find h are not
+      available with ground contact in this version.
+    </p>
   </section>
 );
 
