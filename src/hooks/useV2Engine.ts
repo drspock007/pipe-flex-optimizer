@@ -40,7 +40,7 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
       ctx.current.delete(m.id);
       const d = dispatchOf(m.channel);
       if (m.ok && c) d({ type: "success", id: m.id, data: { ...m.outcome, ...c } as never });
-      else if (!m.ok) d({ type: "failure", id: m.id, error: m.error });
+      else if (!m.ok) d({ type: "failure", id: m.id, error: (m as Extract<WorkerResponseMsg, { ok: false }>).error });
     };
     w.onerror = (ev) => {
       ev.preventDefault();
