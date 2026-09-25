@@ -23,7 +23,8 @@ const MODE_LABEL: Record<AppInputs["mode"], string> = {
 
 export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, system: UnitSystem): Section[] => {
   const c = (v: number, u: UnitType) => toDisplay(v, u, system);
-  const u = (unit: UnitType) => unitLabel(unit, system);
+  // Helvetica (WinAnsi) has no superscript 4 glyph: write it as ^4.
+  const u = (unit: UnitType) => unitLabel(unit, system).replace("⁴", "^4");
   const fmt = (v: number, unit: UnitType, digits = 2) => `${c(v, unit).toFixed(digits)} ${u(unit)}`;
   const s = rep.solution;
   const coatingLabel = COATING_LABELS[inputs.coatingType as CoatingType] ?? inputs.coatingType;

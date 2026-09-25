@@ -55,7 +55,7 @@ const V2Charts = ({ solution, samples }: Props) => {
       </div>
       <TabsContent value="stress">
         {chart("sigma", "MPa", "Resultant bending stress",
-          <ReferenceLine y={conv(solution.sigmaAllow, "MPa")} stroke="hsl(var(--destructive))" strokeDasharray="6 3" label={{ value: "allowable", fontSize: 9, position: "right" }} />)}
+          <ReferenceLine y={conv(solution.sigmaAllow, "MPa")} stroke="hsl(var(--destructive))" strokeDasharray="6 3" label={{ value: "allowable", fontSize: 9, position: "insideTopRight" }} />)}
       </TabsContent>
       <TabsContent value="z">{chart("z", "mm", deviation ? "Δz = z − hv·x/L" : "Absolute vertical z (up +)")}</TabsContent>
       <TabsContent value="y">{chart("y", "mm", deviation ? "Δy = y − hl·x/L" : "Absolute lateral y")}</TabsContent>
