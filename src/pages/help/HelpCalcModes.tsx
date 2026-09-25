@@ -50,7 +50,16 @@ const HelpCalcModes = () => (
     </P>
 
     <h3 className="text-base font-semibold mt-4">9.5 Find h</h3>
-    <P>Find h is not available with the V2 engine.</P>
+    <P>
+      Find h keeps L, h<sub>l</sub>, section, material, load and installed supports fixed and returns every signed range of
+      h<sub>v</sub> (up +, zero included) meeting the bending criterion. The entered h<sub>v</sub> is not used. The explored
+      domain is |h<sub>v</sub>| &le; H<sub>cap</sub> = &sigma;<sub>allow</sub>L&sup2;/(4Ec): the criterion bounds the curvature by
+      &sigma;<sub>allow</sub>/(Ec), and with zero end slopes integrating the slope gives this necessary (not sufficient) bound.
+      At fixed L the free gaps are affine in h<sub>v</sub>, so contact regimes are traversed exactly (no height sweep). In each
+      regime the stress maximum is convex in h<sub>v</sub>; bounds are refined on the admissible side and re-checked with the
+      full solver. The initial represented h<sub>v</sub> is the upper bound of the range with the largest admissible value;
+      midpoint, bounds or a signed custom value can be chosen. Details and charts come from a full solution at that h<sub>v</sub>.
+    </P>
   </section>
 );
 

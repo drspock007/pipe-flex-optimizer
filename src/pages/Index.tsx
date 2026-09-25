@@ -63,7 +63,7 @@ const Index = () => {
             <div className="space-y-4">
               <GeometryCard
                 Do={inputs.Do} t={inputs.t} L={inputs.L} h={inputs.h} hl={inputs.hl}
-                section={results.section} showL={inputs.mode === "fixedLength"} onChange={update}
+                section={results.section} showL={inputs.mode === "fixedLength" || inputs.mode === "findH"} showH={inputs.mode !== "findH"} onChange={update}
               />
               <AnalysisCard inputs={inputs} onChange={update} />
               <MaterialCard grade={inputs.grade} E={inputs.E} customYield={inputs.customYield} onChange={update} />

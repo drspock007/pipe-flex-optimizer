@@ -18,7 +18,7 @@ const MODE_LABEL: Record<AppInputs["mode"], string> = {
   fixedLength: "Fixed length",
   searchLength: "Length range search (fixed installed supports)",
   minSupports: "Minimum installed supports search",
-  findH: "Find h (not available)",
+  findH: "Find h (fixed L, fixed hl, fixed installed supports)",
 };
 
 export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, system: UnitSystem): Section[] => {
@@ -36,14 +36,15 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
     ["Axial mode", "Free longitudinal sliding"],
   ];
   if (rep.searchStatus) results.push(["Search status", rep.searchStatus]);
-  rep.ranges.forEach((r, i) => results.push([`Admissible range ${i + 1}`, r]));
+  rep.ranges.forEach((r, i) => results.push([inputs.mode === "findH" ? `Admissible hv range ${i + 1}` : `Admissible range ${i + 1}`, r]));
+  if (inputs.mode === "findH") results.push(["Fixed length L", fmt(s.L / 1000, "m", 3)], ["Fixed lateral offset hl", fmt(inputs.hl, "mm")], ["Represented hv (up +)", fmt(inputs.h, "mm")]);
   results.push(
-    ["Represented length L", fmt(s.L / 1000, "m", 3)],
+    ...(inputs.mode === "findH" ? [] : [["Represented length L", fmt(s.L / 1000, "m", 3)] as Row]),
     ["Installed supports / active contacts", `${s.supports.length} / ${s.supports.filter((x) => x.active).length}`],
     ["Max resultant bending stress", fmt(s.maxStress, "MPa", 2)],
     ["Allowable stress", fmt(s.sigmaAllow, "MPa", 2)],
     ["Position of the maximum", fmt(s.critical.x / 1000, "m", 3)],
-    ["Bending criterion at represented length", s.bendingCriterionMet ? "met" : "NOT met"],
+    [inputs.mode === "findH" ? "Bending criterion at represented hv" : "Bending criterion at represented length", s.bendingCriterionMet ? "met" : "NOT met"],
     ["Numerical validity", s.numericalValid ? "valid" : "NOT valid"],
     ["Physical validity (linear model)", "not assessed"],
   );
@@ -52,10 +53,10 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
     ["Outside diameter (Do)", fmt(inputs.Do, "mm")],
     ["Wall thickness (t)", fmt(inputs.t, "mm")],
     ["Inside diameter (Di)", fmt(d.section.Di, "mm")],
-    ["Vertical end offset hv (up +)", fmt(inputs.h, "mm")],
+    [inputs.mode === "findH" ? "Represented vertical offset hv (up +)" : "Vertical end offset hv (up +)", fmt(inputs.h, "mm")],
     ["Lateral end offset hl", fmt(inputs.hl, "mm")],
   ];
-  if (inputs.mode === "fixedLength") geometry.push(["Imposed length L", fmt(inputs.L, "m", 3)]);
+  if (inputs.mode === "fixedLength" || inputs.mode === "findH") geometry.push(["Imposed length L", fmt(inputs.L, "m", 3)]);
 
   const material: Row[] = [
     ["Grade", inputs.grade === "CUSTOM" ? "Custom" : inputs.grade],
@@ -81,7 +82,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
   const limits: Row[] = [
     ["Model", "Linear Euler-Bernoulli, small rotations, fixed ends"],
     ["Supports", "Equally spaced, unilateral vertical contact, no lateral restraint"],
-    ["Not covered", "Axial restraint, large displacements, Find h, 3D effects"],
+    ["Not covered", "Axial restraint, large displacements, 3D effects"],
   ];
 
   const sections: Section[] = [

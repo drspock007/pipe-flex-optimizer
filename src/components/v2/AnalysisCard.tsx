@@ -33,7 +33,7 @@ const MODE_HELP: Record<AppInputs["mode"], string> = {
   fixedLength: "Solve the pipe for the length L entered in Geometry.",
   searchLength: "Find every length range meeting the bending criterion for the installed support count.",
   minSupports: "Find the smallest installed support count (0 to the ceiling) with an admissible length.",
-  findH: "Find h is not available with the biaxial engine (V2).",
+  findH: "Find every signed range of the vertical offset hv meeting the criterion, for the L, hl and installed supports entered.",
 };
 
 const AnalysisCard = ({ inputs, onChange }: Props) => (
@@ -47,7 +47,7 @@ const AnalysisCard = ({ inputs, onChange }: Props) => (
         <ToggleGroupItem value="fixedLength" className="text-[11px] px-2.5 h-7">Fixed L</ToggleGroupItem>
         <ToggleGroupItem value="searchLength" className="text-[11px] px-2.5 h-7">Find L range</ToggleGroupItem>
         <ToggleGroupItem value="minSupports" className="text-[11px] px-2.5 h-7">Min. supports</ToggleGroupItem>
-        <ToggleGroupItem value="findH" className="text-[11px] px-2.5 h-7">Find h (unavailable)</ToggleGroupItem>
+        <ToggleGroupItem value="findH" className="text-[11px] px-2.5 h-7">Find h</ToggleGroupItem>
       </ToggleGroup>
       <p className="text-[11px] text-muted-foreground mt-1">{MODE_HELP[inputs.mode]}</p>
     </CardHeader>
