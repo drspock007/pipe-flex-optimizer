@@ -3,7 +3,7 @@
 // Two channels: "search" (not re-run when only the represented length changes)
 // and "solve". Inputs are debounced; stale responses are ignored by id.
 
-import { useEffect, useReducer, useRef } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { AppInputs } from "@/lib/v2-app/inputs";
 import { derive, searchKey, toFixedInput, toSearchInput } from "@/lib/v2-app/bridge";
 import { EngineRequest, SearchOutcome, SolveOutcome, WorkerRequestMsg, WorkerResponseMsg } from "@/lib/v2-app/protocol";
@@ -14,7 +14,10 @@ type SolveState = ChannelState<SolveOutcome>;
 
 export const isSearchMode = (m: AppInputs["mode"]) => m === "searchLength" || m === "minSupports";
 
-export function useV2Engine(inputs: AppInputs, solveTarget: { L_mm: number; numSupports: number } | null, debounceMs = 300) {
+export interface SolveTarget { L_mm: number; numSupports: number }
+
+export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
+  const [solveTarget, setSolveTarget] = useState<SolveTarget | null>(null);
   const [search, dispatchSearch] = useReducer(channelReducer<SearchOutcome>, initialChannel<SearchOutcome>()) as [SearchState, (a: ChannelAction<SearchOutcome>) => void];
   const [solve, dispatchSolve] = useReducer(channelReducer<SolveOutcome>, initialChannel<SolveOutcome>()) as [SolveState, (a: ChannelAction<SolveOutcome>) => void];
   const workerRef = useRef<Worker | null>(null);
@@ -76,5 +79,5 @@ export function useV2Engine(inputs: AppInputs, solveTarget: { L_mm: number; numS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [solveKey, debounceMs]);
 
-  return { search, solve };
+  return { search, solve, solveTarget, setSolveTarget };
 }
