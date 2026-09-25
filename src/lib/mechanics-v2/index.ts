@@ -16,3 +16,5 @@ export { loadLengthScale } from "./regime";
 export * from "./general-search-types";
 export { searchLengthGeneral, searchMinSupportsGeneral } from "./general-search";
 export type { LengthRange, RegimeMin } from "./window-search";
+export * from "./height-search-types";
+export { searchHeightFixedSupports, heightCap } from "./height-search";
