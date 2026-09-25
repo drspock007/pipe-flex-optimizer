@@ -72,6 +72,13 @@ export function assemble(s: HeightSample[], sa: number, S: number, minStep: numb
   }
   for (const [a, b] of pending) zones.push({ from: a, to: b, reason: "budget" });
   zones.sort((x, y) => x.from - y.from);
+  // Merge contiguous zones with the same reason (display only).
+  for (let k = zones.length - 1; k > 0; k--) {
+    if (zones[k].reason === zones[k - 1].reason && zones[k].from <= zones[k - 1].to) {
+      zones[k - 1].to = Math.max(zones[k - 1].to, zones[k].to);
+      zones.splice(k, 1);
+    }
+  }
 
   const ranges: GroundHeightRange[] = [];
   for (let i = 0; i < s.length; i++) {

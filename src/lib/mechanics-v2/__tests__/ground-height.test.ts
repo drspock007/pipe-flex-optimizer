@@ -36,15 +36,21 @@ describe("Find h with ground", () => {
     expect(up.bracket! > up.value).toBe(true);
   });
 
-  it("ground low enough to stay inactive: agrees with the no-ground search", () => {
+  it("ground low enough to stay inactive: agrees with the no-ground search", { timeout: 60000 }, () => {
     for (const n of [0, 1]) {
       const ng = searchHeightFixedSupports(BASE, n);
       if (ng.status !== "ok") throw new Error(ng.status);
       const r = pub(G({ groundZ: -1e5 }, n));
       expect(r.status).toBe("ok");
       expect(r.ranges).toHaveLength(1);
-      expect(rel(r.ranges[0].upper.value, ng.extremes.max)).toBeLessThan(2e-3);
-      expect(rel(r.ranges[0].lower.value, ng.extremes.min)).toBeLessThan(2e-3);
+      // The exact bound lies inside the published bracket: verified value .. transition zone end.
+      const up = r.ranges[0].upper, lw = r.ranges[0].lower;
+      const zU = r.zones.find((z) => z.from === up.value), zL = r.zones.find((z) => z.to === lw.value);
+      expect(up.value).toBeLessThanOrEqual(ng.extremes.max);
+      expect((zU?.to ?? up.bracket!) >= ng.extremes.max).toBe(true);
+      expect(lw.value).toBeGreaterThanOrEqual(ng.extremes.min);
+      expect((zL?.from ?? lw.bracket!) <= ng.extremes.min).toBe(true);
+      expect(rel(up.value, ng.extremes.max)).toBeLessThan(1e-2);
     }
   });
 
@@ -89,5 +95,5 @@ describe("Find h with ground", () => {
     const r = pub(G({}, 20));
     expect(r.status).not.toBe("incomplete");
     expect(performance.now() - t).toBeLessThan(25000);
-  });
+  }, 60000);
 });

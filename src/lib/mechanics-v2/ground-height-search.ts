@@ -74,6 +74,7 @@ export function searchHeightGround(input: GroundHeightInput, numSupports: number
   }
   const s = sorted(), S = slopeBound(s, input.sigmaAllow, minStep, GH_SLOPE_SAFETY);
   if (exhausted) pending = s.slice(0, -1).flatMap((a, i) => (needsSplit(s, i, input.sigmaAllow, S, tol, minStep) ? [[a.hv, s[i + 1].hv] as [number, number]] : []));
+  if (exhausted && s.length && s[s.length - 1].hv < hi) pending.push([s[s.length - 1].hv, hi]); // unexplored tail
   const { zones, ranges } = assemble(s, input.sigmaAllow, S, minStep, pending);
   const adm = s.filter((x) => x.cls === "admissible");
   const common = { scope, domain: { lower: lo, upper: hi }, ranges, zones, samples: s, largestFound: adm.length ? adm[adm.length - 1].hv : null, diagnostics: diag() };
