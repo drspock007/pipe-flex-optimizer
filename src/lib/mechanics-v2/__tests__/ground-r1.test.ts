@@ -83,4 +83,25 @@ describe("ground contact R1", () => {
       }
     }
   });
+
+  it("c = 1e308 (stress overflow) is a numerical failure, nothing published", () => {
+    const r = solveGroundFixedLength({ ...IN, c: 1e308 });
+    expect(r.status).toBe("numerical-failure");
+    expect("maxStress" in r).toBe(false);
+  });
+
+  it("verdict near the allowable is flagged uncertain, far from it decidable", () => {
+    const base = ok();
+    expect(base.ground!.criterionUncertain).toBe(false);
+    const near = ok({ sigmaAllow: base.maxStress * (1 + 1e-5) });
+    expect(near.ground!.criterionUncertain).toBe(true);
+  });
+
+  it("ground reactions are not double counted", () => {
+    const r = ok();
+    const g = r.ground!;
+    expect(g.contactTotal).toBeCloseTo(g.totalReaction + g.combinedReaction + g.endReaction, 9);
+    expect(g.endReaction).toBeCloseTo(r.endReactions.left.force, 9);
+    expect(g.contactPoints.length).toBe(g.contactNodes);
+  });
 });

@@ -45,7 +45,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
     ["Max resultant bending stress", fmt(s.maxStress, "MPa", 2)],
     ["Allowable stress", fmt(s.sigmaAllow, "MPa", 2)],
     ["Position of the maximum", fmt(s.critical.x / 1000, "m", 3)],
-    [inputs.mode === "findH" ? "Bending criterion at represented hv" : "Bending criterion at represented length", s.bendingCriterionMet ? "met" : "NOT met"],
+    [inputs.mode === "findH" ? "Bending criterion at represented hv" : "Bending criterion at represented length", s.ground?.criterionUncertain ? "UNCERTAIN (mesh precision)" : s.bendingCriterionMet ? "met" : "NOT met"],
     ["Numerical validity", s.numericalValid ? "valid" : "NOT valid"],
     ["Physical validity (linear model)", "not assessed"],
   );
