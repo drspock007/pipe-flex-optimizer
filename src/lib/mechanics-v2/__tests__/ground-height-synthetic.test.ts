@@ -23,8 +23,7 @@ const run = (e: HeightEvaluator) => {
 describe("Hcap necessary bound", () => {
   it("matches sigmaAllow L^2 / (4 E c) and rejects degenerate inputs", () => {
     expect(rel(H, (SA * IN.L ** 2) / (4 * IN.E * IN.c))).toBeLessThan(1e-14);
-    expect(heightCap(100, 1000, 200000, 50)).toBeCloseTo(0.25, 12);
-    expect(heightCap(1e-300, 1e-300, 1e300, 1) > 0 || true).toBe(true);
+    expect(heightCap(100, 1000, 200000, 50)).toBeCloseTo(2.5, 12);
     expect(() => heightCap(0, 1000, 200000, 50)).toThrow();
     expect(() => heightCap(100, 1e200, 1e-200, 1e-200)).toThrow();
   });
