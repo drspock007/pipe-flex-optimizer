@@ -24,9 +24,8 @@ export function lateralCoefficients(m: MemberResult, L: number, hl: number): [nu
   return [b0, b1];
 }
 
-export function memberMaximum(m: MemberResult, L: number, hl: number): MemberMax {
-  const a = momentCoefficients(m);
-  const b = lateralCoefficients(m, L, hl);
+/** Max of hypot(Mv, Ml) on u in [0,1] for Mv = a0+a1u+a2u^2, Ml = b0+b1u (exact candidates). */
+export function polyMaxResultant(a: number[], b: number[]): { u: number; Mv: number; Ml: number; Mres: number } {
   // Normalize before forming products to avoid overflow in the extremum cubic.
   const M = Math.max(...a.map(Math.abs), ...b.map(Math.abs));
   const candidates = [0, 1];
@@ -36,14 +35,19 @@ export function memberMaximum(m: MemberResult, L: number, hl: number): MemberMax
     const cubic = [a0 * a1 + b0 * b1, a1 * a1 + 2 * a0 * a2 + b1 * b1, 3 * a1 * a2, 2 * a2 * a2];
     candidates.push(...rootsInUnit(cubic));
   }
-  let best: MemberMax | null = null;
+  let best = { u: 0, Mv: 0, Ml: 0, Mres: -1 };
   for (const u of candidates) {
     const Mv = a[0] + a[1] * u + a[2] * u * u;
     const Ml = b[0] + b[1] * u;
     const Mres = Math.hypot(Mv, Ml);
-    if (!best || Mres > best.Mres) best = { xi: u * m.length, Mv, Ml, Mres };
+    if (Mres > best.Mres) best = { u, Mv, Ml, Mres };
   }
-  return best!;
+  return best;
+}
+
+export function memberMaximum(m: MemberResult, L: number, hl: number): MemberMax {
+  const r = polyMaxResultant(momentCoefficients(m), lateralCoefficients(m, L, hl));
+  return { xi: r.u * m.length, Mv: r.Mv, Ml: r.Ml, Mres: r.Mres };
 }
 
 /** Fibre angles (Y = c cos phi, Z = c sin phi); null when Mres ~ 0. */

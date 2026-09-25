@@ -1,22 +1,34 @@
 // créé par Giovanni Malagnino, 2026-09-25 00:54 CEST (Europe/Rome, UTC+2)
+// Modifié par Giovanni malagnino, 2026-09-25 01:04 CEST (Europe/Rome, UTC+2)
 // Contact regime for an imposed active set, by linearity in u = x/L.
-// On the normalized geometry (L = 1, EI = 1) two independent solves give the
-// support-free gaps: a (unit end offset, no load) and b (unit load, no offset),
-// plus the normalized flexibility Chat. Physical scaling:
-//   g0_i = hv a_i + (q/EI) T b_i ,   C = (L^3/EI) Chat.
-// Active set A (g_A = 0): Chat_AA (R L^3/EI) = -(hv a_A + (q/EI) T b_A).
-// Inactive gaps: g_I = hv a_I + (q/EI) T b_I + Chat_IA (R L^3/EI).
+// Coefficients come from two independent normalized solves (regime-coeffs.ts).
+// Intervals are computed in the scaled variable Lambda = (L / Lq)^4 with
+// Lq = (EI/q)^(1/4), so a tiny load never vanishes through q/EI underflow.
 // No length sampling or fitting is used; the interval is exact in T.
 
 import { validateInput } from "./validate";
-import { buildVerticalSystem, condense } from "./vertical-system";
-import { factorize } from "./linear-algebra";
-import { RegimeConstraint, RegimeEvent, RegimeInput, RegimeInterval, RegimeResult } from "./regime-types";
+import { normalizedData, PhysicalSlope, regimeCoefficients } from "./regime-coeffs";
+import { intersectAffine } from "./regime-interval";
+import { RegimeConstraint, RegimeInput, RegimeInterval, RegimeResult } from "./regime-types";
 
-/** Coefficients below COEF_REL_TOL * (max of their family) are treated as exact zeros. */
-export const COEF_REL_TOL = 1e-10;
-/** Roots within EVENT_REL_TOL (relative in T) of a bound are simultaneous events. */
-export const EVENT_REL_TOL = 1e-9;
+export { EVENT_REL_TOL } from "./regime-interval";
+export { ZERO_REL_TOL, UNCERTAIN_REL_TOL } from "./regime-coeffs";
+
+const qr = (x: number) => Math.sqrt(Math.sqrt(x));
+
+/** Lq = (EI/q)^(1/4) (mm) without forming EI/q; null when q = 0. */
+export function loadLengthScale(E: number, I: number, q: number): number | null {
+  if (q === 0) return null;
+  const Lq = (qr(E) * qr(I)) / qr(q);
+  if (!Number.isFinite(Lq) || !(Lq > 0)) throw new RangeError(`Non-representable load length scale (${Lq})`);
+  return Lq;
+}
+
+export const physicalSlope = (q: number, E: number, I: number): PhysicalSlope => (s) => {
+  if (s === 0) return { slope: 0, ok: true };
+  const v = ((s * q) / E) / I;
+  return Number.isFinite(v) && v !== 0 ? { slope: v, ok: true } : { slope: 0, ok: false };
+};
 
 function validate(input: RegimeInput): string[] {
   const errors = validateInput({ ...input, L: 1 });
@@ -31,70 +43,16 @@ function validate(input: RegimeInput): string[] {
   return errors;
 }
 
-function buildConstraints(input: RegimeInput): RegimeConstraint[] {
-  const n = input.numSupports;
-  if (n === 0) return [];
-  const EI = input.E * input.I;
-  const qr = input.q / EI; // 1/mm^3
-  const a = condense(buildVerticalSystem(1, 1, 1, 0, n));
-  const b = condense(buildVerticalSystem(1, 0, 1, 1, n)).g0;
-  const C = a.C;
-  const A = [...input.activeSet].sort((x, y) => x - y).map((i) => i - 1);
-  const Iset = Array.from({ length: n }, (_, i) => i).filter((i) => !A.includes(i));
-  let gam: number[] = [], del: number[] = [];
-  if (A.length) {
-    const f = factorize(A.map((i) => A.map((j) => C[i][j])));
-    gam = f.solve(A.map((i) => -input.hv * a.g0[i]));
-    del = f.solve(A.map((i) => -qr * b[i]));
-  }
-  const raw = [
-    ...A.map((i, k) => ({ kind: "reaction" as const, support: i + 1, constant: gam[k], slope: del[k] })),
-    ...Iset.map((i) => ({
-      kind: "gap" as const, support: i + 1,
-      constant: input.hv * a.g0[i] + A.reduce((s, j, k) => s + C[i][j] * gam[k], 0),
-      slope: qr * b[i] + A.reduce((s, j, k) => s + C[i][j] * del[k], 0),
-    })),
-  ];
-  if (!raw.every((c) => Number.isFinite(c.constant) && Number.isFinite(c.slope))) {
-    throw new RangeError("Non-finite regime coefficient");
-  }
-  // Family scales: displacement-driven constants and load-driven slopes.
-  const sc = Math.max(0, ...raw.map((c) => Math.abs(c.constant)));
-  const ss = Math.max(0, ...raw.map((c) => Math.abs(c.slope)));
-  return raw.map((c) => {
-    const constant = Math.abs(c.constant) <= COEF_REL_TOL * sc ? 0 : c.constant;
-    const slope = Math.abs(c.slope) <= COEF_REL_TOL * ss ? 0 : c.slope;
-    return { ...c, constant, slope, identicallyZero: constant === 0 && slope === 0 };
-  });
+/** Exact intersection of T > 0 with constant + slope * T >= 0 (physical slopes). */
+export function intersectRegime(cs: (Pick<RegimeConstraint, "kind" | "support" | "constant" | "slope"> & Partial<RegimeConstraint>)[]): RegimeInterval {
+  return intersectAffine(cs.map((c) => ({ ...c, s: c.slope })), 1);
 }
 
-const evt = (c: RegimeConstraint): RegimeEvent =>
-  ({ kind: c.kind === "reaction" ? "reaction-zero" : "gap-zero", support: c.support });
-
-/** Exact intersection of T > 0 with constant + slope * T >= 0 for every constraint. */
-export function intersectRegime(cs: RegimeConstraint[]): RegimeInterval {
-  const empty: RegimeInterval = { status: "empty", lower: null, upper: null };
-  let lo = 0, hi = Infinity;
-  for (const c of cs) {
-    if (c.slope === 0) { if (c.constant < 0) return empty; continue; }
-    const r = -c.constant / c.slope;
-    if (c.slope > 0) lo = Math.max(lo, r); else hi = Math.min(hi, r);
-  }
-  if (!(hi > 0) || lo > hi) return empty;
-  const at = (T: number) => cs.filter((c) => c.slope !== 0 &&
-    Math.abs(-c.constant / c.slope - T) <= EVENT_REL_TOL * T).map(evt);
-  const len = (T: number) => {
-    const L = Math.sqrt(Math.sqrt(T));
-    if (!Number.isFinite(L) || !(L > 0)) throw new RangeError(`Non-representable length bound (T=${T})`);
-    return L;
-  };
-  const lower = lo > 0
-    ? { value: len(lo), included: true, kind: "finite" as const, events: at(lo) }
-    : { value: null, included: false, kind: "zero-excluded" as const, events: [] };
-  const upper = Number.isFinite(hi)
-    ? { value: len(hi), included: true, kind: "finite" as const, events: at(hi) }
-    : { value: null, included: false, kind: "unbounded" as const, events: [] };
-  return { status: lo === hi ? "single-point" : "interval", lower, upper };
+/** True when a sign-uncertain coefficient is binding or decides feasibility. */
+export function isAmbiguous(cs: RegimeConstraint[], iv: RegimeInterval): boolean {
+  const ev = [...(iv.lower?.events ?? []), ...(iv.upper?.events ?? [])];
+  return cs.some((c) => c.signUncertain &&
+    (c.scaledSlope === 0 || ev.some((e) => e.support === c.support)));
 }
 
 export function computeRegime(input: RegimeInput): RegimeResult {
@@ -104,11 +62,14 @@ export function computeRegime(input: RegimeInput): RegimeResult {
     return { status: "not-implemented", message: 'axialMode "restrained" is not implemented' };
   }
   try {
-    const constraints = buildConstraints(input);
+    const Lq = loadLengthScale(input.E, input.I, input.q);
+    const activeSet = [...input.activeSet].sort((x, y) => x - y);
+    const co = regimeCoefficients(normalizedData(input.numSupports), input.hv, activeSet.map((i) => i - 1),
+      input.q > 0, physicalSlope(input.q, input.E, input.I));
+    const interval = intersectAffine(co.constraints.map((c) => ({ ...c, s: c.scaledSlope })), Lq ?? 1);
     return {
-      status: "ok", numSupports: input.numSupports,
-      activeSet: [...input.activeSet].sort((x, y) => x - y),
-      constraints, interval: intersectRegime(constraints), physicalValidity: "not-assessed",
+      status: "ok", numSupports: input.numSupports, activeSet, constraints: co.constraints, interval,
+      loadLengthScale: Lq, ambiguous: isAmbiguous(co.constraints, interval), physicalValidity: "not-assessed",
     };
   } catch (e) {
     return { status: "numerical-failure", message: (e as Error).message };
@@ -117,9 +78,10 @@ export function computeRegime(input: RegimeInput): RegimeResult {
 
 /** Physical gaps (mm) and reactions (N) of the regime at length L (for checks only). */
 export function evaluateRegime(input: RegimeInput, cs: RegimeConstraint[], L: number) {
-  const T = L ** 4, EI = input.E * input.I;
-  return cs.map((c) => ({
-    kind: c.kind, support: c.support,
-    value: c.kind === "gap" ? c.constant + c.slope * T : ((c.constant + c.slope * T) * EI) / L ** 3,
-  }));
+  const Lq = loadLengthScale(input.E, input.I, input.q);
+  const Lam = Lq === null ? 0 : ((L / Lq) ** 2) ** 2;
+  return cs.map((c) => {
+    const v = c.constant + c.scaledSlope * Lam;
+    return { kind: c.kind, support: c.support, value: c.kind === "gap" ? v : v * (input.E / L) * (input.I / L) / L };
+  });
 }
