@@ -1,6 +1,7 @@
 // créé par Giovanni Malagnino, 2026-09-25 01:04 CEST (Europe/Rome, UTC+2)
 import { describe, expect, it } from "vitest";
 import { computeRegime, intersectRegime } from "../regime";
+import { intersectAffine } from "../regime-interval";
 import { RegimeInput } from "../regime-types";
 import { REF } from "./helpers";
 
@@ -42,6 +43,8 @@ describe("regime numerical protections (V2-2B)", () => {
   });
 
   it("non-representable roots are explicit failures", () => {
-    expect(() => intersectRegime([{ kind: "gap", support: 1, constant: 1e300, slope: -1e-300 }])).toThrow(RangeError);
+    const c = { kind: "gap" as const, support: 1, constant: 1e300, s: -1e-300 };
+    expect(() => intersectAffine([c], 1e200)).toThrow(RangeError);
+    expect(intersectRegime([{ kind: "gap", support: 1, constant: 1e300, slope: -1e-300 }]).upper!.value).toBeCloseTo(1e150, -140);
   });
 });
