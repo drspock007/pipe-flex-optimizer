@@ -15,7 +15,11 @@ import { ContactZone, GroundReport } from "./ground-types";
 
 export interface LevelResult {
   success: BiaxialSuccess;
-  ground: Omit<GroundReport, "refinement" | "converged" | "tolPenetration" | "elements">;
+  ground: Omit<GroundReport, "refinement" | "converged" | "tolPenetration" | "elements" | "precisionLoss">;
+  /** Max vertical-plane bending stress c*max|Mv|/I (MPa), independent of hl. */
+  verticalStress: number;
+  /** True when the round-off share of a residual tolerance exceeds its mechanical budget. */
+  precisionLoss: boolean;
 }
 
 export function buildLevelResult(
@@ -56,6 +60,9 @@ export function buildLevelResult(
     globalForce: base.globalForce + ROUNDOFF_REL * sumMagF, globalMoment: base.globalMoment + ROUNDOFF_REL * sumMagM,
   };
   const eq = checkEquilibrium(residuals, residualTolerances);
+  // The round-off estimate explains residuals but never accepts them: a
+  // residual above the mechanical budget (1e-7 of the scale) is precision loss.
+  const precisionLoss = (Object.keys(base) as (keyof EquilibriumSet)[]).some((k) => residuals[k] > base[k]);
 
   const supports: SupportResult[] = m.supportNode.map((i, k) => {
     const lv = (m.hv * m.x[i]) / L, z = s.d[2 * i];
@@ -63,6 +70,7 @@ export function buildLevelResult(
     return { index: k + 1, x: m.x[i], level: lv, z, gap: z - lv, reaction, active: reaction > 0, sharedWithGround: m.kind[i] === "shared" };
   });
   const messages = [...eq.failures];
+  if (precisionLoss) messages.push("Equilibrium residual above the mechanical budget (1e-7 of scale): precision loss from round-off");
   let contactValid = true;
   for (let i = 1; i < N; i++) {
     const g = s.d[2 * i] - m.level[i], r = active[i] ? s.res[2 * i] : 0;
@@ -84,6 +92,12 @@ export function buildLevelResult(
     if (mm.Mres > critical.Mres) critical = { x: mb.xStart + mm.xi, memberIndex: mb.index, Mv: mm.Mv, Ml: mm.Ml, Mres: mm.Mres };
   });
   const maxStress = (c * critical.Mres) / I;
+  const verticalStress = (c * Math.max(...members.map((mb) => memberMaximum(mb, L, 0).Mres))) / I;
+  // Ends coinciding with the ground: the clamp and the neighbouring contact
+  // nodes share one obstacle, so only their sum is mesh-independent.
+  const endReaction = (m.endOnGround[0] ? s.res[0] : 0) + (m.endOnGround[1] ? s.res[nd - 2] : 0);
+  const finite = [maxStress, verticalStress, endReaction, nodal, combined, ...s.d, ...s.res].every(Number.isFinite);
+  if (!finite) messages.push("Non-finite value in the ground solution");
   const moment = scales.force * L;
   const success: BiaxialSuccess = {
     status: "ok", input, L,
@@ -92,14 +106,17 @@ export function buildLevelResult(
     endReactions: { left: { force: s.res[0], couple: s.res[1] }, right: { force: s.res[nd - 2], couple: s.res[nd - 1] } },
     critical: { ...critical, sigma: maxStress, ...fibreAngles(critical.Mv, critical.Ml, 1e-12 * Math.max(moment, 1)) },
     maxStress, sigmaAllow, bendingCriterionMet: maxStress <= sigmaAllow,
-    numericalValid: contactValid && eq.ok, physicalValidity: "not-assessed",
+    numericalValid: finite && contactValid && eq.ok && !precisionLoss, physicalValidity: "not-assessed",
     diagnostics: {
       converged: true, iterations, contactValid, scales: { ...scales, moment }, residuals, residualTolerances,
       normalizedResiduals: normalizeResiduals(residuals, scales.force, L), equilibriumOk: eq.ok, tolDisp, tolForce, messages,
     },
   };
   return {
-    success,
-    ground: { level: m.groundZ, totalReaction: nodal, combinedReaction: combined, contactZones: zones, contactNodes, maxPenetration: maxPen },
+    success, verticalStress, precisionLoss,
+    ground: {
+      level: m.groundZ, totalReaction: nodal, combinedReaction: combined, endReaction,
+      contactTotal: nodal + combined + endReaction, contactZones: zones, contactNodes, maxPenetration: maxPen,
+    },
   };
 }

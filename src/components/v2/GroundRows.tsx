@@ -14,10 +14,12 @@ const GroundRows = ({ g }: { g: GroundReport }) => {
     ["Minimum pipe-axis elevation", `${conv(g.level, "mm").toFixed(1)} ${label("mm")}`],
     ["Total vertical ground reaction (sum of discrete nodal forces)", `${conv(g.totalReaction, "N").toFixed(1)} ${label("N")}`],
     ...(g.combinedReaction > 0 ? [["Supports at ground level (combined, split not determinable)", `${conv(g.combinedReaction, "N").toFixed(1)} ${label("N")}`] as [string, string]] : []),
+    ...(g.endReaction !== 0 ? [["Clamped end(s) on the ground (coincide with the ground)", `${conv(g.endReaction, "N").toFixed(1)} ${label("N")}`] as [string, string]] : []),
+    ["Total vertical contact force (mesh-independent sum)", `${conv(g.contactTotal, "N").toFixed(1)} ${label("N")}`],
     ["Estimated contact zones", zones],
     ["Numerical contact points (not installed supports)", String(g.contactNodes)],
     ["Max residual penetration", `${conv(g.maxPenetration, "mm").toExponential(2)} ${label("mm")} (tol. ${conv(g.tolPenetration, "mm").toExponential(1)})`],
-    ["Mesh convergence", `${g.converged ? "converged" : "NOT converged"} — ${g.elements} elements, ${g.refinement.length} refinement levels`],
+    ["Mesh convergence", `${g.converged ? "converged" : "NOT converged"} — ${g.elements} elements, ${g.refinement.length} refinement levels${g.precisionLoss ? ", precision loss" : ""}`],
   ];
   return (
     <div className="rounded-md border border-border/60 p-2">
