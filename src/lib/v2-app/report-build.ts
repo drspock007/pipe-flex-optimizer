@@ -10,7 +10,7 @@ import type { SearchData, SolveData, SolveTarget } from "@/hooks/useV2Engine";
 export function buildReport(
   inputs: AppInputs, target: SolveTarget | null, searchMode: boolean,
   search: ChannelState<SearchData>, solve: ChannelState<SolveData>,
-  extras: { searchStatus: string | null; ranges: string[] },
+  extras: { searchStatus: string | null; ranges: string[]; searchNotes?: [string, string][] },
 ): V2Report | null {
   const key = solveKeyOf(inputs, target);
   const d = solve.data;

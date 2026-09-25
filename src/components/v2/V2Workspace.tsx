@@ -4,6 +4,7 @@
 // Modifié par Giovanni Malagnino, 2026-09-25 01:43 CEST: export only from a coherent, current request.
 // Modifié par Giovanni Malagnino, 2026-09-25 17:40 CEST: Find h (V2-4).
 // Modifié par Giovanni Malagnino, 2026-09-25 20:10 CEST: ground contact, Fixed L only (V2-5).
+// Modifié par Giovanni Malagnino, 2026-09-25 22:40 CEST: Find h with ground (V2-6).
 
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +22,7 @@ import V2ResultsPanel from "./V2ResultsPanel";
 import V2Charts from "./V2Charts";
 import ExportPdfCard from "@/components/ExportPdfCard";
 import HeightSearchCard, { useFmtHeight } from "./HeightSearchCard";
+import { GROUND_HEIGHT_LIMITS, groundHeightRows } from "@/lib/v2-app/ground-height-text";
 import { HeightSelection, heightRangeText, heightRanges, initialHeight, selectedHeight } from "@/lib/v2-app/height-selection";
 
 const solveText = (r: BiaxialResult): StatusText | null => {
@@ -71,21 +73,25 @@ const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
 
   const sol = solve.data?.result.status === "ok" ? solve.data.result : null;
   const searchStatus = search.data ? describeSearch(search.data) : null;
+  const gh = heightMode && search.data?.kind === "findHGround" ? search.data.result : null;
+  const ghRows = gh ? groundHeightRows(gh, fmtH) : [];
   const rangeExists = !(searchMode || heightMode) || !search.data ? null
+    : gh ? (hRanges.length > 0 ? true : gh.status === "no-solution" ? false : "undecidable" as const)
     : search.data.kind !== "minSupports" && search.data.result.status === "undecidable" ? "undecidable" as const
     : heightMode ? hRanges.length > 0 : (view?.ranges.length ?? 0) > 0;
   const report = buildReport(inputs, target, searchMode || heightMode, search, solve, {
     searchStatus: searchStatus?.title ?? null,
     ranges: heightMode ? hRanges.map((r) => heightRangeText(r, fmtH)) : view?.ranges.map((r) => rangeText(r, fmt)) ?? [],
+    searchNotes: gh ? [...ghRows, ["Search method and limits", GROUND_HEIGHT_LIMITS]] : undefined,
   });
   const stale = solve.data !== null && solve.data.key !== solveKeyOf(inputs, target);
 
   return (
     <div className="space-y-4">
-      {blocked && <StatusBanner s={{ tone: "warn", title: "Ground contact is currently available in Fixed L only", detail: "No search is run while ground contact is enabled. Switch to Fixed L or disable ground contact." }} />}
+      {blocked && <StatusBanner s={{ tone: "warn", title: "Ground contact is available in Fixed L and Find h only", detail: "No length search is run while ground contact is enabled. Switch to Fixed L or Find h, or disable ground contact." }} />}
       {heightMode && (
         <HeightSearchCard loading={search.status === "loading"} refreshing={search.refreshing} error={search.status === "error" ? search.error : null}
-          status={searchStatus} ranges={hRanges} selection={hSel} selectedH={selectedH} onChange={setHSel} />
+          status={searchStatus} details={ghRows} limits={gh ? GROUND_HEIGHT_LIMITS : undefined} ranges={hRanges} selection={hSel} selectedH={selectedH} onChange={setHSel} />
       )}
       {searchMode && (
         <Card>
