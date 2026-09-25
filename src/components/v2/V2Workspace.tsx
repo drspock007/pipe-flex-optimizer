@@ -1,13 +1,15 @@
 // créé par Giovanni Malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
 // Right-hand workspace: search status, length selection, results, charts, export.
 // Details and charts always come from the same fixed-length solution.
+// Modifié par Giovanni Malagnino, 2026-09-25 01:43 CEST: export only from a coherent, current request.
 
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search } from "lucide-react";
 import { useV2Engine, isSearchMode, SolveTarget } from "@/hooks/useV2Engine";
 import { AppInputs } from "@/lib/v2-app/inputs";
-import { Derived } from "@/lib/v2-app/bridge";
+import { Derived, solveKeyOf } from "@/lib/v2-app/bridge";
+import { buildReport } from "@/lib/v2-app/report-build";
 import { initialChoice, lengthOptions, searchView } from "@/lib/v2-app/selection";
 import { describeSearch, StatusText } from "@/lib/v2-app/status-text";
 import { BiaxialResult } from "@/lib/mechanics-v2";
@@ -27,7 +29,7 @@ const solveText = (r: BiaxialResult): StatusText | null => {
   }
 };
 
-const V2Workspace = ({ inputs, derived }: { inputs: AppInputs; derived: Derived }) => {
+const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
   const { search, solve, setSolveTarget } = useV2Engine(inputs);
   const fmt = useFmtLength();
   const searchMode = isSearchMode(inputs.mode);
@@ -81,7 +83,7 @@ const V2Workspace = ({ inputs, derived }: { inputs: AppInputs; derived: Derived 
       {solve.status === "error" && <StatusBanner s={{ tone: "error", title: "Calculation failed", detail: solve.error ?? undefined }} />}
       {solve.data && solveText(solve.data.result) && <StatusBanner s={solveText(solve.data.result)!} />}
       {sol && solve.data?.samples && (
-        <div className={solve.refreshing ? "opacity-60" : ""}>
+        <div className={solve.refreshing || stale ? "opacity-60" : ""}>
           <Card><CardContent className="pt-4"><V2Charts solution={sol} samples={solve.data.samples} /></CardContent></Card>
           <div className="mt-4">
             <V2ResultsPanel s={sol} rangeExists={rangeExists} infimum={view?.infimum ?? null}
@@ -89,7 +91,7 @@ const V2Workspace = ({ inputs, derived }: { inputs: AppInputs; derived: Derived 
           </div>
         </div>
       )}
-      <ExportPdfCard inputs={inputs} derived={derived} report={report} />
+      <ExportPdfCard report={report} currentKey={solveKeyOf(inputs, target)} />
     </div>
   );
 };
