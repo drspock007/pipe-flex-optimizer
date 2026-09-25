@@ -14,14 +14,17 @@ interface Props {
   onChange: (field: string, value: number | string) => void;
 }
 
+/** Explicit string label so that 0 is always rendered. */
+export const countLabel = (n: number): string => String(n);
+
 const COUNTS = Array.from({ length: MAX_SUPPORTS + 1 }, (_, i) => i);
 
 const CountSelect = ({ id, label, value, onChange }: { id: string; label: string; value: number; onChange: (v: number) => void }) => (
   <div>
     <Label htmlFor={id} className="text-xs">{label}</Label>
     <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
-      <SelectTrigger id={id} className="h-8 text-sm"><SelectValue /></SelectTrigger>
-      <SelectContent>{COUNTS.map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}</SelectContent>
+      <SelectTrigger id={id} className="h-8 text-sm"><SelectValue>{countLabel(value)}</SelectValue></SelectTrigger>
+      <SelectContent>{COUNTS.map((n) => <SelectItem key={n} value={String(n)}>{countLabel(n)}</SelectItem>)}</SelectContent>
     </Select>
   </div>
 );

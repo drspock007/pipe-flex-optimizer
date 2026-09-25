@@ -1,10 +1,8 @@
-// Modifié par Giovanni malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
+// Modifié par Giovanni malagnino, 2026-09-25 01:43 CEST (Europe/Rome, UTC+2)
 // PDF report generation for pipe lowering analysis results.
 
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { AppInputs } from "@/lib/v2-app/inputs";
-import { Derived } from "@/lib/v2-app/bridge";
 import { V2Report } from "./report-types";
 import { UnitSystem } from "@/lib/unit-conversions";
 import { buildSections } from "./pdf-sections";
@@ -19,14 +17,20 @@ export interface ReportMeta {
 
 const ORANGE: [number, number, number] = [255, 142, 4];
 
+/** Space reserved at the bottom of every page for the footer (mm). */
+const FOOTER_SPACE = 20;
+const TOP_MARGIN = 20;
+/** Sections up to this many rows are never split across pages. */
+const KEEP_TOGETHER_ROWS = 8;
+const ROW_H = 6.2;
+
 export const generateReportPdf = (
-  inputs: AppInputs,
-  derived: Derived,
   report: V2Report,
   meta: ReportMeta,
 ): string => {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
 
   // Header band
   doc.setFillColor(...ORANGE);
@@ -46,7 +50,12 @@ export const generateReportPdf = (
   doc.text(`Unit system: ${meta.system === "SI" ? "SI (metric)" : "Imperial"}`, 14, 45);
 
   let cursorY = 52;
-  for (const section of buildSections(inputs, derived, report, meta.system)) {
+  for (const section of buildSections(report.inputs, report.derived, report, meta.system)) {
+    const estimated = (section.rows.length + 1) * ROW_H;
+    if (section.rows.length <= KEEP_TOGETHER_ROWS && cursorY + estimated > pageHeight - FOOTER_SPACE) {
+      doc.addPage();
+      cursorY = TOP_MARGIN;
+    }
     autoTable(doc, {
       startY: cursorY,
       head: [[section.title, ""]],
@@ -55,7 +64,8 @@ export const generateReportPdf = (
       styles: { fontSize: 9, cellPadding: 1.8 },
       headStyles: { fillColor: ORANGE, textColor: 255, fontStyle: "bold" },
       columnStyles: { 0: { cellWidth: 90 }, 1: { halign: "right" } },
-      margin: { left: 14, right: 14 },
+      margin: { left: 14, right: 14, top: TOP_MARGIN, bottom: FOOTER_SPACE },
+      rowPageBreak: "avoid",
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     cursorY = (doc as any).lastAutoTable.finalY + 6;

@@ -46,3 +46,8 @@ export function searchKey(i: AppInputs): string {
   const { L: _L, ...rest } = i;
   return JSON.stringify(rest);
 }
+
+/** Key of a fixed-length solve request: physical inputs + represented length + supports. */
+export function solveKeyOf(i: AppInputs, t: { L_mm: number; numSupports: number } | null): string | null {
+  return t ? `${searchKey(i)}|${t.L_mm}|${t.numSupports}` : null;
+}

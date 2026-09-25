@@ -33,6 +33,7 @@ export function channelReducer<T>(s: ChannelState<T>, a: ChannelAction<T>): Chan
       if (a.id !== s.latestId) return s;
       return { ...s, status: "error", data: null, refreshing: false, error: a.error };
     case "reset":
-      return { ...initialChannel<T>(), latestId: s.latestId };
+      // -1 never matches a real request id: any response still in flight is rejected.
+      return { ...initialChannel<T>(), latestId: -1 };
   }
 }
