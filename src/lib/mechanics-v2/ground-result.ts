@@ -60,8 +60,9 @@ export function buildLevelResult(
     globalForce: base.globalForce + ROUNDOFF_REL * sumMagF, globalMoment: base.globalMoment + ROUNDOFF_REL * sumMagM,
   };
   const eq = checkEquilibrium(residuals, residualTolerances);
-  // Round-off may widen a tolerance, but never beyond the mechanical budget itself.
-  const precisionLoss = (Object.keys(base) as (keyof EquilibriumSet)[]).some((k) => residualTolerances[k] - base[k] > base[k]);
+  // The round-off estimate explains residuals but never accepts them: a
+  // residual above the mechanical budget (1e-7 of the scale) is precision loss.
+  const precisionLoss = (Object.keys(base) as (keyof EquilibriumSet)[]).some((k) => residuals[k] > base[k]);
 
   const supports: SupportResult[] = m.supportNode.map((i, k) => {
     const lv = (m.hv * m.x[i]) / L, z = s.d[2 * i];
