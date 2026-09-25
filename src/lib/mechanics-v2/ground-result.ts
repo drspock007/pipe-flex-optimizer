@@ -56,14 +56,16 @@ export function buildLevelResult(
     magT = Math.max(magT, mt); magR = Math.max(magR, mr);
     sumMagF += mt; sumMagM += mt * m.x[i] + mr;
   }
-  const residualTolerances: EquilibriumSet = {
+  const roundoffTolerances: EquilibriumSet = {
     translation: base.translation + ROUNDOFF_REL * magT, rotation: base.rotation + ROUNDOFF_REL * magR,
     globalForce: base.globalForce + ROUNDOFF_REL * sumMagF, globalMoment: base.globalMoment + ROUNDOFF_REL * sumMagM,
   };
+  // Acceptance uses the strict mechanical budget; the round-off estimate is reported separately.
+  const residualTolerances: EquilibriumSet = base;
   const eq = checkEquilibrium(residuals, residualTolerances);
   // The round-off estimate explains residuals but never accepts them: a
   // residual above the mechanical budget (1e-7 of the scale) is precision loss.
-  const precisionLoss = (Object.keys(base) as (keyof EquilibriumSet)[]).some((k) => residuals[k] > base[k]);
+  const precisionLoss = !eq.ok;
 
   const supports: SupportResult[] = m.supportNode.map((i, k) => {
     const lv = (m.hv * m.x[i]) / L, z = s.d[2 * i];
@@ -109,7 +111,7 @@ export function buildLevelResult(
     maxStress, sigmaAllow, bendingCriterionMet: maxStress <= sigmaAllow,
     numericalValid: finite && contactValid && eq.ok && !precisionLoss, physicalValidity: "not-assessed",
     diagnostics: {
-      converged: true, iterations, contactValid, scales: { ...scales, moment }, residuals, residualTolerances,
+      converged: true, iterations, contactValid, scales: { ...scales, moment }, residuals, residualTolerances, roundoffTolerances,
       normalizedResiduals: normalizeResiduals(residuals, scales.force, L), equilibriumOk: eq.ok, tolDisp, tolForce, messages,
     },
   };

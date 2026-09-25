@@ -2,7 +2,8 @@
 // PDF report generation for pipe lowering analysis results.
 
 import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
+import autoTable, { UserOptions } from "jspdf-autotable";
+import { rowsOnLastPage } from "./pdf-measure";
 import { V2Report } from "./report-types";
 import { UnitSystem } from "@/lib/unit-conversions";
 import { buildSections } from "./pdf-sections";
@@ -56,7 +57,7 @@ export const generateReportPdf = (
       doc.addPage();
       cursorY = TOP_MARGIN;
     }
-    autoTable(doc, {
+    const opts: UserOptions = {
       startY: cursorY,
       head: [[section.title, ""]],
       body: section.rows,
@@ -66,7 +67,13 @@ export const generateReportPdf = (
       columnStyles: { 0: { cellWidth: 90 }, 1: { halign: "right" } },
       margin: { left: 14, right: 14, top: TOP_MARGIN, bottom: FOOTER_SPACE },
       rowPageBreak: "avoid",
-    });
+    };
+    // Never leave a single last row alone on the next page.
+    if (section.rows.length > 1 && rowsOnLastPage(opts) <= 1) {
+      doc.addPage();
+      opts.startY = TOP_MARGIN;
+    }
+    autoTable(doc, opts);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     cursorY = (doc as any).lastAutoTable.finalY + 6;
   }

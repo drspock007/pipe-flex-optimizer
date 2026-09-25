@@ -2,6 +2,7 @@
 // Ground contact results (V2-5). Nodal reactions are discrete forces, not pressures.
 
 import { GroundReport } from "@/lib/mechanics-v2";
+import { groundReactionRows, STRESS_CONVERGENCE_TEXT } from "@/lib/v2-app/ground-labels";
 import { useUnits } from "@/contexts/UnitContext";
 
 const GroundRows = ({ g }: { g: GroundReport }) => {
@@ -12,10 +13,7 @@ const GroundRows = ({ g }: { g: GroundReport }) => {
     : "none (pipe clear of the ground)";
   const rows: [string, string][] = [
     ["Minimum pipe-axis elevation", `${conv(g.level, "mm").toFixed(1)} ${label("mm")}`],
-    ["Ground reaction (discrete nodal forces at ground nodes)", `${conv(g.totalReaction, "N").toFixed(1)} ${label("N")}`],
-    ...(g.combinedReaction > 0 ? [["Supports coinciding with the ground (combined, split indeterminate)", `${conv(g.combinedReaction, "N").toFixed(1)} ${label("N")}`] as [string, string]] : []),
-    ...(g.endReaction !== 0 ? [["Clamped end(s) at ground level (clamp reaction, not attributed to the ground)", `${conv(g.endReaction, "N").toFixed(1)} ${label("N")}`] as [string, string]] : []),
-    ["Total vertical contact force (sum of the three above)", `${conv(g.contactTotal, "N").toFixed(1)} ${label("N")}`],
+    ...groundReactionRows(g, (v) => `${conv(v, "N").toFixed(1)} ${label("N")}`).map(([k, v, n]) => [`${k} (${n})`, v] as [string, string]),
     ["Estimated zones near the ground (graphical grouping)", zones],
     ["Numerical contact points (not installed supports)", String(g.contactNodes)],
     ["Max residual penetration", `${conv(g.maxPenetration, "mm").toExponential(2)} ${label("mm")} (tol. ${conv(g.tolPenetration, "mm").toExponential(1)})`],
@@ -30,6 +28,7 @@ const GroundRows = ({ g }: { g: GroundReport }) => {
           <span className="text-muted-foreground">{k}</span><span className="font-mono text-right">{v}</span>
         </div>
       ))}
+      <p className="mt-1 text-[11px] text-muted-foreground">{STRESS_CONVERGENCE_TEXT}</p>
     </div>
   );
 };

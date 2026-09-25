@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Gauge } from "lucide-react";
 import { BiaxialSuccess, GeneralInfimum } from "@/lib/mechanics-v2";
 import { useUnits } from "@/contexts/UnitContext";
+import { formatMomentPair } from "@/lib/unit-conversions";
 import SupportsTable from "./SupportsTable";
 import GroundRows from "./GroundRows";
 import { AppMode } from "@/lib/v2-app/inputs";
@@ -27,7 +28,7 @@ const Row = ({ k, v, strong }: { k: string; v: string; strong?: boolean }) => (
 );
 
 const V2ResultsPanel = ({ s, rangeExists, infimum, atBound, mode }: Props) => {
-  const { conv, label } = useUnits();
+  const { conv, label, system } = useUnits();
   const m = (mm: number) => `${conv(mm / 1000, "m").toFixed(3)} ${label("m")}`;
   const mpa = (v: number) => `${conv(v, "MPa").toFixed(2)} ${label("MPa")}`;
   const active = s.supports.filter((x) => x.active).length;
@@ -59,7 +60,7 @@ const V2ResultsPanel = ({ s, rangeExists, infimum, atBound, mode }: Props) => {
           <Row k="Max resultant bending stress" v={mpa(s.maxStress)} strong />
           <Row k="Allowable stress" v={mpa(s.sigmaAllow)} />
           <Row k="Position of the maximum" v={m(s.critical.x)} />
-          <Row k="Moments at max (vertical / lateral)" v={`${(s.critical.Mv / 1e6).toFixed(2)} / ${(s.critical.Ml / 1e6).toFixed(2)} kN·m`} />
+          <Row k="Moments at max (vertical / lateral)" v={formatMomentPair(s.critical.Mv, s.critical.Ml, system)} />
           <Row k="Installed supports / active contacts" v={`${s.supports.length} / ${active}`} />
           {infimum && (
             <Row k={infimum.attained ? "Minimum stress (attained)" : "Stress infimum (not attained)"}
