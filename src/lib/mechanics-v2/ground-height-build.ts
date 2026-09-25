@@ -66,9 +66,15 @@ export function assemble(s: HeightSample[], sa: number, S: number, minStep: numb
     while (j + 1 < s.length && !known(s[j + 1])) j++;
     const L = s[i - 1], R = s[j + 1], run = s.slice(i, j + 1);
     const reason = run.some((x) => x.cls === "failed") ? "solver-failure"
-      : L && R && L.cls !== R.cls ? "boundary-transition" : "uncertain-verdict";
+      : "uncertain-verdict"; // never a transition bracket
+
     zones.push({ from: L ? L.hv : s[i].hv, to: R ? R.hv : s[j].hv, reason });
     i = j + 1;
+  }
+  // Transition brackets: adjacent decidable admissible / not-admissible pairs.
+  for (let i = 0; i + 1 < s.length; i++) {
+    const a = s[i], b = s[i + 1];
+    if (known(a) && known(b) && a.cls !== b.cls) zones.push({ from: a.hv, to: b.hv, reason: "transition-bracket" });
   }
   for (const [a, b] of pending) zones.push({ from: a, to: b, reason: "budget" });
   zones.sort((x, y) => x.from - y.from);
@@ -94,5 +100,5 @@ export function assemble(s: HeightSample[], sa: number, S: number, minStep: numb
   return { zones, ranges };
 }
 
-/** Zones that leave admissibility unresolved (boundary transitions are brackets). */
-export const openZones = (z: UnresolvedZone[]) => z.filter((x) => x.reason !== "boundary-transition");
+/** Zones that leave admissibility unresolved (transition brackets are not). */
+export const openZones = (z: UnresolvedZone[]) => z.filter((x) => x.reason !== "transition-bracket");
