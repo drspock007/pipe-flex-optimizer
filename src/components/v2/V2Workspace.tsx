@@ -76,7 +76,7 @@ const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
   const gh = heightMode && search.data?.kind === "findHGround" ? search.data.result : null;
   const ghRows = gh ? groundHeightRows(gh, fmtH) : [];
   const rangeExists = !(searchMode || heightMode) || !search.data ? null
-    : gh ? (hRanges.length > 0 ? true : gh.status === "no-solution" ? false : "undecidable" as const)
+    : gh ? (hRanges.length > 0 ? true : gh.status === "impossible" ? false : "undecidable" as const)
     : search.data.kind !== "minSupports" && search.data.result.status === "undecidable" ? "undecidable" as const
     : heightMode ? hRanges.length > 0 : (view?.ranges.length ?? 0) > 0;
   const report = buildReport(inputs, target, searchMode || heightMode, search, solve, {

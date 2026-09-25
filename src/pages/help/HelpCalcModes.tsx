@@ -86,8 +86,15 @@ const HelpCalcModes = () => (
       are possible when the ground is below zero. Each h<sub>v</sub> is solved with the complete ground solver (mesh convergence).
       The domain is sampled on a grid, verdict changes are bisected, and same-verdict intervals are refined until an estimated
       slope bound or local monotonicity rules out a hidden change; this is not a proof, and features narrower than the minimum
-      step (domain/1024) cannot be excluded. Published bounds are solved admissible samples; the exact boundary lies within the
-      displayed bracket. Uncertain or failed evaluations are shown as unresolved zones and never count as &laquo; not admissible &raquo;.
+      step (domain/1024) cannot be excluded, so search coverage is never certified. Ranges are shown as &laquo; Estimated admissible
+      ranges &raquo;: only their end samples are individually verified. A transition bracket (adjacent admissible and not-admissible
+      decidable samples) contains at least one crossing if stress is continuous in h<sub>v</sub>, without proving uniqueness or
+      that all ranges were detected. Without any admissible sample the result reads &laquo; No admissible height found &mdash; search
+      coverage not certified &raquo;. The represented h<sub>v</sub> is always re-solved with the complete solver.
+      H<sub>cap</sub> derivation: (1) z(0)=0, z(L)=h<sub>v</sub>, z&prime;(0)=z&prime;(L)=0; (2) &int;&kappa;dx = z&prime;(L)&minus;z&prime;(0) = 0;
+      (3) integrating by parts, h<sub>v</sub> = &int;(L&minus;x)&kappa;dx; (4) linear elastic, symmetric section with extreme fibre c,
+      biaxial stress &ge; |vertical bending stress| = Ec|&kappa;|, hence |&kappa;| &le; K; (5) maximising under &int;&kappa; = 0 gives
+      &kappa; = +K on [0, L/2], &minus;K on [L/2, L], i.e. KL&sup2;/4. Uncertain or failed evaluations are shown as unresolved zones and never count as &laquo; not admissible &raquo;.
       The largest admissible h<sub>v</sub> found is not a demonstrated maximum. Limits: 600 solves or 25 s; beyond, the search is
       reported as incomplete.
     </p>

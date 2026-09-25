@@ -55,12 +55,12 @@ const HeightSearchCard = ({ loading, refreshing, error, status, ranges, selectio
         {ranges.length > 0 && (
           <div className="space-y-3">
             <div className="space-y-1.5" role="radiogroup" aria-label="Admissible hv ranges">
-              <Label className="text-xs">Admissible hv ranges (select one)</Label>
+              <Label className="text-xs">Estimated admissible hv ranges (select one)</Label>
               {ranges.map((r, i) => (
                 <button key={i} type="button" role="radio" aria-checked={i === k}
                   onClick={() => onChange({ rangeIndex: i, optionId: heightOptions(r)[0].id, customH: selection?.customH ?? null })}
                   className={`w-full text-left rounded-md border px-3 py-2 text-xs font-mono ${i === k ? "border-primary bg-primary/10" : "border-border"}`}>
-                  Range {i + 1}: {heightRangeText(r, fmt)}
+                  Estimated range {i + 1}: {heightRangeText(r, fmt)}
                 </button>
               ))}
             </div>

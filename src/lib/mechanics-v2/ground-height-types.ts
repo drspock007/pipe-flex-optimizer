@@ -25,7 +25,7 @@ export interface HeightSample {
   status: string; // solver status (or "ok")
 }
 
-/** Published bound: a verified admissible sample; bracket = neighbouring sample
+/** Estimated range bound: a verified admissible sample; bracket = neighbouring sample
  *  on the other side (null when the bound is a domain edge). */
 export interface GroundHeightBound { value: number; included: true; bracket: number | null; domainEdge: boolean }
 export interface GroundHeightRange { lower: GroundHeightBound; upper: GroundHeightBound }
@@ -34,7 +34,12 @@ export interface GroundHeightRange { lower: GroundHeightBound; upper: GroundHeig
 export interface UnresolvedZone {
   from: number; // mm (a sample value or a domain edge)
   to: number; // mm
-  reason: "boundary-transition" | "uncertain-verdict" | "solver-failure" | "narrow-feature-not-excluded" | "budget";
+  /** "transition-bracket": an admissible and a not-admissible sample, both
+   *  decidable, adjacent. If stress is continuous in hv it contains at least
+   *  one crossing of the allowable; neither uniqueness of the crossing nor
+   *  detection of all ranges is implied. Uncertain / failed samples never form
+   *  a transition bracket (they give "uncertain-verdict" / "solver-failure"). */
+  reason: "transition-bracket" | "uncertain-verdict" | "solver-failure" | "narrow-feature-not-excluded" | "budget";
 }
 
 export interface GroundHeightDiagnostics {
@@ -60,17 +65,27 @@ interface Common {
   diagnostics: GroundHeightDiagnostics;
 }
 
+/** Status = what was found; coverage is reported separately and is NEVER
+ *  certified by sampling (estimated slopes are not a proof). */
+export interface Coverage {
+  certified: false;
+  /** "normal" = algorithm finished; "resource-limit" = interrupted. */
+  completion: "normal" | "resource-limit";
+  uncertainEvaluations: number;
+  failedEvaluations: number;
+}
+type C = Common & { coverage: Coverage };
+
 export type GroundHeightResult =
-  /** Coverage established at the sampling resolution, no unresolved zone. */
-  | (Common & { status: "ok" })
-  /** Ranges found, but some zones are unresolved. */
-  | (Common & { status: "partial" })
-  /** Every sample converged and is not admissible, no zone left (or empty domain). */
-  | (Common & { status: "no-solution" })
-  /** No admissible sample, some zones unresolved: absence not established. */
-  | (Common & { status: "unresolved" })
+  /** At least one verified admissible hv; ranges between them are ESTIMATED. */
+  | (C & { status: "found" })
+  /** No admissible hv found; absence NOT demonstrated (coverage not certified). */
+  | (C & { status: "none-found" })
+  /** Demonstrated impossibility by an independent necessary condition
+   *  (empty domain: groundZ above Hcap). */
+  | (C & { status: "impossible" })
   /** Resource limit reached: never means "no solution". */
-  | (Common & { status: "incomplete"; message: string })
+  | (C & { status: "incomplete"; message: string })
   | { status: "invalid-input"; errors: string[] }
   | { status: "geometry-incompatible"; message: string }
   | { status: "not-implemented"; message: string };

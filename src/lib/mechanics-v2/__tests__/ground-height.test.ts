@@ -23,7 +23,7 @@ const hvMaxRef = ((6 * IN.I * IN.sigmaAllow) / (IN.q * IN.c)) ** 2 * IN.q / (72 
 describe("Find h with ground", () => {
   it("ground at zero, 0 support: matches the closed form, no negative hv", () => {
     const r = pub(G());
-    expect(r.status).toBe("ok");
+    expect(r.status).toBe("found");
     expect(r.ranges).toHaveLength(1);
     expect(r.ranges[0].lower.value).toBe(0);
     expect(r.ranges[0].lower.domainEdge).toBe(true);
@@ -42,7 +42,7 @@ describe("Find h with ground", () => {
       const ng = searchHeightFixedSupports(BASE, n);
       if (ng.status !== "ok") throw new Error(ng.status);
       const r = pub(G({ groundZ: -1e5 }, n));
-      expect(r.status).toBe("ok");
+      expect(r.status).toBe("found");
       expect(r.ranges).toHaveLength(1);
       // The exact bound lies inside the published bracket: verified value .. transition zone end.
       const up = r.ranges[0].upper, lw = r.ranges[0].lower;
@@ -64,7 +64,7 @@ describe("Find h with ground", () => {
 
   it("several supports with contact changes", () => {
     const r = pub(G({}, 3));
-    expect(["ok", "partial"]).toContain(r.status);
+    expect(r.status).toBe("found");
     expect(r.ranges.length).toBeGreaterThan(0);
     for (const rg of r.ranges) for (const b of [rg.lower, rg.upper]) expect(verify(b.value, 3).maxStress).toBeLessThanOrEqual(IN.sigmaAllow);
   });
@@ -74,7 +74,7 @@ describe("Find h with ground", () => {
     expect(r0.ranges.length).toBe(1);
     const hl = 2 * (IN.sigmaAllow * IN.L ** 2) / (6 * IN.E * IN.c);
     const r = pub(G({ hl }));
-    expect(r.status).toBe("no-solution");
+    expect(r.status).toBe("none-found");
     expect(r.ranges).toHaveLength(0);
   });
 
@@ -86,7 +86,8 @@ describe("Find h with ground", () => {
 
   it("failed evaluations are never counted as not admissible", () => {
     const r = pub(G({}, 0, { solve: { maxElements: 64 } }));
-    expect(r.status).not.toBe("no-solution");
+    expect(r.status).not.toBe("impossible");
+    expect(r.coverage.failedEvaluations).toBeGreaterThan(0);
     expect(r.samples.some((s) => s.cls === "failed")).toBe(true);
     expect(r.zones.some((z) => z.reason === "solver-failure")).toBe(true);
   });
