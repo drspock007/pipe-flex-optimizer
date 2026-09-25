@@ -64,7 +64,8 @@ function run(input: GroundInput, maxElements: number, minElements: number): Biax
     const ok = prev && pen <= tolPen && lvl.success.numericalValid && same(prev.lvl, lvl, prev.perSpan, perSpan, coarse, input.sigmaAllow, forceScale, dispScale);
     passes = ok ? passes + 1 : 0;
     if (passes >= 2) {
-      lvl.success.ground = { ...lvl.ground, refinement, converged: true, tolPenetration: tolPen, elements: mesh.x.length - 1, precisionLoss: lvl.precisionLoss };
+      lvl.success.ground = { ...lvl.ground, refinement, converged: true, tolPenetration: tolPen, elements: mesh.x.length - 1, precisionLoss: lvl.precisionLoss,
+        criterionUncertain: criterionUncertain(prev!.lvl, lvl, input.sigmaAllow) };
       return lvl.success;
     }
     prev = { mesh, active: out.active, lvl, perSpan };
@@ -76,6 +77,13 @@ function run(input: GroundInput, maxElements: number, minElements: number): Biax
     message: `Mesh convergence not established within ${maxElements} elements: two consecutive refinements must meet the change criteria, penetration tolerance and round-off budget${prev?.lvl.precisionLoss ? " (precision loss detected)" : ""}`,
     refinement, ...(last ? { diagnostics: last } : {}),
   };
+}
+
+/** Verdict maxStress <= sigmaAllow not decidable at the convergence precision. */
+function criterionUncertain(a: LevelResult, b: LevelResult, sigmaAllow: number): boolean {
+  const sa = a.success.maxStress, sb = b.success.maxStress;
+  const tol = GROUND_CONV_REL * Math.max(sb, GROUND_STRESS_FLOOR * sigmaAllow);
+  return (sa <= sigmaAllow) !== (sb <= sigmaAllow) || Math.abs(sb - sigmaAllow) <= tol;
 }
 
 /** Convergence test between two successive meshes (see tolerances in ground-types.ts). */

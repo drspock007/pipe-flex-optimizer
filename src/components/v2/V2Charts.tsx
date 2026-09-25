@@ -3,7 +3,7 @@
 // Display-only curves from sampleCurve. Design maxima come from the engine.
 
 import { useState } from "react";
-import { CartesianGrid, Line, ReferenceArea, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Line, ReferenceArea, ReferenceDot, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { BiaxialSuccess, CurveSample } from "@/lib/mechanics-v2";
@@ -65,12 +65,16 @@ const V2Charts = ({ solution, samples }: Props) => {
         ...solution.ground.contactZones.map((z, i) => (
           <ReferenceArea key={`gz${i}`} x1={conv(z.xStart / 1000, "m")} x2={conv(Math.max(z.xEnd, z.xStart + solution.L / 400) / 1000, "m")} fill="hsl(var(--muted-foreground))" fillOpacity={0.15} strokeOpacity={0} />
         )),
+        // Discrete numerical contacts (display subsampled to at most ~150 markers).
+        ...solution.ground.contactPoints.filter((_, i, a) => i % Math.max(1, Math.ceil(a.length / 150)) === 0).map((x, i) => (
+          <ReferenceDot key={`gp${i}`} x={conv(x / 1000, "m")} y={conv(deviation ? solution.ground!.level - (solution.input.hv * x) / solution.L : solution.ground!.level, "mm")} r={2} fill="hsl(var(--foreground))" stroke="none" ifOverflow="extendDomain" />
+        )),
         <Line key="ground" type="linear" dataKey="ground" name="Ground (min. axis level)" stroke="hsl(var(--muted-foreground))" strokeDasharray="6 4" dot={false} strokeWidth={1.5} isAnimationActive={false} />,
       ] : undefined)}
-        {solution.ground && <p className="text-[11px] text-muted-foreground">Dashed grey: minimum pipe-axis elevation (ground). Shaded: estimated ground contact zones; unshaded: lifted. Orange lines: installed supports.</p>}
+        {solution.ground && <p className="text-[11px] text-muted-foreground">Dashed grey: minimum pipe-axis elevation (ground). Dots: discrete numerical contact nodes (not installed supports). Shaded: estimated zones near the ground, a graphical grouping of these contacts only; outside them the pipe is above the ground at the computed nodes. Orange lines: installed supports.</p>}
       </TabsContent>
       <TabsContent value="y">{chart("y", "mm", deviation ? "Δy = y − hl·x/L" : "Absolute lateral y")}</TabsContent>
-      <p className="text-[11px] text-muted-foreground mt-1">Curves are sampled for display only; the maximum stress shown in the results is computed exactly by the engine.</p>
+      <p className="text-[11px] text-muted-foreground mt-1">Curves are sampled for display only; the maximum stress shown in the results is computed exactly on each element of the engine model{solution.ground ? " (with ground: on the discretized model, with mesh-convergence control)" : ""}.</p>
     </Tabs>
   );
 };

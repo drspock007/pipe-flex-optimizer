@@ -15,7 +15,7 @@ import { ContactZone, GroundReport } from "./ground-types";
 
 export interface LevelResult {
   success: BiaxialSuccess;
-  ground: Omit<GroundReport, "refinement" | "converged" | "tolPenetration" | "elements" | "precisionLoss">;
+  ground: Omit<GroundReport, "refinement" | "converged" | "tolPenetration" | "elements" | "precisionLoss" | "criterionUncertain">;
   /** Max vertical-plane bending stress c*max|Mv|/I (MPa), independent of hl. */
   verticalStress: number;
   /** True when the round-off share of a residual tolerance exceeds its mechanical budget. */
@@ -34,14 +34,15 @@ export function buildLevelResult(
     const [Fi, Ci, Fj, Cj] = memberEndActions(EI, qe, length, de);
     return { index: e, xStart: x0, length, nodalDisplacements: de, endActions: { Fi, Ci, Fj, Cj }, EI, q: qe };
   });
+  const contactPoints: number[] = [];
   let nodal = 0, combined = 0, contactNodes = 0, sumF = 0, sumM = 0, translation = 0, rotation = 0;
   for (let i = 1; i < N; i++) {
     const r = s.res[2 * i];
     rotation = Math.max(rotation, Math.abs(s.res[2 * i + 1]));
     if (!active[i]) { translation = Math.max(translation, Math.abs(r)); continue; }
     sumF += r; sumM += r * m.x[i];
-    if (m.kind[i] === "ground") { nodal += r; contactNodes++; }
-    else if (m.kind[i] === "shared") { combined += r; contactNodes++; }
+    if (m.kind[i] === "ground") { nodal += r; contactNodes++; contactPoints.push(m.x[i]); }
+    else if (m.kind[i] === "shared") { combined += r; contactNodes++; contactPoints.push(m.x[i]); }
   }
   sumF += s.res[0] + s.res[nd - 2];
   sumM += s.res[1] + s.res[nd - 1] + s.res[nd - 2] * L;
@@ -116,7 +117,7 @@ export function buildLevelResult(
     success, verticalStress, precisionLoss,
     ground: {
       level: m.groundZ, totalReaction: nodal, combinedReaction: combined, endReaction,
-      contactTotal: nodal + combined + endReaction, contactZones: zones, contactNodes, maxPenetration: maxPen,
+      contactTotal: nodal + combined + endReaction, contactZones: zones, contactPoints, contactNodes, maxPenetration: maxPen,
     },
   };
 }

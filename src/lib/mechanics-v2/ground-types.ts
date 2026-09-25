@@ -12,6 +12,11 @@
 //  - tolPenetration = 1e-5 * dispScale (mm): max interior penetration allowed;
 //  - vertical scales use hv, groundZ, q only (never hl): the vertical
 //    problem is independent of the lateral offset;
+//  - the stress threshold max(1e-3 sigma, 1e-5 sigmaAllow) (MPa) is a
+//    CONVERGENCE criterion between meshes, not a mechanical margin nor a
+//    guaranteed error bound; when the last refinements change the verdict
+//    maxStress <= sigmaAllow, or |maxStress - sigmaAllow| is within it, the
+//    verdict is flagged uncertain (criterionUncertain) instead of certain;
 //  - convergence between successive refinements (mesh doubled), required on
 //    TWO consecutive comparisons (three meshes) to reject numerical plateaus:
 //      |d sigmaMax| and |d sigmaVertical| <= 1e-3 * max(sigma, 1e-2 sigmaAllow) (MPa),
@@ -51,13 +56,25 @@ export interface GroundReport {
   totalReaction: number;
   /** Reaction at installed supports that coincide with the ground level (N): split not determinable. */
   combinedReaction: number;
-  /** Clamp-end reactions of ends lying on the ground level (N), e.g. left end when groundZ = 0. */
+  /** Reaction accounting (N), no double counting:
+   *  totalReaction    = nodal forces at pure ground nodes (attributed to the ground);
+   *  combinedReaction = installed supports coinciding with the ground (support/ground split indeterminate);
+   *  endReaction      = imposed clamp ends lying at the ground level: this is the CLAMP reaction,
+   *                     not attributed to the ground; clamp/neighbouring-contact split is mesh-dependent;
+   *  contactTotal     = sum of the three. Global balance: contactTotal + other end forces
+   *                     + non-coinciding support reactions = q L (checked in the residuals).
+   *  Clamp-end reactions of ends lying on the ground level (N), e.g. left end when groundZ = 0. */
   endReaction: number;
   /** Mesh-independent total vertical contact force: totalReaction + combinedReaction + endReaction (N). */
   contactTotal: number;
   /** Round-off estimate exceeded the error budget on the final mesh. */
   precisionLoss: boolean;
+  /** Estimated zones (graphical grouping of discrete contacts only). */
   contactZones: ContactZone[];
+  /** Abscissae (mm) of the discrete numerical contact nodes (ground or shared). */
+  contactPoints: number[];
+  /** Last refinements change the criterion verdict or it lies within the convergence threshold. */
+  criterionUncertain: boolean;
   contactNodes: number; // numerical contact points, NOT installed supports
   maxPenetration: number; // mm
   tolPenetration: number; // mm
