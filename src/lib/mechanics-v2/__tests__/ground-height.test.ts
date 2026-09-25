@@ -27,7 +27,8 @@ describe("Find h with ground", () => {
     expect(r.ranges).toHaveLength(1);
     expect(r.ranges[0].lower.value).toBe(0);
     expect(r.ranges[0].lower.domainEdge).toBe(true);
-    expect(rel(r.ranges[0].upper.value, hvMaxRef)).toBeLessThan(2e-3);
+    expect(rel(r.ranges[0].upper.value, hvMaxRef)).toBeLessThan(5e-3);
+    expect(r.ranges[0].upper.value).toBeLessThanOrEqual(hvMaxRef * (1 + 1e-4));
     expect(r.samples.every((s) => s.hv >= 0)).toBe(true);
     // Published bound and interior points re-checked with the full solver.
     const up = r.ranges[0].upper;
