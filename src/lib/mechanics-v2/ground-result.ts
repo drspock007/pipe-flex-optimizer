@@ -70,7 +70,7 @@ export function buildLevelResult(
     return { index: k + 1, x: m.x[i], level: lv, z, gap: z - lv, reaction, active: reaction > 0, sharedWithGround: m.kind[i] === "shared" };
   });
   const messages = [...eq.failures];
-  if (precisionLoss) messages.push("Round-off estimate exceeds the equilibrium error budget (precision loss)");
+  if (precisionLoss) messages.push("Equilibrium residual above the mechanical budget (1e-7 of scale): precision loss from round-off");
   let contactValid = true;
   for (let i = 1; i < N; i++) {
     const g = s.d[2 * i] - m.level[i], r = active[i] ? s.res[2 * i] : 0;
