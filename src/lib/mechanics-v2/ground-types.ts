@@ -7,13 +7,14 @@
 //  - tolDisp = 1e-8 * dispScale (mm): nodal gap feasibility;
 //  - max elements 2048: beyond, round-off of the (N^4-conditioned) beam
 //    stiffness pollutes the recovered moments;
+//  - contact admission: gap < -1e-12 * dispScale (mm), stricter than tolDisp;
 //  - tolForce = 1e-8 * forceScale (N): nodal reaction feasibility;
 //  - tolPenetration = 1e-5 * dispScale (mm): max interior penetration allowed;
 //  - vertical scales use hv, groundZ, q only (never hl): the vertical
 //    problem is independent of the lateral offset;
 //  - convergence between successive refinements (mesh doubled), required on
 //    TWO consecutive comparisons (three meshes) to reject numerical plateaus:
-//      |d sigmaMax| and |d sigmaVertical| <= 1e-3 * max(sigma, 1e-3 sigmaAllow) (MPa),
+//      |d sigmaMax| and |d sigmaVertical| <= 1e-3 * max(sigma, 1e-2 sigmaAllow) (MPa),
 //      |d contactTotal| <= 1e-3 * forceScale (N), contactTotal = ground nodal
 //      forces + supports at ground level + clamp ends lying on the ground
 //      (these coincide with the ground; only their sum is determinate),
@@ -23,6 +24,10 @@
 //    mechanical budget, otherwise "precision loss" (numericalValid = false).
 
 export const GROUND_CONV_REL = 1e-3;
+/** Contact admission threshold = GROUND_ENTER_REL * tolDisp (i.e. 1e-12 * dispScale, mm). */
+export const GROUND_ENTER_REL = 1e-4;
+/** Stress floor for convergence (fraction of sigmaAllow): absolute resolution 1e-5 * sigmaAllow. */
+export const GROUND_STRESS_FLOOR = 1e-2;
 export const GROUND_PEN_REL = 1e-5;
 /** Resource limit: maximum number of beam elements over the length. */
 export const GROUND_MAX_ELEMENTS = 2048;

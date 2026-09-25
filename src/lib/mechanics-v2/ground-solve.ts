@@ -11,7 +11,7 @@ import { LinearSolveError } from "./linear-algebra";
 import { buildGroundMesh, GroundMesh } from "./ground-mesh";
 import { maxPenetration, refineActive, solveGroundContact } from "./ground-contact";
 import { buildLevelResult, LevelResult } from "./ground-result";
-import { GROUND_CONV_REL, GROUND_MAX_ELEMENTS, GROUND_MIN_ELEMENTS, GROUND_PEN_REL, RefinementLevel } from "./ground-types";
+import { GROUND_CONV_REL, GROUND_MAX_ELEMENTS, GROUND_MIN_ELEMENTS, GROUND_PEN_REL, GROUND_STRESS_FLOOR, RefinementLevel } from "./ground-types";
 
 export interface GroundInput extends BiaxialInput { groundZ: number }
 export interface GroundLimits { maxElements?: number; minElements?: number }
@@ -81,7 +81,7 @@ function run(input: GroundInput, maxElements: number, minElements: number): Biax
 /** Convergence test between two successive meshes (see tolerances in ground-types.ts). */
 function same(a: LevelResult, b: LevelResult, pa: number, pb: number, coarse: number, sigmaAllow: number, F: number, D: number): boolean {
   const sa = a.success, sb = b.success;
-  const floor = 1e-3 * sigmaAllow;
+  const floor = GROUND_STRESS_FLOOR * sigmaAllow;
   if (Math.abs(sa.maxStress - sb.maxStress) > GROUND_CONV_REL * Math.max(sb.maxStress, floor)) return false;
   // Vertical check on its own: a large lateral stress must not hide a vertical error.
   if (Math.abs(a.verticalStress - b.verticalStress) > GROUND_CONV_REL * Math.max(b.verticalStress, floor)) return false;

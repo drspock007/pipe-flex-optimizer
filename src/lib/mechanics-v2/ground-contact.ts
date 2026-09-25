@@ -3,6 +3,7 @@
 // (no penalty). Deterministic single exchange: the most negative reaction
 // leaves first; otherwise the most penetrating node enters (lowest index on ties).
 
+import { GROUND_ENTER_REL } from "./ground-types";
 import { GroundMesh, GroundState, memberMinZ, onGround, solveGroundState } from "./ground-mesh";
 
 export interface ActiveSetOutcome {
@@ -19,7 +20,9 @@ export function solveGroundContact(m: GroundMesh, init: boolean[], tolDisp: numb
     let leave = -1, rMin = -tolForce;
     for (let i = 1; i < N; i++) if (active[i] && state.res[2 * i] < rMin) { rMin = state.res[2 * i]; leave = i; }
     if (leave >= 0) { active[leave] = false; continue; }
-    let enter = -1, gMin = -1e-4 * tolDisp;
+    // Strict admission: a looser threshold lets nodes penetrate by up to tolDisp,
+    // which freezes a spurious alternating pattern (numerical plateau).
+    let enter = -1, gMin = -GROUND_ENTER_REL * tolDisp;
     for (let i = 1; i < N; i++) {
       if (active[i]) continue;
       const g = state.d[2 * i] - m.level[i];
