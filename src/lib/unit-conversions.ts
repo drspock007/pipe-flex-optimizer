@@ -41,4 +41,9 @@ export const unitLabel = (unit: UnitType, system: UnitSystem): string =>
 
 /** Shared moment formatter (screen and PDF): moments given in N·mm. */
 export const formatMomentPair = (mvNmm: number, mlNmm: number, system: UnitSystem, digits = 2): string =>
-  `${toDisplay(mvNmm / 1e6, "kN·m", system).toFixed(digits)} / ${toDisplay(mlNmm / 1e6, "kN·m", system).toFixed(digits)} ${unitLabel("kN·m", system)}`;
+  `${noNegZero(toDisplay(mvNmm / 1e6, "kN·m", system).toFixed(digits))} / ${noNegZero(toDisplay(mlNmm / 1e6, "kN·m", system).toFixed(digits))} ${unitLabel("kN·m", system)}`;
+
+/** "-0.00" -> "0.00" after rounding. */
+function noNegZero(s: string): string {
+  return /^-0(\.0+)?$/.test(s) ? s.slice(1) : s;
+}

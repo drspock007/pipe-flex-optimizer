@@ -31,6 +31,13 @@ export const ZONE_LABEL: Record<UnresolvedZone["reason"], string> = {
 };
 
 /** Rows (label, value) describing status facets, domain, ranges, zones and limits. */
+/** Small lengths (e.g. boundary tolerance) in 3 significant digits, same unit as fmt
+ *  (fmt's fixed decimals would print 0.00 in for 0.005 mm). */
+export function fmtSmall(mm: number, fmt: (mm: number) => string): string {
+  const ref = fmt(1e6), k = parseFloat(ref) / 1e6, unit = ref.slice(ref.indexOf(" ") + 1);
+  return Number.isFinite(k) && k > 0 ? `${(mm * k).toPrecision(3)} ${unit}` : fmt(mm);
+}
+
 export function groundHeightRows(r: GroundHeightResult, fmt: (mm: number) => string): [string, string][] {
   if (!("ranges" in r)) return [];
   const d = r.diagnostics, c = r.coverage, rows: [string, string][] = [];
@@ -42,7 +49,7 @@ export function groundHeightRows(r: GroundHeightResult, fmt: (mm: number) => str
   r.ranges.forEach((g, i) => rows.push([`Estimated range ${i + 1} (verified end samples)`, `${fmt(g.lower.value)} ; ${fmt(g.upper.value)}`]));
   r.zones.forEach((z) => rows.push([`Zone: ${ZONE_LABEL[z.reason]}`, `${fmt(z.from)} to ${fmt(z.to)}`]));
   rows.push(["Largest verified admissible hv found", r.largestFound === null ? "none" : `${fmt(r.largestFound)} (not a demonstrated global maximum)`]);
-  rows.push(["Sampling resolution", `min step ${fmt(d.minStep)}, boundary tol ${fmt(d.boundaryTol)}, ${d.evaluations} solves, ${(d.elapsedMs / 1000).toFixed(1)} s`]);
+  rows.push(["Sampling resolution", `min step ${fmt(d.minStep)}, boundary tol ${fmtSmall(d.boundaryTol, fmt)}, ${d.evaluations} solves, ${(d.elapsedMs / 1000).toFixed(1)} s`]);
   return rows;
 }
 
