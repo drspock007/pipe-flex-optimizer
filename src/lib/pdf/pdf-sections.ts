@@ -2,7 +2,8 @@
 // Builds structured report rows (label / value) from V2 inputs and results.
 
 import { UnitSystem, UnitType, toDisplay, unitLabel } from "@/lib/unit-conversions";
-import { COATING_LABELS, CoatingType } from "@/lib/coating-presets";
+import { COATING_LABELS, CoatingType, effectiveCoating } from "@/lib/coating-presets";
+import { findNpsByOd } from "@/lib/pipe-presets";
 import { AppInputs } from "@/lib/v2-app/inputs";
 import { Derived } from "@/lib/v2-app/bridge";
 import { V2Report } from "./report-types";
@@ -26,6 +27,8 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
   const fmt = (v: number, unit: UnitType, digits = 2) => `${c(v, unit).toFixed(digits)} ${u(unit)}`;
   const s = rep.solution;
   const coatingLabel = COATING_LABELS[inputs.coatingType as CoatingType] ?? inputs.coatingType;
+  // Same effective values as the calculation (Yellow Jacket thickness follows the NPS table).
+  const coat = effectiveCoating(inputs.coatingType as CoatingType, inputs.coatingThickness, inputs.coatingDensity, findNpsByOd(inputs.Do));
 
   const results: Row[] = [
     ["Calculation mode", MODE_LABEL[inputs.mode]],
@@ -58,7 +61,12 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
     ["Yield strength (SMYS)", fmt(d.yieldStrength, "MPa", 1)],
     ["Young's modulus (E)", fmt(inputs.E, "GPa", 1)],
     ["Allowable stress ratio", `${inputs.allowablePercent} % of SMYS`],
-    ["Coating", `${coatingLabel}, ${fmt(d.section.coatingWeightPerMeter, "kg/m")}`],
+    ["Coating", coatingLabel],
+    ...(inputs.coatingType === "none" ? [] : [
+      ["Effective coating thickness", fmt(coat.thickness, "mm")] as Row,
+      ["Coating density", `${coat.density.toFixed(0)} kg/m3`] as Row,
+      ["Coating linear weight", fmt(d.section.coatingWeightPerMeter, "kg/m", 3)] as Row,
+    ]),
     ["Cross-section area (A)", fmt(d.section.A, "mm2")],
     ["Moment of inertia (I)", `${c(d.section.I, "mm4").toExponential(3)} ${u("mm4")}`],
     ["Distributed load (q)", `${c(d.q, "N/mm").toFixed(4)} ${u("N/mm")}`],

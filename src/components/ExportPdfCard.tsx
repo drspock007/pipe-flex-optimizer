@@ -9,17 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { FileDown, Info } from "lucide-react";
 import { toast } from "sonner";
-import { AppInputs } from "@/lib/v2-app/inputs";
-import { Derived } from "@/lib/v2-app/bridge";
 import { V2Report } from "@/lib/pdf/report-types";
 import { generateReportPdf } from "@/lib/pdf/report-pdf";
 import { useUnits } from "@/contexts/UnitContext";
 
 interface Props {
-  inputs: AppInputs;
-  derived: Derived;
-  /** null when no current successful result exists (loading, stale or failed). */
+  /** null when no current successful result exists (debounce, loading, stale or failed). */
   report: V2Report | null;
+  /** Solve key of the current inputs; the report must belong to it. */
+  currentKey: string | null;
 }
 
 const MAX_LEN = 80;
@@ -35,17 +33,19 @@ const FieldHint = ({ text }: { text: string }) => (
   </Tooltip>
 );
 
-const ExportPdfCard = ({ inputs, derived, report }: Props) => {
+const ExportPdfCard = ({ report, currentKey }: Props) => {
   const { system } = useUnits();
   const [preparedBy, setPreparedBy] = useState("");
   const [projectName, setProjectName] = useState("");
 
-  const disabled = !preparedBy.trim() || !projectName.trim() || !report;
+  const isCurrent = !!report && report.key === currentKey;
+  const disabled = !preparedBy.trim() || !projectName.trim() || !isCurrent;
 
   const handleExport = () => {
-    if (disabled || !report) return;
+    // Re-check at trigger time: never export a result that no longer matches the inputs.
+    if (disabled || !report || report.key !== currentKey) return;
     try {
-      const fileName = generateReportPdf(inputs, derived, report, {
+      const fileName = generateReportPdf(report, {
         preparedBy: preparedBy.trim(),
         projectName: projectName.trim(),
         date: new Date(),
@@ -103,7 +103,7 @@ const ExportPdfCard = ({ inputs, derived, report }: Props) => {
             </span>
           </TooltipTrigger>
           <TooltipContent className="max-w-[260px] text-xs">
-            {!report
+            {!isCurrent
               ? "Export is available only for a current, successful calculation."
               : disabled
               ? "Fill in both the preparer name and the project name to enable the export."
