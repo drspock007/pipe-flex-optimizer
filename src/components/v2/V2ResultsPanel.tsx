@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Gauge } from "lucide-react";
 import { BiaxialSuccess, GeneralInfimum } from "@/lib/mechanics-v2";
 import { useUnits } from "@/contexts/UnitContext";
+import { formatMomentPair } from "@/lib/unit-conversions";
 import SupportsTable from "./SupportsTable";
 import GroundRows from "./GroundRows";
 import { AppMode } from "@/lib/v2-app/inputs";
@@ -27,7 +28,7 @@ const Row = ({ k, v, strong }: { k: string; v: string; strong?: boolean }) => (
 );
 
 const V2ResultsPanel = ({ s, rangeExists, infimum, atBound, mode }: Props) => {
-  const { conv, label } = useUnits();
+  const { conv, label, system } = useUnits();
   const m = (mm: number) => `${conv(mm / 1000, "m").toFixed(3)} ${label("m")}`;
   const mpa = (v: number) => `${conv(v, "MPa").toFixed(2)} ${label("MPa")}`;
   const active = s.supports.filter((x) => x.active).length;

@@ -67,9 +67,14 @@ const HelpCalcModes = () => (
       (z(0) = 0, z(L) = h<sub>v</sub>). An imposed end below that level is reported as a geometric incompatibility.
       The pipe is meshed with exact beam members (installed supports are mesh nodes) and nodal unilateral contacts are
       solved by an active-set method without penalty. The mesh is doubled until the maximum stress, the reactions and
-      the displacements converge (relative 1e-3) and the penetration between nodes, checked on the exact minima of each
+      the displacements converge on two consecutive refinements and the penetration between nodes, checked on the exact minima of each
       member, stays below 1e-5 of the displacement scale; otherwise no result is published. Ground reactions are
-      discrete nodal forces (not pressures); contact zones are estimates. Find L, Min. supports and Find h are not
+      discrete nodal forces (not pressures); contact zones are graphical estimates. The stress convergence threshold is
+      max(1e-3 &times; &sigma;, 1e-5 &times; &sigma;<sub>allow</sub>), where 1e-5 &times; &sigma;<sub>allow</sub> is only the absolute floor;
+      it measures the change between meshes and is neither a mechanical margin nor a guaranteed error bound. The criterion
+      &sigma; &le; &sigma;<sub>allow</sub> stays strict; a verdict not decidable at that precision is flagged as uncertain.
+      Reactions at ground level are listed separately (ground, combined support/ground, clamps; a clamp reaction is signed)
+      and their sum explicitly includes the clamps. Find L, Min. supports and Find h are not
       available with ground contact in this version.
     </p>
   </section>

@@ -2,7 +2,8 @@
 // Modifié par Giovanni Malagnino, 2026-09-25 20:10 CEST: ground contact rows, Find h labels (V2-5).
 // Builds structured report rows (label / value) from V2 inputs and results.
 
-import { UnitSystem, UnitType, toDisplay, unitLabel } from "@/lib/unit-conversions";
+import { groundReactionRows, STRESS_CONVERGENCE_TEXT } from "@/lib/v2-app/ground-labels";
+import { formatMomentPair, UnitSystem, UnitType, toDisplay, unitLabel } from "@/lib/unit-conversions";
 import { COATING_LABELS, CoatingType, effectiveCoating } from "@/lib/coating-presets";
 import { findNpsByOd } from "@/lib/pipe-presets";
 import { AppInputs } from "@/lib/v2-app/inputs";
@@ -45,6 +46,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
     ["Max resultant bending stress", fmt(s.maxStress, "MPa", 2)],
     ["Allowable stress", fmt(s.sigmaAllow, "MPa", 2)],
     ["Position of the maximum", fmt(s.critical.x / 1000, "m", 3)],
+    ["Moments at max (vertical / lateral)", formatMomentPair(s.critical.Mv, s.critical.Ml, system)],
     [inputs.mode === "findH" ? "Bending criterion at represented hv" : "Bending criterion at represented length", s.ground?.criterionUncertain ? "UNCERTAIN (mesh precision)" : s.bendingCriterionMet ? "met" : "NOT met"],
     ["Numerical validity", s.numericalValid ? "valid" : "NOT valid"],
     ["Physical validity (linear model)", "not assessed"],
@@ -91,16 +93,14 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
     ground.push(
       ["Minimum pipe-axis elevation", fmt(g.level, "mm", 1)],
       ["Assumptions", "Rigid, horizontal, frictionless ground over the full length, vertical plane only"],
-      ["Ground reaction", `${fmt(g.totalReaction, "N", 1)} (discrete nodal forces at ground nodes)`],
-      ...(g.combinedReaction > 0 ? [["Supports coinciding with the ground", `${fmt(g.combinedReaction, "N", 1)} (combined, split indeterminate)`] as Row] : []),
-      ...(g.endReaction !== 0 ? [["Clamped end(s) at ground level", `${fmt(g.endReaction, "N", 1)} (clamp reaction, not attributed to the ground)`] as Row] : []),
-      ["Total vertical contact force", `${fmt(g.contactTotal, "N", 1)} (sum of the three above)`],
+      ...groundReactionRows(g, (v) => fmt(v, "N", 1)).map(([k, v, n]) => [k, `${v} (${n})`] as Row),
       ["Discrete contact nodes", String(g.contactNodes)],
       ["Estimated zones near the ground (graphical grouping)", g.contactZones.length ? g.contactZones.map((z) => `${fmt(z.xStart / 1000, "m", 3)} - ${fmt(z.xEnd / 1000, "m", 3)}`).join("; ") : "none"],
       ["Max residual penetration", `${c(g.maxPenetration, "mm").toExponential(2)} ${u("mm")}`],
       ["Convergence", `${g.converged ? "converged" : "NOT converged"} (${g.elements} elements, ${g.refinement.length} levels)${g.precisionLoss ? ", precision loss" : ""}`],
       ["Bending criterion vs mesh precision", g.criterionUncertain ? "UNCERTAIN - not decidable at the convergence precision" : "decidable"],
-      ["Maximum stress", "Computed on the discretized model with mesh-convergence control (threshold 1e-5 x allowable is a convergence criterion, not a margin)"],
+      ["Maximum stress", "Computed on the discretized model with mesh-convergence control"],
+      ["Stress convergence", STRESS_CONVERGENCE_TEXT],
       ["Model limits", "Numerical approximation (beam elements + nodal unilateral contacts), not an exact analytical solution"],
     );
   }
