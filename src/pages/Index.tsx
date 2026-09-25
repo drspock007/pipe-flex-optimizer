@@ -51,7 +51,7 @@ const Index = () => {
           <div className="rounded-lg border bg-muted/50 px-4 py-3 text-xs text-muted-foreground leading-relaxed">
             <p>
               This calculation applies, for example, to a <strong>trench lowering-in with sidebooms</strong>.
-              The height <strong>h</strong> represents the trench depth plus the pipe lifting height from ground level.
+              The vertical offset <strong>h<sub>v</sub></strong> represents the trench depth plus the pipe lifting height from ground level (positive when the right end is higher); <strong>h<sub>l</sub></strong> is an optional lateral (horizontal) offset of the right end.
               The length <strong>L</strong> is the distance from the last sideboom to the point where the pipe contacts the trench bottom.
               Additional sideboom(s) may be positioned in between if intermediate support(s) are required.
             </p>
