@@ -1,4 +1,5 @@
 // créé par Giovanni Malagnino, 2026-09-25 01:04 CEST (Europe/Rome, UTC+2)
+// Modifié par Giovanni Malagnino, 2026-09-25 17:40 CEST: directional problem shared with the height walk.
 // Traversal of contact regimes over L > 0. Since the flexibility C is symmetric
 // positive definite, the contact solution is unique for every L and piecewise
 // affine in Lambda = T q / EI: the regimes form a chain of adjacent intervals.
@@ -27,11 +28,11 @@ export type WalkResult =
 
 const maxAbs = (v: number[]) => Math.max(0, ...v.map(Math.abs));
 
-/** Active set just after a breakpoint (right-derivative contact problem). */
-function nextActive(nd: NormalizedData, P: number[], D: number[]): number[] {
+/** Active set just after a breakpoint (right-derivative contact problem).
+ *  b is the derivative of the free gaps along the traversed parameter. */
+export function nextActiveDir(C: number[][], b: number[], P: number[], D: number[]): number[] {
   const sorted = (v: number[]) => [...v].sort((x, y) => x - y);
   if (!D.length) return sorted(P);
-  const { b, C } = nd;
   let Ct = D.map((i) => D.map((j) => C[i][j]));
   let bt = D.map((i) => b[i]);
   if (P.length) {
@@ -75,7 +76,7 @@ export function walkRegimes(
   const cap = 20 * (nd.n + 1) + 20;
   for (let k = 0; k < cap; k++) {
     // With q = 0 the regime cannot change with L: degenerate contacts stay inactive.
-    const active = q > 0 ? nextActive(nd, P, D) : [...P].sort((x, y) => x - y);
+    const active = q > 0 ? nextActiveDir(nd.C, nd.b, P, D) : [...P].sort((x, y) => x - y);
     const coeffs = regimeCoefficients(nd, hv, active, q > 0, phys);
     const iv = intersectAffine(coeffs.constraints.map((c) => ({ ...c, s: c.scaledSlope })), Lq ?? 1);
     const label = `[${active.map((i) => i + 1).join(",")}]`;

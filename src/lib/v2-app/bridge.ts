@@ -1,4 +1,5 @@
 // créé par Giovanni Malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
+// Modifié par Giovanni Malagnino, 2026-09-25 17:40 CEST (Europe/Rome, UTC+2): Find h (V2-4).
 // Typed bridge between application inputs and the V2 engine. All unit
 // conversions to engine units (mm, N, MPa) are centralized here:
 //   L: m -> mm (x1000); E: GPa -> MPa (x1000); Do, t, h, hl already in mm;
@@ -7,7 +8,7 @@
 
 import { calcSectionProperties, getYieldStrength, SectionProperties } from "@/lib/calculations";
 import { findNpsByOd } from "@/lib/pipe-presets";
-import { BiaxialInput, LengthSearchInput } from "@/lib/mechanics-v2";
+import { BiaxialInput, HeightSearchInput, LengthSearchInput } from "@/lib/mechanics-v2";
 import { AppInputs } from "./inputs";
 
 export const M_TO_MM = 1000;
@@ -37,17 +38,26 @@ export function toSearchInput(i: AppInputs, d: Derived = derive(i)): LengthSearc
   };
 }
 
-export function toFixedInput(i: AppInputs, L_mm: number, numSupports: number, d: Derived = derive(i)): BiaxialInput {
-  return { ...toSearchInput(i, d), L: L_mm, numSupports };
+/** hv defaults to the entered h; Find h passes the represented hv instead. */
+export function toFixedInput(i: AppInputs, L_mm: number, numSupports: number, d: Derived = derive(i), hv: number = i.h): BiaxialInput {
+  return { ...toSearchInput(i, d), hv, L: L_mm, numSupports };
 }
 
-/** Key of everything that influences the search (not the fixed length L). */
+/** Find h input: fixed L (m -> mm) and hl; hv is the searched quantity. */
+export function toHeightInput(i: AppInputs, d: Derived = derive(i)): HeightSearchInput {
+  const { hv: _hv, ...rest } = toSearchInput(i, d);
+  return { ...rest, L: i.L * M_TO_MM };
+}
+
+/** Key of everything that influences the search: length searches ignore L,
+ *  Find h ignores the entered h (it neither limits nor drives the search). */
 export function searchKey(i: AppInputs): string {
+  if (i.mode === "findH") { const { h: _h, ...rest } = i; return JSON.stringify(rest); }
   const { L: _L, ...rest } = i;
   return JSON.stringify(rest);
 }
 
-/** Key of a fixed-length solve request: physical inputs + represented length + supports. */
-export function solveKeyOf(i: AppInputs, t: { L_mm: number; numSupports: number } | null): string | null {
-  return t ? `${searchKey(i)}|${t.L_mm}|${t.numSupports}` : null;
+/** Key of a fixed-length solve request: physical inputs + represented L, supports and hv. */
+export function solveKeyOf(i: AppInputs, t: { L_mm: number; numSupports: number; hv_mm?: number } | null): string | null {
+  return t ? `${searchKey(i)}|${t.L_mm}|${t.numSupports}|${t.hv_mm ?? i.h}` : null;
 }

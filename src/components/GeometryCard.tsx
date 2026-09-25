@@ -16,10 +16,12 @@ interface Props {
   section: SectionProperties;
   /** L is only an input of the fixed-length mode; searches never read it. */
   showL: boolean;
+  /** hv is not an input of Find h (it is searched). */
+  showH?: boolean;
   onChange: (field: string, value: number | string) => void;
 }
 
-const GeometryCard = ({ Do, t, L, h, hl, showL, onChange }: Props) => {
+const GeometryCard = ({ Do, t, L, h, hl, showL, showH = true, onChange }: Props) => {
   const { conv, parse, label, system, toggle } = useUnits();
   // Local state for selectors — derived from global Do/t on mount
   const [selectedNps, setSelectedNps] = useState(() => findNpsByOd(Do));
@@ -98,10 +100,10 @@ const GeometryCard = ({ Do, t, L, h, hl, showL, onChange }: Props) => {
               <NumericInput value={conv(L, "m")} onValueChange={v => onChange("L", parse(v, "m"))} className="h-8 text-sm" decimals={3} />
             </div>
           )}
-          <div>
+          {showH && <div>
             <Label className="text-xs" title="Vertical end offset, positive when the right end is higher">h<sub>v</sub> ({label("mm")})</Label>
             <NumericInput value={conv(h, "mm")} onValueChange={v => onChange("h", parse(v, "mm"))} className="h-8 text-sm" decimals={1} />
-          </div>
+          </div>}
           <div>
             <Label className="text-xs" title="Signed lateral end offset (horizontal, perpendicular to the pipe axis)">h<sub>l</sub> lateral ({label("mm")})</Label>
             <NumericInput value={conv(hl, "mm")} onValueChange={v => onChange("hl", parse(v, "mm"))} className="h-8 text-sm" decimals={1} />
