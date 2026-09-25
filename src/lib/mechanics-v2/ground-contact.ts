@@ -19,7 +19,7 @@ export function solveGroundContact(m: GroundMesh, init: boolean[], tolDisp: numb
     let leave = -1, rMin = -tolForce;
     for (let i = 1; i < N; i++) if (active[i] && state.res[2 * i] < rMin) { rMin = state.res[2 * i]; leave = i; }
     if (leave >= 0) { active[leave] = false; continue; }
-    let enter = -1, gMin = -tolDisp;
+    let enter = -1, gMin = -1e-4 * tolDisp;
     for (let i = 1; i < N; i++) {
       if (active[i]) continue;
       const g = state.d[2 * i] - m.level[i];
