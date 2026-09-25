@@ -5,7 +5,7 @@ import { StatusText } from "@/lib/v2-app/status-text";
 const ICON = { ok: CheckCircle2, warn: AlertTriangle, error: XCircle, info: Info };
 const TONE = {
   ok: "border-primary/40 bg-primary/5",
-  warn: "border-amber-strong/50 bg-muted",
+  warn: "border-warning-strong/50 bg-muted",
   error: "border-destructive/50 bg-destructive/10",
   info: "border-border bg-muted",
 };
