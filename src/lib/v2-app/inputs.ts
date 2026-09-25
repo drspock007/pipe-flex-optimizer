@@ -29,7 +29,7 @@ export interface AppInputs {
   numSupports: number; // installed candidate supports, integer 0..20
   maxSupports: number; // search ceiling, integer 0..20
   axialMode: AppAxialMode;
-  groundEnabled: boolean; // rigid horizontal frictionless ground (Fixed L only)
+  groundEnabled: boolean; // rigid horizontal frictionless ground (Fixed L and Find h)
   groundContactZ: number; // mm, minimum pipe-AXIS elevation (ground + outer radius incl. coating)
 }
 

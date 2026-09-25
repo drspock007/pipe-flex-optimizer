@@ -26,7 +26,7 @@ const GroundControls = ({ inputs, onChange }: Props) => {
           <p className="text-[11px] text-muted-foreground">
             Axis level = physical ground elevation + outer radius (coating included). It is already an axis level: the radius is not added again.
             Same axes as hv: z(0) = 0, z(L) = hv. Rigid, horizontal, frictionless ground over the full length.
-            {inputs.mode !== "fixedLength" && <strong className="block text-destructive">Ground contact is currently available in Fixed L only.</strong>}
+            {(inputs.mode === "searchLength" || inputs.mode === "minSupports") && <strong className="block text-destructive">Ground contact is available in Fixed L and Find h only.</strong>}
           </p>
         </>
       )}
