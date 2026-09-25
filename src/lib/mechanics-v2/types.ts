@@ -83,6 +83,8 @@ export interface Diagnostics {
   residuals: EquilibriumSet;
   /** Tolerances with the same units as residuals. */
   residualTolerances: EquilibriumSet;
+  /** Informational only (ground branch): tolerances widened by the round-off estimate; never used for acceptance. */
+  roundoffTolerances?: EquilibriumSet;
   /** Dimensionless residuals (raw residual / matching scale). */
   normalizedResiduals: EquilibriumSet;
   equilibriumOk: boolean;
