@@ -64,7 +64,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
     ["Coating", coatingLabel],
     ...(inputs.coatingType === "none" ? [] : [
       ["Effective coating thickness", fmt(coat.thickness, "mm")] as Row,
-      ["Coating density", `${coat.density.toFixed(0)} kg/m3`] as Row,
+      ["Coating density", fmt(coat.density, "kg/m3", 1)] as Row,
       ["Coating linear weight", fmt(d.section.coatingWeightPerMeter, "kg/m", 3)] as Row,
     ]),
     ["Cross-section area (A)", fmt(d.section.A, "mm2")],

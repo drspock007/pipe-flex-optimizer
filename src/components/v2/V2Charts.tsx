@@ -21,14 +21,14 @@ const V2Charts = ({ solution, samples }: Props) => {
   }));
   const supports = solution.supports.map((s) => ({ x: conv(s.x / 1000, "m"), active: s.active, i: s.index }));
   const chart = (key: "sigma" | "z" | "y", unit: "MPa" | "mm", name: string, extra?: JSX.Element) => (
-    <div className="h-72 w-full">
+    <div className="h-80 w-full">
       <ResponsiveContainer>
-        <LineChart data={data} margin={{ top: 10, right: 16, left: 0, bottom: 16 }}>
+        <LineChart data={data} margin={{ top: 16, right: 16, left: 8, bottom: 8 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
           <XAxis dataKey="x" type="number" domain={[0, "dataMax"]} tickFormatter={(v) => String(Math.round(v))}
-            label={{ value: `x (${label("m")})`, position: "insideBottom", offset: -8, fontSize: 11 }} tick={{ fontSize: 11 }} />
-          <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => String(Math.round(v))} width={56}
-            label={{ value: `${name} (${label(unit)})`, angle: -90, position: "insideLeft", fontSize: 11 }} />
+            label={{ value: `x (${label("m")})`, position: "insideBottom", offset: 0, fontSize: 11 }} tick={{ fontSize: 11 }} height={40} />
+          <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => String(Math.round(v))} width={64}
+            label={{ value: `${name} (${label(unit)})`, angle: -90, position: "insideLeft", offset: 4, fontSize: 11, style: { textAnchor: "middle" } }} />
           <Tooltip formatter={(v: number) => [`${v.toFixed(3)} ${label(unit)}`, name]} labelFormatter={(v: number) => `x = ${v.toFixed(3)} ${label("m")}`} />
           {supports.map((s) => (
             <ReferenceLine key={s.i} x={s.x} stroke="hsl(var(--primary))" strokeDasharray={s.active ? undefined : "4 3"} strokeOpacity={s.active ? 0.9 : 0.4}
