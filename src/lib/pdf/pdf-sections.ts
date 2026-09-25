@@ -93,6 +93,8 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
       ["Assumptions", "Rigid, horizontal, frictionless ground over the full length, vertical plane only"],
       ["Total vertical ground reaction", `${fmt(g.totalReaction, "N", 1)} (sum of discrete nodal forces)`],
       ...(g.combinedReaction > 0 ? [["Supports at ground level (combined)", fmt(g.combinedReaction, "N", 1)] as Row] : []),
+      ...(g.endReaction !== 0 ? [["Clamped end(s) on the ground", fmt(g.endReaction, "N", 1)] as Row] : []),
+      ["Total vertical contact force", `${fmt(g.contactTotal, "N", 1)} (ground + supports/ends at ground level)`],
       ["Estimated contact zones", g.contactZones.length ? g.contactZones.map((z) => `${fmt(z.xStart / 1000, "m", 3)} - ${fmt(z.xEnd / 1000, "m", 3)}`).join("; ") : "none"],
       ["Max residual penetration", `${c(g.maxPenetration, "mm").toExponential(2)} ${u("mm")}`],
       ["Convergence", `${g.converged ? "converged" : "NOT converged"} (${g.elements} elements, ${g.refinement.length} levels)`],
