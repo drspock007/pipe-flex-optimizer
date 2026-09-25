@@ -55,8 +55,9 @@ const V2Workspace = ({ inputs, derived }: { inputs: AppInputs; derived: Derived 
   const rangeExists = !searchMode || !search.data ? null
     : search.data.kind === "searchLength" && search.data.result.status === "undecidable" ? "undecidable" as const
     : (view?.ranges.length ?? 0) > 0;
-  const current = solve.status === "ready" && sol && (!searchMode || search.status === "ready");
-  const report = current && sol ? { solution: sol, searchStatus: searchStatus?.title ?? null, ranges: view?.ranges.map((r) => rangeText(r, fmt)) ?? [] } : null;
+  const report = buildReport(inputs, target, searchMode, search, solve,
+    { searchStatus: searchStatus?.title ?? null, ranges: view?.ranges.map((r) => rangeText(r, fmt)) ?? [] });
+  const stale = solve.data !== null && solve.data.key !== solveKeyOf(inputs, target);
 
   return (
     <div className="space-y-4">
