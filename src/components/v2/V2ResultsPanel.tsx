@@ -41,6 +41,11 @@ const V2ResultsPanel = ({ s, rangeExists, infimum, atBound, mode }: Props) => {
         <div className={`rounded-md border px-3 py-2 text-sm font-semibold ${s.bendingCriterionMet ? "border-primary/50 bg-primary/10" : "border-destructive/50 bg-destructive/10 text-destructive"}`}>
           Bending criterion {s.bendingCriterionMet ? "met" : "not met"} {mode === "findH" ? `at hv = ${conv(s.input.hv, "mm").toFixed(1)} ${label("mm")}` : `at L = ${m(s.L)}`}
         </div>
+        {s.ground?.criterionUncertain && (
+          <p className="rounded-md border border-destructive/50 px-3 py-2 text-[11px]">
+            Verdict uncertain: the last mesh refinements change it, or the stress lies within the convergence threshold of the allowable. Compliance is not certain.
+          </p>
+        )}
         {atBound && !s.bendingCriterionMet && (
           <p className="text-[11px] text-muted-foreground">
             Numerical rounding at the range bound: engine stress exceeds the allowable by {excess.toExponential(2)} MPa
