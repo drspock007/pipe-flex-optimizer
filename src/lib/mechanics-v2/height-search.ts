@@ -19,6 +19,7 @@ import { physicalSlope } from "./regime";
 import { regimeMoments, regimeSigmaMax } from "./regime-stress";
 import { TANGENCY_REL_TOL } from "./length-search";
 import { walkHeights } from "./height-walk";
+import { tightenWithSolver } from "./height-verify";
 import { HeightMinimum, HeightRange, HeightRegimeSummary, HeightSearchInput, HeightSearchResult } from "./height-search-types";
 
 const PHI = (Math.sqrt(5) - 1) / 2;
@@ -87,7 +88,7 @@ export function searchHeightFixedSupports(input: HeightSearchInput, numSupports:
       if (w.fm < minimum.sigma) minimum = { sigma: w.fm, hv: w.hm };
       regimes.push({ activeSet: r.active.map((i) => i + 1), lower: r.lo, upper: r.hi, upperEvents: r.hiEvents, minSigma: w.fm, minAt: w.hm });
     }
-    const merged = merge(ranges);
+    const merged = walk.status === "complete" ? tightenWithSolver(input, numSupports, merge(ranges)) : merge(ranges);
     const diagnostics = {
       Hcap, regimeCount: regimes.length, tangencyUncertainRegimes: tangency, ambiguousRegimes: ambiguous,
       elapsedMs: (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0,
