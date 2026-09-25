@@ -34,9 +34,10 @@ export function solveGroundFixedLength(input: GroundInput, limits: GroundLimits 
 }
 
 function run(input: GroundInput, maxElements: number, minElements: number): BiaxialResult {
-  const { L, hv, hl, E, I, q, numSupports: n, groundZ } = input;
+  const { L, hv, E, I, q, numSupports: n, groundZ } = input;
   const EI = E * I;
-  const hMax = Math.max(Math.abs(hv), Math.abs(hl), Math.abs(groundZ));
+  // Vertical scales only: hl must not loosen vertical contact tolerances.
+  const hMax = Math.max(Math.abs(hv), Math.abs(groundZ));
   const dispScale = Math.max(hMax, (q * L ** 4) / (384 * EI), 1e-3);
   const forceScale = Math.max(q * L, (12 * EI * hMax) / L ** 3, 1e-6);
   if (![EI, L ** 4, dispScale, forceScale].every(Number.isFinite)) return { status: "numerical-failure", message: "Derived scales overflow" };
@@ -47,17 +48,23 @@ function run(input: GroundInput, maxElements: number, minElements: number): Biax
   let prev: { mesh: GroundMesh; active: boolean[]; lvl: LevelResult; perSpan: number } | null = null;
   const refinement: RefinementLevel[] = [];
   let coarse: number | null = null;
+  let passes = 0;
   while ((n + 1) * perSpan <= maxElements) {
     const mesh = buildGroundMesh(L, hv, EI, q, n, groundZ, perSpan, tolDisp);
     const init = prev ? refineActive(prev.mesh, prev.active) : mesh.x.map(() => false);
     const out = solveGroundContact(mesh, init, tolDisp, tolForce, 50 + 4 * mesh.x.length);
     const pen = maxPenetration(mesh, out.state);
     const lvl = buildLevelResult(input, mesh, out.state, out.active, scales, tolDisp, tolForce, out.iterations, pen);
-    refinement.push({ elements: mesh.x.length - 1, maxStress: lvl.success.maxStress, groundReaction: lvl.ground.totalReaction, maxPenetration: pen, iterations: out.iterations, contactConverged: out.converged });
+    if (!lvl.success.diagnostics.messages.every((x) => !x.startsWith("Non-finite"))) {
+      return { status: "numerical-failure", message: "Non-finite value in the ground solution", diagnostics: lvl.success.diagnostics };
+    }
+    refinement.push({ elements: mesh.x.length - 1, maxStress: lvl.success.maxStress, groundReaction: lvl.ground.totalReaction, contactTotal: lvl.ground.contactTotal, maxPenetration: pen, iterations: out.iterations, contactConverged: out.converged });
     if (!out.converged) return { status: "contact-not-converged", diagnostics: { ...lvl.success.diagnostics, converged: false, messages: [out.message] } };
     if (coarse === null) coarse = perSpan;
-    if (prev && pen <= tolPen && lvl.success.numericalValid && same(prev.lvl, lvl, prev.perSpan, perSpan, coarse, input.sigmaAllow, forceScale, dispScale)) {
-      lvl.success.ground = { ...lvl.ground, refinement, converged: true, tolPenetration: tolPen, elements: mesh.x.length - 1 };
+    const ok = prev && pen <= tolPen && lvl.success.numericalValid && same(prev.lvl, lvl, prev.perSpan, perSpan, coarse, input.sigmaAllow, forceScale, dispScale);
+    passes = ok ? passes + 1 : 0;
+    if (passes >= 2) {
+      lvl.success.ground = { ...lvl.ground, refinement, converged: true, tolPenetration: tolPen, elements: mesh.x.length - 1, precisionLoss: lvl.precisionLoss };
       return lvl.success;
     }
     prev = { mesh, active: out.active, lvl, perSpan };
@@ -66,7 +73,7 @@ function run(input: GroundInput, maxElements: number, minElements: number): Biax
   const last = prev?.lvl.success.diagnostics;
   return {
     status: "incomplete",
-    message: `Mesh convergence not reached within ${maxElements} elements (last change criteria or penetration above tolerance)`,
+    message: `Mesh convergence not established within ${maxElements} elements: two consecutive refinements must meet the change criteria, penetration tolerance and round-off budget${prev?.lvl.precisionLoss ? " (precision loss detected)" : ""}`,
     refinement, ...(last ? { diagnostics: last } : {}),
   };
 }
@@ -74,10 +81,12 @@ function run(input: GroundInput, maxElements: number, minElements: number): Biax
 /** Convergence test between two successive meshes (see tolerances in ground-types.ts). */
 function same(a: LevelResult, b: LevelResult, pa: number, pb: number, coarse: number, sigmaAllow: number, F: number, D: number): boolean {
   const sa = a.success, sb = b.success;
-  if (Math.abs(sa.maxStress - sb.maxStress) > GROUND_CONV_REL * Math.max(sb.maxStress, 1e-3 * sigmaAllow)) return false;
-  // Ground + coinciding supports: only their sum is determinate.
-  const tot = (x: LevelResult) => x.ground.totalReaction + x.ground.combinedReaction;
-  if (Math.abs(tot(a) - tot(b)) > GROUND_CONV_REL * F) return false;
+  const floor = 1e-3 * sigmaAllow;
+  if (Math.abs(sa.maxStress - sb.maxStress) > GROUND_CONV_REL * Math.max(sb.maxStress, floor)) return false;
+  // Vertical check on its own: a large lateral stress must not hide a vertical error.
+  if (Math.abs(a.verticalStress - b.verticalStress) > GROUND_CONV_REL * Math.max(b.verticalStress, floor)) return false;
+  // Ground + coinciding supports + ends on the ground: only their sum is determinate.
+  if (Math.abs(a.ground.contactTotal - b.ground.contactTotal) > GROUND_CONV_REL * F) return false;
   if (sa.supports.some((s, k) => !s.sharedWithGround && Math.abs(s.reaction - sb.supports[k].reaction) > GROUND_CONV_REL * F)) return false;
   const stepA = pa / coarse, stepB = pb / coarse;
   for (let k = 0; k * stepA < sa.nodes.length; k++) {
