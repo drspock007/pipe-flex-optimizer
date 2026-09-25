@@ -1,6 +1,6 @@
 // créé par Giovanni Malagnino, 2026-09-25 01:04 CEST (Europe/Rome, UTC+2)
-// Admissible ranges inside one regime. sigma(L) is convex in T = L^4, hence
-// unimodal in t = ln L. Minimum: bracketed golden-section search in t (stop when
+// Admissible ranges inside one regime. sigma(L)^2 is convex in T = L^4, hence
+// sigma is unimodal in t = ln L, which the search in ln L exploits. Minimum: bracketed golden-section search in t (stop when
 // the bracket is below GOLD_TOL in t, i.e. relative in L, or MAX_IT). Crossings
 // with sigmaAllow: bisection in t kept on the admissible side (sigma <= s), stop
 // at BISECT_TOL, so tolerances never widen the admissible set. Unbounded sides
@@ -29,7 +29,9 @@ export interface RegimeWindowInput {
 
 const fin = (v: number): LengthBound => ({ value: v, included: true, kind: "finite" });
 
-export function searchRegime(w: RegimeWindowInput): { ranges: LengthRange[]; min: RegimeMin } {
+export interface RegimeWindowResult { ranges: LengthRange[]; min: RegimeMin; undecidable: boolean }
+
+export function searchRegime(w: RegimeWindowInput): RegimeWindowResult {
   const s = w.sAllow;
   const f = (t: number) => {
     if (Math.abs(t) > T_LIMIT) throw new RangeError("Search left the representable range of lengths");
@@ -40,7 +42,9 @@ export function searchRegime(w: RegimeWindowInput): { ranges: LengthRange[]; min
   const LB: LengthBound = w.lower.kind === "finite" ? fin(w.lower.value!) : { value: null, included: false, kind: "zero-excluded" };
   const UB: LengthBound = w.upper.kind === "finite" ? fin(w.upper.value!) : { value: null, included: false, kind: "unbounded" };
   const fEnd = (lowerEnd: boolean) => w.sigma((lowerEnd ? w.lower : w.upper).value!);
-  if (w.aZero && w.bZero) return { ranges: [{ lower: LB, upper: UB }], min: { sigma: 0, L: null, attained: true, approachedAs: "everywhere" } };
+  if (w.aZero && w.bZero) {
+    return { ranges: [{ lower: LB, upper: UB }], min: { sigma: 0, L: null, attained: true, approachedAs: "everywhere" }, undecidable: false };
+  }
 
   // Walk from t0 in direction dir while cond(f) holds; returns [last true, first false].
   const march = (t0: number, dir: number, cond: (v: number) => boolean): [number, number] => {
@@ -95,8 +99,9 @@ export function searchRegime(w: RegimeWindowInput): { ranges: LengthRange[]; min
   }
 
   if (fmin > s) {
-    const tangent = min.attained && fmin - s <= TANGENCY_REL_TOL * s;
-    return { ranges: tangent ? [{ lower: fin(min.L!), upper: fin(min.L!) }] : [], min };
+    // Candidate above the threshold: never published. Within the tangency
+    // tolerance the outcome is numerically undecidable (not a proven absence).
+    return { ranges: [], min, undecidable: min.attained && fmin - s <= TANGENCY_REL_TOL * s };
   }
   // Finite admissible interior point.
   let tin = tmin;
@@ -121,5 +126,5 @@ export function searchRegime(w: RegimeWindowInput): { ranges: LengthRange[]; min
     const [inside, out] = march(tin, lowerEnd ? -1 : 1, (v) => v <= s);
     return bisect(out, inside);
   };
-  return { ranges: [{ lower: side(true), upper: side(false) }], min };
+  return { ranges: [{ lower: side(true), upper: side(false) }], min, undecidable: false };
 }

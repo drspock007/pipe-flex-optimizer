@@ -29,8 +29,10 @@ export interface StressInfimum {
 
 export interface LengthWindow {
   numSupports: SearchedSupports;
-  status: "window" | "single-point" | "none";
-  lower: LengthBound | null; // null when status = "none"
+  /** "undecidable": sigmaAllow is below the computed minimum by less than the
+   *  tangency tolerance; no admissible point is published, absence is not proven. */
+  status: "window" | "single-point" | "none" | "undecidable";
+  lower: LengthBound | null; // null when status = "none" or "undecidable"
   upper: LengthBound | null;
   /** Finite optimum, present only when the minimum stress is attained at a unique L. */
   optimum: { Lopt: number; sigmaMin: number } | null;
@@ -53,7 +55,10 @@ export type MinSupportsSearchResult =
       numSupports: SearchedSupports;
       window: LengthWindow;
       windows: LengthWindow[]; // every configuration evaluated, in order
+      /** False when a smaller count was undecidable. */
+      minimalityCertified: boolean;
     }
+  | { status: "undecidable-in-0-or-1-support"; scope: typeof SEARCH_SCOPE; windows: LengthWindow[] }
   | { status: "no-solution-in-0-or-1-support"; scope: typeof SEARCH_SCOPE; windows: LengthWindow[] }
   | { status: "invalid-input"; errors: string[] }
   | { status: "not-implemented"; message: string }
