@@ -34,6 +34,15 @@ export type GeneralFixedResult =
       regimes: RegimeSummary[];
       physicalValidity: "not-assessed";
     }
+  | {
+      /** No admissible range published, but sigmaAllow lies within the tangency
+       *  tolerance below a computed minimum: absence of solution is not proven. */
+      status: "undecidable";
+      scope: { numSupports: number };
+      message: string;
+      infimum: GeneralInfimum;
+      regimes: RegimeSummary[];
+    }
   | { status: "incomplete"; scope: { numSupports: number }; message: string; partialRanges: GeneralRange[]; regimes: RegimeSummary[] }
   | { status: "invalid-input"; errors: string[] }
   | { status: "not-implemented"; message: string }
@@ -41,7 +50,7 @@ export type GeneralFixedResult =
 
 export interface EvaluatedCount {
   numSupports: number;
-  status: "admissible" | "no-range" | "incomplete" | "numerical-failure";
+  status: "admissible" | "no-range" | "undecidable" | "incomplete" | "numerical-failure";
   message?: string;
 }
 

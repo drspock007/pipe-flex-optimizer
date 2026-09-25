@@ -89,6 +89,10 @@ describe("limit cases", () => {
     expect(p.status).toBe("single-point");
     expect(p.lower!.value).toBe(p.upper!.value);
     expect(p.lower!.value).toBe(w1.optimum!.Lopt);
+    // Just below the computed minimum (within tolerance): undecidable, no point published.
+    const u = win({ sigmaAllow: w1.optimum!.sigmaMin * (1 - 1e-13) }, 1);
+    expect(u.status).toBe("undecidable");
+    expect(u.lower).toBeNull();
   });
   it("very narrow window around Lopt", () => {
     const s = win({}, 1).optimum!.sigmaMin * (1 + 1e-6);
