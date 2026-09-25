@@ -34,7 +34,7 @@ export interface GroundHeightRange { lower: GroundHeightBound; upper: GroundHeig
 export interface UnresolvedZone {
   from: number; // mm (a sample value or a domain edge)
   to: number; // mm
-  reason: "uncertain-verdict" | "solver-failure" | "narrow-feature-not-excluded" | "budget";
+  reason: "boundary-transition" | "uncertain-verdict" | "solver-failure" | "narrow-feature-not-excluded" | "budget";
 }
 
 export interface GroundHeightDiagnostics {
