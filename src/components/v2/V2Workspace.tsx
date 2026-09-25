@@ -2,6 +2,7 @@
 // Right-hand workspace: search status, length selection, results, charts, export.
 // Details and charts always come from the same fixed-length solution.
 // Modifié par Giovanni Malagnino, 2026-09-25 01:43 CEST: export only from a coherent, current request.
+// Modifié par Giovanni Malagnino, 2026-09-25 17:40 CEST: Find h (V2-4).
 
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,8 @@ import LengthSelector, { Selection, rangeText, useFmtLength } from "./LengthSele
 import V2ResultsPanel from "./V2ResultsPanel";
 import V2Charts from "./V2Charts";
 import ExportPdfCard from "@/components/ExportPdfCard";
+import HeightSearchCard, { useFmtHeight } from "./HeightSearchCard";
+import { HeightSelection, heightRangeText, heightRanges, initialHeight, selectedHeight } from "@/lib/v2-app/height-selection";
 
 const solveText = (r: BiaxialResult): StatusText | null => {
   switch (r.status) {
@@ -35,35 +38,49 @@ const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
   const searchMode = isSearchMode(inputs.mode);
   const view = searchMode && search.data ? searchView(search.data) : null;
   const [selection, setSelection] = useState<Selection | null>(null);
+  const heightMode = inputs.mode === "findH";
+  const fmtH = useFmtHeight();
+  const hRanges = heightMode ? heightRanges(search.data) : [];
+  const [hSel, setHSel] = useState<HeightSelection | null>(null);
+  const selectedH = selectedHeight(hRanges, hSel);
 
   useEffect(() => {
     const c = view ? initialChoice(view) : null;
     setSelection(c ? { rangeIndex: c.rangeIndex, optionId: c.option.id, customL: null } : null);
+    setHSel(initialHeight(heightRanges(search.data)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.data]);
 
   const options = view && selection && view.ranges[selection.rangeIndex] ? lengthOptions(view.ranges[selection.rangeIndex], view.infimum) : [];
   const selectedL = selection?.optionId === "custom" ? selection.customL : options.find((o) => o.id === selection?.optionId)?.L ?? null;
   const target: SolveTarget | null = useMemo(() => {
-    if (inputs.mode === "findH") return null;
+    if (inputs.mode === "findH") {
+      if (search.status !== "ready" || selectedH === null) return null;
+      return { L_mm: inputs.L * 1000, numSupports: inputs.numSupports, hv_mm: selectedH };
+    }
     if (inputs.mode === "fixedLength") return { L_mm: inputs.L * 1000, numSupports: inputs.numSupports };
     if (search.status !== "ready" || !view || view.numSupports === null || selectedL === null) return null;
     return { L_mm: selectedL, numSupports: view.numSupports };
-  }, [inputs.mode, inputs.L, inputs.numSupports, search.status, view?.numSupports, selectedL]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => setSolveTarget(target), [target?.L_mm, target?.numSupports]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [inputs.mode, inputs.L, inputs.numSupports, search.status, view?.numSupports, selectedL, selectedH]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => setSolveTarget(target), [target?.L_mm, target?.numSupports, target?.hv_mm]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sol = solve.data?.result.status === "ok" ? solve.data.result : null;
   const searchStatus = search.data ? describeSearch(search.data) : null;
-  const rangeExists = !searchMode || !search.data ? null
-    : search.data.kind === "searchLength" && search.data.result.status === "undecidable" ? "undecidable" as const
-    : (view?.ranges.length ?? 0) > 0;
-  const report = buildReport(inputs, target, searchMode, search, solve,
-    { searchStatus: searchStatus?.title ?? null, ranges: view?.ranges.map((r) => rangeText(r, fmt)) ?? [] });
+  const rangeExists = !(searchMode || heightMode) || !search.data ? null
+    : search.data.kind !== "minSupports" && search.data.result.status === "undecidable" ? "undecidable" as const
+    : heightMode ? hRanges.length > 0 : (view?.ranges.length ?? 0) > 0;
+  const report = buildReport(inputs, target, searchMode || heightMode, search, solve, {
+    searchStatus: searchStatus?.title ?? null,
+    ranges: heightMode ? hRanges.map((r) => heightRangeText(r, fmtH)) : view?.ranges.map((r) => rangeText(r, fmt)) ?? [],
+  });
   const stale = solve.data !== null && solve.data.key !== solveKeyOf(inputs, target);
 
   return (
     <div className="space-y-4">
-      {inputs.mode === "findH" && <StatusBanner s={{ tone: "info", title: "Find h is not available with the biaxial engine (V2)", detail: "Choose Fixed L, Find L range or Min. supports." }} />}
+      {heightMode && (
+        <HeightSearchCard loading={search.status === "loading"} refreshing={search.refreshing} error={search.status === "error" ? search.error : null}
+          status={searchStatus} ranges={hRanges} selection={hSel} selectedH={selectedH} onChange={setHSel} />
+      )}
       {searchMode && (
         <Card>
           <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-sm"><Search className="h-4 w-4 text-primary" /> Length search</CardTitle></CardHeader>
@@ -87,7 +104,7 @@ const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
           <Card><CardContent className="pt-4"><V2Charts solution={sol} samples={solve.data.samples} /></CardContent></Card>
           <div className="mt-4">
             <V2ResultsPanel s={sol} rangeExists={rangeExists} infimum={view?.infimum ?? null}
-              atBound={["lower", "upper", "point"].includes(selection?.optionId ?? "") && searchMode} />
+              atBound={searchMode ? ["lower", "upper", "point"].includes(selection?.optionId ?? "") : heightMode && ["lower", "upper", "point"].includes(hSel?.optionId ?? "")} />
           </div>
         </div>
       )}
