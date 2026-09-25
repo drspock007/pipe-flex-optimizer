@@ -8,14 +8,16 @@
 // absolute values of its terms, with |C_AA^-1| for solves). A coefficient below
 // ZERO_REL_TOL times its own magnitude is indistinguishable from rounding and set
 // to 0; up to UNCERTAIN_REL_TOL it is kept but flagged as sign-uncertain. Small
-// physical coefficients (small terms) are therefore preserved.
+// physical coefficients (small terms) are therefore preserved. The magnitude is
+// a first-order forward error bound (backward-stable solves: error <~ n eps mag,
+// n <= 22); ZERO_REL_TOL = 1e-12 keeps a ~200x safety factor over 22 eps.
 
 import { buildVerticalSystem, condense } from "./vertical-system";
 import { factorize } from "./linear-algebra";
 import { RegimeConstraint } from "./regime-types";
 
-export const ZERO_REL_TOL = 1e-9;
-export const UNCERTAIN_REL_TOL = 1e-7;
+export const ZERO_REL_TOL = 1e-12;
+export const UNCERTAIN_REL_TOL = 1e-10;
 
 export interface NormalizedData { n: number; a: number[]; b: number[]; C: number[][] }
 const cache = new Map<number, NormalizedData>();
