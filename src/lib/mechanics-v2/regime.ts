@@ -44,7 +44,7 @@ function validate(input: RegimeInput): string[] {
 }
 
 /** Exact intersection of T > 0 with constant + slope * T >= 0 (physical slopes). */
-export function intersectRegime(cs: Pick<RegimeConstraint, "kind" | "support" | "constant" | "slope">[]): RegimeInterval {
+export function intersectRegime(cs: (Pick<RegimeConstraint, "kind" | "support" | "constant" | "slope"> & Partial<RegimeConstraint>)[]): RegimeInterval {
   return intersectAffine(cs.map((c) => ({ ...c, s: c.slope })), 1);
 }
 
