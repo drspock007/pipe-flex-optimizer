@@ -55,7 +55,8 @@ export function toHeightInput(i: AppInputs, d: Derived = derive(i)): HeightSearc
 
 /** Key of everything that influences the search: length searches ignore L,
  *  Find h ignores the entered h (it neither limits nor drives the search). */
-export const groundBlocksSearch = (i: AppInputs) => i.groundEnabled && i.mode !== "fixedLength";
+/** Ground contact is supported in Fixed L and Find h (V2-6) only. */
+export const groundBlocksSearch = (i: AppInputs) => i.groundEnabled && (i.mode === "searchLength" || i.mode === "minSupports");
 
 export function searchKey(i: AppInputs): string {
   if (i.mode === "findH") { const { h: _h, ...rest } = i; return JSON.stringify(rest); }

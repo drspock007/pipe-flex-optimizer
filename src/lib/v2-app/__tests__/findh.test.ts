@@ -63,7 +63,9 @@ describe("ground contact wiring (V2-5)", () => {
     expect("groundZ" in toFixedInput(legacy, 30000, 0)).toBe(false);
     const g = { ...legacy, groundEnabled: true, groundContactZ: -50 };
     expect(toFixedInput(g, 30000, 0).groundZ).toBe(-50);
-    expect(groundBlocksSearch({ ...g, mode: "findH" })).toBe(true);
+    expect(groundBlocksSearch({ ...g, mode: "findH" })).toBe(false); // V2-6: Find h runs with ground
+    expect(groundBlocksSearch({ ...g, mode: "searchLength" })).toBe(true);
+    expect(groundBlocksSearch({ ...g, mode: "minSupports" })).toBe(true);
     expect(groundBlocksSearch(g)).toBe(false);
   });
 });

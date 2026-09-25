@@ -1,6 +1,7 @@
 // créé par Giovanni Malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
 // Modifié par Giovanni Malagnino, 2026-09-25 01:43 CEST (Europe/Rome, UTC+2)
 // Modifié par Giovanni Malagnino, 2026-09-25 17:40 CEST: Find h search channel (L relaunches it, hv only the solve).
+// Modifié par Giovanni Malagnino, 2026-09-25 22:40 CEST: Find h with ground (V2-6).
 // Runs V2 searches and fixed-length solutions in a Web Worker.
 // Two channels: "search" (not re-run when only the represented length changes)
 // and "solve". A request id is allocated as soon as the relevant inputs change,
@@ -67,7 +68,7 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
   };
 
   const sKey = searchKey(inputs);
-  // Ground contact is Fixed L only: never run a no-ground search while ground is enabled.
+  // Ground contact: Fixed L and Find h only; length searches stay blocked.
   const searchActive = (isSearchMode(inputs.mode) || inputs.mode === "findH") && !groundBlocksSearch(inputs);
   useEffect(() => {
     if (!searchActive) { dSearch({ type: "reset" }); return; }
@@ -76,7 +77,9 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
     const t = setTimeout(() => {
       const d = derive(snap), input = toSearchInput(snap, d);
       send("search", id, snap.mode === "findH"
-        ? { kind: "findH", input: toHeightInput(snap, d), numSupports: snap.numSupports }
+        ? snap.groundEnabled
+          ? { kind: "findHGround", input: { ...toHeightInput(snap, d), groundZ: snap.groundContactZ }, numSupports: snap.numSupports }
+          : { kind: "findH", input: toHeightInput(snap, d), numSupports: snap.numSupports }
         : snap.mode === "minSupports"
         ? { kind: "minSupports", input, maxSupports: snap.maxSupports }
         : { kind: "searchLength", input, numSupports: snap.numSupports }, { key: sKey, inputs: snap, derived: d });

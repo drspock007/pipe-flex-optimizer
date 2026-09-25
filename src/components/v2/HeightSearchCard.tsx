@@ -1,4 +1,5 @@
 // créé par Giovanni Malagnino, 2026-09-25 17:40 CEST (Europe/Rome, UTC+2)
+// Modifié par Giovanni Malagnino, 2026-09-25 22:40 CEST: ground details (V2-6).
 // Find h: search status, admissible hv ranges and represented hv choice.
 
 import { useEffect, useState } from "react";
@@ -22,9 +23,10 @@ interface Props {
   loading: boolean; refreshing: boolean; error: string | null; status: StatusText | null;
   ranges: HeightRange[]; selection: HeightSelection | null; selectedH: number | null;
   onChange: (s: HeightSelection) => void;
+  details?: [string, string][]; limits?: string;
 }
 
-const HeightSearchCard = ({ loading, refreshing, error, status, ranges, selection, selectedH, onChange }: Props) => {
+const HeightSearchCard = ({ loading, refreshing, error, status, ranges, selection, selectedH, onChange, details = [], limits }: Props) => {
   const fmt = useFmtHeight();
   const { conv, parse, label } = useUnits();
   const [custom, setCustom] = useState<number>(selection?.customH ?? 0);
@@ -40,6 +42,12 @@ const HeightSearchCard = ({ loading, refreshing, error, status, ranges, selectio
         {loading && <Busy label={refreshing ? "Updating search — the content below belongs to the previous inputs" : "Searching admissible hv…"} />}
         {error && <StatusBanner s={{ tone: "error", title: "Search failed", detail: error }} />}
         {status && <StatusBanner s={status} />}
+        {details.length > 0 && (
+          <dl className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[11px]">
+            {details.map(([k, v], i) => (<div key={i} className="contents"><dt className="text-muted-foreground">{k}</dt><dd className="font-mono break-words">{v}</dd></div>))}
+          </dl>
+        )}
+        {limits && <p className="text-[11px] text-muted-foreground">{limits}</p>}
         {selectedH !== null && (
           <p className="text-xs">Represented hv: <strong className="font-mono">{fmt(selectedH)}</strong>
             <span className="text-muted-foreground"> — initially the upper bound of the range with the largest admissible hv. L, hl and supports are fixed; the entered hv is not used.</span></p>

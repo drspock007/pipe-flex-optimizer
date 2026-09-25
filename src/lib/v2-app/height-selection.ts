@@ -1,4 +1,6 @@
 // créé par Giovanni Malagnino, 2026-09-25 17:40 CEST (Europe/Rome, UTC+2)
+// Ground (V2-6): every published bound is a solved admissible sample, so the
+// initial choice (upper bound of the last range) is a verified admissible hv.
 // Represented hv options after a Find h search (hv in mm, signed, zero allowed).
 // Initial rule: upper bound of the range holding the largest admissible hv
 // (the maximum admissible height), i.e. the last range.
@@ -10,6 +12,7 @@ export interface HeightOption { id: string; label: string; hv: number }
 export interface HeightSelection { rangeIndex: number; optionId: string; customH: number | null }
 
 export function heightRanges(o: SearchOutcome | null): HeightRange[] {
+  if (o?.kind === "findHGround") return "ranges" in o.result ? o.result.ranges : [];
   return o?.kind === "findH" && o.result.status === "ok" ? o.result.ranges : [];
 }
 

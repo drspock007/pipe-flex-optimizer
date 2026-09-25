@@ -39,6 +39,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
   ];
   if (rep.searchStatus) results.push(["Search status", rep.searchStatus]);
   rep.ranges.forEach((r, i) => results.push([inputs.mode === "findH" ? `Admissible hv range ${i + 1}` : `Admissible range ${i + 1}`, r]));
+  rep.searchNotes?.forEach((r) => results.push(r));
   if (inputs.mode === "findH") results.push(["Fixed length L", fmt(s.L / 1000, "m", 3)], ["Fixed lateral offset hl", fmt(inputs.hl, "mm")], ["Represented vertical offset hv", fmt(inputs.h, "mm")]);
   results.push(
     ...(inputs.mode === "findH" ? [] : [["Represented length L", fmt(s.L / 1000, "m", 3)] as Row]),

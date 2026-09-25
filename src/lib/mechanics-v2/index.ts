@@ -21,3 +21,6 @@ export { searchHeightFixedSupports, heightCap } from "./height-search";
 export * from "./ground-types";
 export { solveGroundFixedLength } from "./ground-solve";
 export type { GroundInput, GroundLimits } from "./ground-solve";
+export * from "./ground-height-types";
+export { searchHeightGround } from "./ground-height-search";
+export type { GroundHeightLimits } from "./ground-height-search";

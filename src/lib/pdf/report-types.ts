@@ -16,4 +16,6 @@ export interface V2Report {
   searchStatus: string | null;
   /** Human-readable admissible ranges (search modes only). */
   ranges: string[];
+  /** Extra search rows (Find h with ground: domain, brackets, zones, limits). */
+  searchNotes?: [string, string][];
 }

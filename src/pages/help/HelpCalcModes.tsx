@@ -74,8 +74,22 @@ const HelpCalcModes = () => (
       it measures the change between meshes and is neither a mechanical margin nor a guaranteed error bound. The criterion
       &sigma; &le; &sigma;<sub>allow</sub> stays strict; a verdict not decidable at that precision is flagged as uncertain.
       Reactions at ground level are listed separately (ground, combined support/ground, clamps; a clamp reaction is signed)
-      and their sum explicitly includes the clamps. Find L, Min. supports and Find h are not
+      and their sum explicitly includes the clamps. Find L and Min. supports are not
       available with ground contact in this version.
+    </p>
+    <h3 className="text-base font-semibold mt-4">9.7 Find h with ground contact</h3>
+    <p className="text-sm text-muted-foreground leading-relaxed">
+      With ground contact, Find h searches h<sub>v</sub> in [max(ground level, &minus;H<sub>cap</sub>), H<sub>cap</sub>]. H<sub>cap</sub> =
+      &sigma;<sub>allow</sub>L&sup2;/(4Ec) remains a necessary bound: with clamped ends the vertical curvature integrates to zero and
+      h<sub>v</sub> = &int;(L&minus;x)&kappa;dx, so |h<sub>v</sub>| &le; KL&sup2;/4 with K = &sigma;<sub>allow</sub>/(Ec), whatever the loads
+      (ground and support reactions included). A ground level above zero is incompatible with the left end; negative h<sub>v</sub>
+      are possible when the ground is below zero. Each h<sub>v</sub> is solved with the complete ground solver (mesh convergence).
+      The domain is sampled on a grid, verdict changes are bisected, and same-verdict intervals are refined until an estimated
+      slope bound or local monotonicity rules out a hidden change; this is not a proof, and features narrower than the minimum
+      step (domain/1024) cannot be excluded. Published bounds are solved admissible samples; the exact boundary lies within the
+      displayed bracket. Uncertain or failed evaluations are shown as unresolved zones and never count as &laquo; not admissible &raquo;.
+      The largest admissible h<sub>v</sub> found is not a demonstrated maximum. Limits: 600 solves or 25 s; beyond, the search is
+      reported as incomplete.
     </p>
   </section>
 );

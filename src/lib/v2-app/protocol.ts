@@ -1,25 +1,28 @@
 // créé par Giovanni Malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
 // Modifié par Giovanni Malagnino, 2026-09-25 17:40 CEST (Europe/Rome, UTC+2): Find h (V2-4).
 // Modifié par Giovanni Malagnino, 2026-09-25 20:10 CEST: ground branch dispatch (V2-5).
+// Modifié par Giovanni Malagnino, 2026-09-25 22:40 CEST: Find h with ground (V2-6).
 // Typed messages between the UI and the V2 engine worker, and the pure
 // functions executed by the worker (also usable synchronously in tests).
 
 import {
-  BiaxialInput, BiaxialResult, CurveSample, GeneralFixedResult, GeneralMinResult, HeightSearchInput, HeightSearchResult, LengthSearchInput, searchHeightFixedSupports,
+  BiaxialInput, BiaxialResult, GroundHeightInput, GroundHeightResult, searchHeightGround, CurveSample, GeneralFixedResult, GeneralMinResult, HeightSearchInput, HeightSearchResult, LengthSearchInput, searchHeightFixedSupports,
   sampleCurve, searchLengthGeneral, solveGroundFixedLength, searchMinSupportsGeneral, solveBiaxialFixedLength,
 } from "@/lib/mechanics-v2";
 
 export type SearchRequest =
   | { kind: "searchLength"; input: LengthSearchInput; numSupports: number }
   | { kind: "minSupports"; input: LengthSearchInput; maxSupports: number }
-  | { kind: "findH"; input: HeightSearchInput; numSupports: number };
+  | { kind: "findH"; input: HeightSearchInput; numSupports: number }
+  | { kind: "findHGround"; input: GroundHeightInput; numSupports: number };
 export type SolveRequest = { kind: "solve"; input: BiaxialInput & { groundZ?: number } };
 export type EngineRequest = SearchRequest | SolveRequest;
 
 export type SearchOutcome =
   | { kind: "searchLength"; result: GeneralFixedResult }
   | { kind: "minSupports"; result: GeneralMinResult }
-  | { kind: "findH"; result: HeightSearchResult };
+  | { kind: "findH"; result: HeightSearchResult }
+  | { kind: "findHGround"; result: GroundHeightResult };
 export interface SolveOutcome { kind: "solve"; result: BiaxialResult; samples: CurveSample[] | null }
 export type EngineOutcome = SearchOutcome | SolveOutcome;
 
@@ -34,6 +37,7 @@ const perMember = (members: number) => Math.max(1, Math.ceil(240 / members));
 export function runEngine(req: EngineRequest): EngineOutcome {
   if (req.kind === "searchLength") return { kind: req.kind, result: searchLengthGeneral(req.input, req.numSupports) };
   if (req.kind === "minSupports") return { kind: req.kind, result: searchMinSupportsGeneral(req.input, req.maxSupports) };
+  if (req.kind === "findHGround") return { kind: req.kind, result: searchHeightGround(req.input, req.numSupports) };
   if (req.kind === "findH") return { kind: req.kind, result: searchHeightFixedSupports(req.input, req.numSupports) };
   const { groundZ, ...input } = req.input;
   const result = groundZ === undefined ? solveBiaxialFixedLength(input) : solveGroundFixedLength({ ...input, groundZ });
