@@ -31,7 +31,7 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
       const m = e.data;
       const d = m.channel === "search" ? dispatchSearch : dispatchSolve;
       if (m.ok) d({ type: "success", id: m.id, data: m.outcome as never });
-      else d({ type: "failure", id: m.id, error: m.error });
+      else d({ type: "failure", id: m.id, error: (m as Extract<WorkerResponseMsg, { ok: false }>).error });
     };
     w.onerror = (ev) => {
       ev.preventDefault();
