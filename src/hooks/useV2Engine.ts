@@ -1,5 +1,6 @@
 // créé par Giovanni Malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
 // Modifié par Giovanni Malagnino, 2026-09-25 01:43 CEST (Europe/Rome, UTC+2)
+// Modifié par Giovanni Malagnino, 2026-09-25 17:40 CEST: Find h search channel (L relaunches it, hv only the solve).
 // Runs V2 searches and fixed-length solutions in a Web Worker.
 // Two channels: "search" (not re-run when only the represented length changes)
 // and "solve". A request id is allocated as soon as the relevant inputs change,
@@ -9,11 +10,11 @@
 
 import { useEffect, useReducer, useRef, useState } from "react";
 import { AppInputs } from "@/lib/v2-app/inputs";
-import { derive, Derived, searchKey, solveKeyOf, toFixedInput, toSearchInput } from "@/lib/v2-app/bridge";
+import { derive, Derived, searchKey, solveKeyOf, toFixedInput, toHeightInput, toSearchInput } from "@/lib/v2-app/bridge";
 import { EngineRequest, SearchOutcome, SolveOutcome, WorkerRequestMsg, WorkerResponseMsg } from "@/lib/v2-app/protocol";
 import { ChannelAction, ChannelState, channelReducer, initialChannel } from "@/lib/v2-app/channel-state";
 
-export interface SolveTarget { L_mm: number; numSupports: number }
+export interface SolveTarget { L_mm: number; numSupports: number; hv_mm?: number }
 export type SearchData = SearchOutcome & { key: string };
 export type SolveData = SolveOutcome & { key: string; inputs: AppInputs; derived: Derived };
 type Ctx = { key: string; inputs: AppInputs; derived: Derived };
@@ -66,16 +67,18 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
   };
 
   const sKey = searchKey(inputs);
-  const searchActive = isSearchMode(inputs.mode);
+  const searchActive = isSearchMode(inputs.mode) || inputs.mode === "findH";
   useEffect(() => {
     if (!searchActive) { dSearch({ type: "reset" }); return; }
     const id = begin("search");
     const snap = inputs;
     const t = setTimeout(() => {
-      const input = toSearchInput(snap);
-      send("search", id, snap.mode === "minSupports"
+      const d = derive(snap), input = toSearchInput(snap, d);
+      send("search", id, snap.mode === "findH"
+        ? { kind: "findH", input: toHeightInput(snap, d), numSupports: snap.numSupports }
+        : snap.mode === "minSupports"
         ? { kind: "minSupports", input, maxSupports: snap.maxSupports }
-        : { kind: "searchLength", input, numSupports: snap.numSupports }, { key: sKey, inputs: snap, derived: derive(snap) });
+        : { kind: "searchLength", input, numSupports: snap.numSupports }, { key: sKey, inputs: snap, derived: d });
     }, debounceMs);
     return () => clearTimeout(t);
   }, [sKey, searchActive, debounceMs]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -84,9 +87,11 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
   useEffect(() => {
     if (!solveTarget || !solveKey) { dSolve({ type: "reset" }); return; }
     const id = begin("solve");
-    const snap = inputs, target = solveTarget, d = derive(snap);
+    const target = solveTarget, hv = target.hv_mm ?? inputs.h;
+    // The stored inputs carry the represented hv so that reports show it.
+    const snap = { ...inputs, h: hv }, d = derive(snap);
     const t = setTimeout(() => {
-      send("solve", id, { kind: "solve", input: toFixedInput(snap, target.L_mm, target.numSupports, d) }, { key: solveKey, inputs: snap, derived: d });
+      send("solve", id, { kind: "solve", input: toFixedInput(snap, target.L_mm, target.numSupports, d, hv) }, { key: solveKey, inputs: snap, derived: d });
     }, debounceMs / 2);
     return () => clearTimeout(t);
   }, [solveKey, debounceMs]); // eslint-disable-line react-hooks/exhaustive-deps
