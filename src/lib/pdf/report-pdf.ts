@@ -1,8 +1,11 @@
+// Modifié par Giovanni malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
 // PDF report generation for pipe lowering analysis results.
 
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { PipeInputs, CalculationResults } from "@/lib/calculations";
+import { AppInputs } from "@/lib/v2-app/inputs";
+import { Derived } from "@/lib/v2-app/bridge";
+import { V2Report } from "./report-types";
 import { UnitSystem } from "@/lib/unit-conversions";
 import { buildSections } from "./pdf-sections";
 import { buildPdfFileName } from "./file-name";
@@ -17,8 +20,9 @@ export interface ReportMeta {
 const ORANGE: [number, number, number] = [255, 142, 4];
 
 export const generateReportPdf = (
-  inputs: PipeInputs,
-  results: CalculationResults,
+  inputs: AppInputs,
+  derived: Derived,
+  report: V2Report,
   meta: ReportMeta,
 ): string => {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -42,7 +46,7 @@ export const generateReportPdf = (
   doc.text(`Unit system: ${meta.system === "SI" ? "SI (metric)" : "Imperial"}`, 14, 45);
 
   let cursorY = 52;
-  for (const section of buildSections(inputs, results, meta.system)) {
+  for (const section of buildSections(inputs, derived, report, meta.system)) {
     autoTable(doc, {
       startY: cursorY,
       head: [[section.title, ""]],

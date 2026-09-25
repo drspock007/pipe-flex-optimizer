@@ -45,6 +45,7 @@ export function searchLengthGeneral(input: LengthSearchInput, numSupports: numbe
     const nd = normalizedData(numSupports);
     const walk = walkRegimes(nd, input.hv, input.q, Lq, physicalSlope(input.q, input.E, input.I));
     const ranges: GeneralRange[] = [], mins: RegimeMin[] = [], regimes: RegimeSummary[] = [];
+    let undecidable = false;
     for (const r of walk.regimes) {
       const cs = r.coeffs.constraints;
       if (isAmbiguous(cs, { status: "interval", lower: r.lower, upper: r.upper })) {
@@ -59,11 +60,15 @@ export function searchLengthGeneral(input: LengthSearchInput, numSupports: numbe
         sAllow: input.sigmaAllow,
       });
       ranges.push(...res.ranges);
+      undecidable ||= res.undecidable;
       mins.push(res.min);
       regimes.push({ activeSet: r.active.map((i) => i + 1), lower: lb(r.lower), upper: lb(r.upper), upperEvents: r.upper.events, minSigma: res.min.sigma });
     }
     if (walk.status === "incomplete") {
       return { status: "incomplete", scope, message: walk.message, partialRanges: merge(ranges), regimes };
+    }
+    if (!ranges.length && undecidable) {
+      return { status: "undecidable", scope, message: "sigmaAllow is within the tangency tolerance below the computed minimum stress", infimum: infimum(mins), regimes };
     }
     return { status: "ok", scope, complete: true, ranges: merge(ranges), infimum: infimum(mins), regimes, physicalValidity: "not-assessed" };
   } catch (e) {
@@ -82,7 +87,7 @@ export function searchMinSupportsGeneral(input: LengthSearchInput, maxSupports: 
     if (r.status === "invalid-input" || r.status === "not-implemented") return r;
     if (r.status === "ok" && r.ranges.length) {
       evaluated.push({ numSupports: n, status: "admissible" });
-      const failed = evaluated.some((e) => e.status === "incomplete" || e.status === "numerical-failure");
+      const failed = evaluated.some((e) => e.status !== "no-range" && e.status !== "admissible");
       if (!failed) return { status: "found", minimalityCertified: true, numSupports: n, result: r, evaluated };
       return { status: "incomplete", maxSupports, message: "A lower support count failed: minimality not certified", candidate: { numSupports: n, result: r }, evaluated };
     }

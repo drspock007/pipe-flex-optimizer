@@ -1,4 +1,5 @@
 // src/pages/help/HelpLimitations.tsx
+// Modifié par Giovanni malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
 
 const HelpLimitations = () => (
   <section id="limitations" className="space-y-3">
@@ -21,8 +22,8 @@ const HelpLimitations = () => (
         assessed.
       </li>
       <li>
-        <strong>No axial force</strong>: thermal expansion, internal pressure end-cap force, and other axial loads
-        are not modeled.
+        <strong>No axial force</strong>: the pipe slides freely along its axis; axial restraint, thermal expansion,
+        internal pressure end-cap force and other axial loads are not modeled.
       </li>
       <li>
         <strong>No dynamic effects</strong>: wind, seismic, or impact loads are not considered.
@@ -40,8 +41,8 @@ const HelpLimitations = () => (
         account for corrosion separately.
       </li>
       <li>
-        <strong>Max 20 supports, max 1000 DOFs</strong>: computational guardrails limit the mesh size for
-        browser-based performance.
+        <strong>Max 20 supports</strong>: supports are vertical, unilateral and give no lateral restraint. The
+        physical validity of the linear model (small rotations) is not assessed automatically.
       </li>
     </ul>
 

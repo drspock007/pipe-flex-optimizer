@@ -16,7 +16,9 @@ import {
   SEARCH_SCOPE, SearchedSupports,
 } from "./length-search-types";
 
-/** |s - sigmaMin| <= TANGENCY_REL_TOL * sigmaMin is treated as tangency (single point). */
+/** Tangency detection tolerance (relative). It never changes the strict criterion:
+ *  s in [sigmaMin, sigmaMin(1+tol)] -> single admissible point at Lopt (sigma <= s);
+ *  s in [sigmaMin(1-tol), sigmaMin)  -> "undecidable" (computed candidate above s). */
 export const TANGENCY_REL_TOL = 1e-12;
 
 const finiteBound = (value: number, included = true) => ({ value, included, kind: "finite" as const });
@@ -90,7 +92,10 @@ function computeWindowRaw(input: LengthSearchInput, n: SearchedSupports): Length
   }
   const optimum = { Lopt, sigmaMin };
   const infimum = { sigma: sigmaMin, attained: true, approachedAs: "L-optimum" as const };
-  if (Math.abs(s - sigmaMin) <= TANGENCY_REL_TOL * sigmaMin) {
+  if (s < sigmaMin && sigmaMin - s <= TANGENCY_REL_TOL * sigmaMin) {
+    return { ...base, status: "undecidable", lower: null, upper: null, optimum, infimum };
+  }
+  if (s >= sigmaMin && s - sigmaMin <= TANGENCY_REL_TOL * sigmaMin) {
     return { ...base, status: "single-point", lower: finiteBound(Lopt), upper: finiteBound(Lopt), optimum, infimum };
   }
   if (s < sigmaMin) return { ...base, status: "none", lower: null, upper: null, optimum, infimum };
@@ -135,10 +140,17 @@ export function searchMinSupportsLength(input: LengthSearchInput): MinSupportsSe
     for (const n of [0, 1] as const) {
       const w = computeWindow(input, n);
       windows.push(w);
-      if (w.status !== "none") return { status: "found", scope: SEARCH_SCOPE, numSupports: n, window: w, windows };
+      if (w.status === "undecidable") continue;
+      if (w.status !== "none") {
+        const minimalityCertified = windows.every((x) => x.status !== "undecidable");
+        return { status: "found", scope: SEARCH_SCOPE, numSupports: n, window: w, windows, minimalityCertified };
+      }
     }
   } catch (e) {
     return { status: "numerical-failure", message: (e as Error).message };
+  }
+  if (windows.some((w) => w.status === "undecidable")) {
+    return { status: "undecidable-in-0-or-1-support", scope: SEARCH_SCOPE, windows };
   }
   return { status: "no-solution-in-0-or-1-support", scope: SEARCH_SCOPE, windows };
 }

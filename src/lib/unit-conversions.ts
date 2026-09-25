@@ -1,11 +1,12 @@
 // src/lib/unit-conversions.ts
+// Modifié par Giovanni malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
 // Unit conversion utilities — display layer only, internal engine stays SI.
 
 export type UnitSystem = "SI" | "Imperial";
 
 export type UnitType =
   | "mm" | "m" | "MPa" | "GPa"
-  | "kg/m3" | "kg/m" | "mm2" | "mm4" | "N/mm";
+  | "kg/m3" | "kg/m" | "mm2" | "mm4" | "N/mm" | "N";
 
 interface UnitDef {
   impLabel: string;
@@ -22,6 +23,7 @@ const UNIT_DEFS: Record<UnitType, UnitDef> = {
   mm2:     { impLabel: "in²",    factor: 645.16 },
   mm4:     { impLabel: "in⁴",    factor: 416231.426 },
   "N/mm":  { impLabel: "lbf/in", factor: 0.17513 },
+  N:       { impLabel: "lbf",    factor: 4.44822 },
 };
 
 /** Convert an internal SI value to the display value for the active system. */

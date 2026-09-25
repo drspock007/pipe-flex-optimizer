@@ -1,8 +1,11 @@
-// Builds structured report rows (label / value) from inputs and FEM results.
+// Modifié par Giovanni malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
+// Builds structured report rows (label / value) from V2 inputs and results.
 
-import { PipeInputs, CalculationResults } from "@/lib/calculations";
 import { UnitSystem, UnitType, toDisplay, unitLabel } from "@/lib/unit-conversions";
 import { COATING_LABELS, CoatingType } from "@/lib/coating-presets";
+import { AppInputs } from "@/lib/v2-app/inputs";
+import { Derived } from "@/lib/v2-app/bridge";
+import { V2Report } from "./report-types";
 
 export type Row = [string, string];
 export interface Section {
@@ -10,101 +13,74 @@ export interface Section {
   rows: Row[];
 }
 
-const MODE_LABEL: Record<string, string> = {
-  standard: "Standard (fixed L and h)",
-  findL: "Find admissible length range",
-  findH: "Find maximum settlement",
+const MODE_LABEL: Record<AppInputs["mode"], string> = {
+  fixedLength: "Fixed length",
+  searchLength: "Length range search (fixed installed supports)",
+  minSupports: "Minimum installed supports search",
+  findH: "Find h (not available)",
 };
 
-export const buildSections = (
-  inputs: PipeInputs,
-  r: CalculationResults,
-  system: UnitSystem,
-): Section[] => {
+export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, system: UnitSystem): Section[] => {
   const c = (v: number, u: UnitType) => toDisplay(v, u, system);
   const u = (unit: UnitType) => unitLabel(unit, system);
-  const fmt = (v: number, unit: UnitType, digits = 2) =>
-    `${c(v, unit).toFixed(digits)} ${u(unit)}`;
+  const fmt = (v: number, unit: UnitType, digits = 2) => `${c(v, unit).toFixed(digits)} ${u(unit)}`;
+  const s = rep.solution;
+  const coatingLabel = COATING_LABELS[inputs.coatingType as CoatingType] ?? inputs.coatingType;
 
-  const coatingLabel =
-    COATING_LABELS[inputs.coatingType as CoatingType] ?? inputs.coatingType;
+  const results: Row[] = [
+    ["Calculation mode", MODE_LABEL[inputs.mode]],
+    ["Axial mode", "Free longitudinal sliding"],
+  ];
+  if (rep.searchStatus) results.push(["Search status", rep.searchStatus]);
+  rep.ranges.forEach((r, i) => results.push([`Admissible range ${i + 1}`, r]));
+  results.push(
+    ["Represented length L", fmt(s.L / 1000, "m", 3)],
+    ["Installed supports / active contacts", `${s.supports.length} / ${s.supports.filter((x) => x.active).length}`],
+    ["Max resultant bending stress", fmt(s.maxStress, "MPa", 2)],
+    ["Allowable stress", fmt(s.sigmaAllow, "MPa", 2)],
+    ["Position of the maximum", fmt(s.critical.x / 1000, "m", 3)],
+    ["Bending criterion at represented length", s.bendingCriterionMet ? "met" : "NOT met"],
+    ["Numerical validity", s.numericalValid ? "valid" : "NOT valid"],
+    ["Physical validity (linear model)", "not assessed"],
+  );
 
   const geometry: Row[] = [
     ["Outside diameter (Do)", fmt(inputs.Do, "mm")],
     ["Wall thickness (t)", fmt(inputs.t, "mm")],
-    ["Inside diameter (Di)", fmt(r.section.Di, "mm")],
-    ["Free length (L)", fmt(inputs.L, "m")],
-    ["Settlement / lifting height (h)", fmt(inputs.h, "mm")],
+    ["Inside diameter (Di)", fmt(d.section.Di, "mm")],
+    ["Vertical end offset hv (up +)", fmt(inputs.h, "mm")],
+    ["Lateral end offset hl", fmt(inputs.hl, "mm")],
   ];
+  if (inputs.mode === "fixedLength") geometry.push(["Imposed length L", fmt(inputs.L, "m", 3)]);
 
   const material: Row[] = [
     ["Grade", inputs.grade === "CUSTOM" ? "Custom" : inputs.grade],
-    ["Yield strength (SMYS)", fmt(r.yieldStrength, "MPa", 1)],
+    ["Yield strength (SMYS)", fmt(d.yieldStrength, "MPa", 1)],
     ["Young's modulus (E)", fmt(inputs.E, "GPa", 1)],
-    ["Steel density", fmt(inputs.density, "kg/m3", 0)],
     ["Allowable stress ratio", `${inputs.allowablePercent} % of SMYS`],
-    ["Allowable stress", fmt(r.allowableStress, "MPa", 1)],
+    ["Coating", `${coatingLabel}, ${fmt(d.section.coatingWeightPerMeter, "kg/m")}`],
+    ["Cross-section area (A)", fmt(d.section.A, "mm2")],
+    ["Moment of inertia (I)", `${c(d.section.I, "mm4").toExponential(3)} ${u("mm4")}`],
+    ["Distributed load (q)", `${c(d.q, "N/mm").toFixed(4)} ${u("N/mm")}`],
   ];
 
-  const coating: Row[] = [
-    ["Coating type", coatingLabel],
-    ["Coating thickness", fmt(inputs.coatingThickness, "mm")],
-    ["Coating density", fmt(inputs.coatingDensity, "kg/m3", 0)],
-    ["Coating weight", fmt(r.section.coatingWeightPerMeter, "kg/m")],
-  ];
-
-  const section: Row[] = [
-    ["Cross-section area (A)", fmt(r.section.A, "mm2")],
-    ["Moment of inertia (I)", `${c(r.section.I, "mm4").toExponential(3)} ${u("mm4")}`],
-    ["Extreme fibre distance (c)", fmt(r.section.c, "mm")],
-    ["Pipe weight", fmt(r.section.weightPerMeter, "kg/m")],
-    ["Self weight included", inputs.includeSelfWeight ? "Yes" : "No"],
-    ["Distributed load (q)", `${c(r.q, "N/mm").toFixed(4)} ${u("N/mm")}`],
-  ];
-
-  const activeCount = r.supportStatus.filter((s) => s.active).length;
-  const results: Row[] = [
-    ["Calculation mode", MODE_LABEL[r.calcMode] ?? r.calcMode],
-    ["Maximum bending stress", fmt(r.maxStress, "MPa", 1)],
-    ["Allowable stress", fmt(r.allowableStress, "MPa", 1)],
-    ["Utilization", `${((r.maxStress / r.allowableStress) * 100).toFixed(1)} %`],
-    ["Maximum longitudinal strain", `${r.maxStrain.toFixed(4)} %`],
-    ["Candidate supports", `${r.numSupports}`],
-    ["Active supports (in contact)", `${activeCount}`],
-    ["Span length", fmt(r.spanLength, "m")],
-    [
-      "Safety status",
-      r.calcMode === "findL"
-        ? r.hasWindow
-          ? "Feasible window found"
-          : "No solution"
-        : r.isSafeNow
-          ? "SAFE"
-          : "NOT SAFE",
-    ],
-  ];
-
-  if (r.calcMode === "findL" && r.computedLmin != null && r.computedLmax != null) {
-    results.push(["Admissible L min", fmt(r.computedLmin, "m")]);
-    results.push(["Admissible L max", fmt(r.computedLmax, "m")]);
-    if (r.L_plot != null) results.push(["Displayed at L", fmt(r.L_plot, "m")]);
-  }
-  if (r.calcMode === "findH" && r.computedH != null) {
-    results.push(["Computed maximum settlement", fmt(r.computedH, "mm")]);
-  }
-
-  const supports: Row[] = r.supportStatus.map((s, i) => [
-    `Support ${i + 1} @ ${fmt(s.x, "m")}`,
-    `${s.active ? "Active" : "Lift-off"} — deflection ${c(s.w_fem, "mm").toFixed(2)} ${u("mm")}`,
+  const supports: Row[] = s.supports.map((x) => [
+    `Support ${x.index} @ ${fmt(x.x / 1000, "m", 3)}`,
+    `${x.active ? "active" : "open"} — reaction ${fmt(x.reaction, "N", 1)}, gap ${fmt(x.gap, "mm")}`,
   ]);
+
+  const limits: Row[] = [
+    ["Model", "Linear Euler-Bernoulli, small rotations, fixed ends"],
+    ["Supports", "Equally spaced, unilateral vertical contact, no lateral restraint"],
+    ["Not covered", "Axial restraint, large displacements, Find h, 3D effects"],
+  ];
 
   const sections: Section[] = [
     { title: "Results summary", rows: results },
     { title: "Geometry", rows: geometry },
-    { title: "Material", rows: material },
-    { title: "Coating", rows: coating },
-    { title: "Section properties & loading", rows: section },
+    { title: "Material, section & loading", rows: material },
   ];
-  if (supports.length) sections.push({ title: "Support status", rows: supports });
+  if (supports.length) sections.push({ title: "Supports", rows: supports });
+  sections.push({ title: "Model limits", rows: limits });
   return sections;
 };

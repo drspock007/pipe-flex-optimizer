@@ -1,3 +1,4 @@
+// Modifié par Giovanni malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
 // Card with report metadata inputs and the PDF export action.
 
 import { useState } from "react";
@@ -8,13 +9,17 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { FileDown, Info } from "lucide-react";
 import { toast } from "sonner";
-import { PipeInputs, CalculationResults } from "@/lib/calculations";
+import { AppInputs } from "@/lib/v2-app/inputs";
+import { Derived } from "@/lib/v2-app/bridge";
+import { V2Report } from "@/lib/pdf/report-types";
 import { generateReportPdf } from "@/lib/pdf/report-pdf";
 import { useUnits } from "@/contexts/UnitContext";
 
 interface Props {
-  inputs: PipeInputs;
-  results: CalculationResults;
+  inputs: AppInputs;
+  derived: Derived;
+  /** null when no current successful result exists (loading, stale or failed). */
+  report: V2Report | null;
 }
 
 const MAX_LEN = 80;
@@ -30,17 +35,17 @@ const FieldHint = ({ text }: { text: string }) => (
   </Tooltip>
 );
 
-const ExportPdfCard = ({ inputs, results }: Props) => {
+const ExportPdfCard = ({ inputs, derived, report }: Props) => {
   const { system } = useUnits();
   const [preparedBy, setPreparedBy] = useState("");
   const [projectName, setProjectName] = useState("");
 
-  const disabled = !preparedBy.trim() || !projectName.trim();
+  const disabled = !preparedBy.trim() || !projectName.trim() || !report;
 
   const handleExport = () => {
-    if (disabled) return;
+    if (disabled || !report) return;
     try {
-      const fileName = generateReportPdf(inputs, results, {
+      const fileName = generateReportPdf(inputs, derived, report, {
         preparedBy: preparedBy.trim(),
         projectName: projectName.trim(),
         date: new Date(),
@@ -98,7 +103,9 @@ const ExportPdfCard = ({ inputs, results }: Props) => {
             </span>
           </TooltipTrigger>
           <TooltipContent className="max-w-[260px] text-xs">
-            {disabled
+            {!report
+              ? "Export is available only for a current, successful calculation."
+              : disabled
               ? "Fill in both the preparer name and the project name to enable the export."
               : "Download a structured PDF report of inputs, section properties and FEM results."}
           </TooltipContent>

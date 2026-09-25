@@ -1,6 +1,6 @@
 // créé par Giovanni Malagnino, 2026-09-25 01:04 CEST (Europe/Rome, UTC+2)
 import { describe, expect, it } from "vitest";
-import { searchLengthFixedSupports, searchLengthGeneral, searchMinSupportsGeneral, solveBiaxialFixedLength } from "..";
+import { searchLengthFixedSupports, searchMinSupportsLength, searchLengthGeneral, searchMinSupportsGeneral, solveBiaxialFixedLength } from "..";
 import { GeneralFixedResult } from "../general-search-types";
 import { REF, rel } from "./helpers";
 
@@ -77,9 +77,8 @@ describe("general length search (0..20 supports)", () => {
 
   it("tangency and very narrow window", () => {
     const smin = gen(2).infimum.sigma;
-    const t = gen(2, { sigmaAllow: smin * (1 - 1e-13) });
-    expect(t.ranges.length).toBe(1);
-    expect(t.ranges[0].lower.value).toBe(t.ranges[0].upper.value);
+    // Candidate above the threshold within the tangency tolerance: undecidable, never admissible.
+    expect(searchLengthGeneral({ ...BASE, sigmaAllow: smin * (1 - 1e-13) }, 2).status).toBe("undecidable");
     const w = gen(2, { sigmaAllow: smin * (1 + 1e-6) });
     const [lo, hi] = [w.ranges[0].lower.value!, w.ranges[0].upper.value!];
     expect(hi / lo - 1).toBeLessThan(0.01);
@@ -111,6 +110,19 @@ describe("general length search (0..20 supports)", () => {
     const zero = searchMinSupportsGeneral({ ...BASE, sigmaAllow: 500 }, 20);
     expect(zero.status === "found" && zero.numSupports).toBe(0);
     expect(searchMinSupportsGeneral({ ...BASE, sigmaAllow: 50 }, 3).status).toBe("no-solution-in-scope");
+  });
+
+  it("tangency reproduction (0 supports): no admissible point, minimality not certified", () => {
+    const sa = 423.8447418043896;
+    const r0 = searchLengthGeneral({ ...BASE, sigmaAllow: sa }, 0);
+    expect(r0.status).toBe("undecidable");
+    const a0 = searchLengthFixedSupports({ ...BASE, sigmaAllow: sa }, 0);
+    expect(a0.status === "ok" && a0.window.status).toBe("undecidable");
+    const m = searchMinSupportsGeneral({ ...BASE, sigmaAllow: sa }, 3);
+    expect(m.status).toBe("incomplete");
+    if (m.status === "incomplete") expect(m.candidate?.numSupports).toBe(1);
+    const ma = searchMinSupportsLength({ ...BASE, sigmaAllow: sa });
+    expect(ma.status === "found" && ma.minimalityCertified).toBe(false);
   });
 
   it("numerical failures are never converted into absence of solution", () => {
