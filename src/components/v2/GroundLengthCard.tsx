@@ -19,21 +19,23 @@ interface Props {
   loading: boolean; refreshing: boolean; error: string | null; status: StatusText | null;
   result: GroundLengthResult | null; details: [string, string][];
   selection: GLSelection | null; selectedL: number | null; onChange: (s: GLSelection) => void;
+  /** Preferred verified L (default: lowest computed stress) and card title (V2-8 reuse). */
+  best?: number | null; title?: string;
 }
 
-const GroundLengthCard = ({ loading, refreshing, error, status, result, details, selection, selectedL, onChange }: Props) => {
+const GroundLengthCard = ({ loading, refreshing, error, status, result, details, selection, selectedL, onChange, best: bestIn, title = "Length search with ground" }: Props) => {
   const fmt = useFmtLength();
   const { conv, parse, label } = useUnits();
   const [custom, setCustom] = useState<number>(selection?.custom ?? selectedL ?? 30000);
   const ranges = glRanges(result);
-  const best = result && "lowestStress" in result ? result.lowestStress?.L ?? null : null;
+  const best = bestIn !== undefined ? bestIn : result && "lowestStress" in result ? result.lowestStress?.L ?? null : null;
   const k = selection?.rangeIndex ?? 0;
   const opts = ranges[k] ? glOptions(ranges[k], best) : [];
   const pick = (optionId: string, rangeIndex = k) => onChange({ rangeIndex, optionId, custom: selection?.custom ?? null });
 
   return (
     <Card>
-      <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-sm"><Search className="h-4 w-4 text-primary" /> Length search with ground</CardTitle></CardHeader>
+      <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-sm"><Search className="h-4 w-4 text-primary" /> {title}</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         {loading && <Busy label={refreshing ? "Updating search — the content below belongs to the previous inputs" : "Searching admissible lengths within the domain…"} />}
         {error && <StatusBanner s={{ tone: "error", title: "Search failed", detail: error }} />}
@@ -46,7 +48,7 @@ const GroundLengthCard = ({ loading, refreshing, error, status, result, details,
         {result && <p className="text-[11px] text-muted-foreground">{GROUND_LENGTH_LIMITS}</p>}
         {selectedL !== null && (
           <p className="text-xs">Represented L: <strong className="font-mono">{fmt(selectedL)}</strong>
-            <span className="text-muted-foreground"> — initially the verified admissible sample with the lowest computed stress (not a global minimum). hv, hl and supports are fixed.</span></p>
+            <span className="text-muted-foreground"> — initially a verified admissible sample with the lowest computed stress (not a global optimum). hv, hl and supports are fixed.</span></p>
         )}
         {ranges.length > 0 && (
           <div className="space-y-3">

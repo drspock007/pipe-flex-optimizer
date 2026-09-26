@@ -28,3 +28,6 @@ export type { GroundHeightLimits } from "./ground-height-search";
 export * from "./ground-length-types";
 export { searchLengthGround } from "./ground-length-search";
 export type { GroundLengthLimits, LengthEvaluator } from "./ground-length-search";
+export * from "./ground-min-types";
+export { searchMinSupportsGround } from "./ground-min-search";
+export type { GroundMinLimits } from "./ground-min-search";

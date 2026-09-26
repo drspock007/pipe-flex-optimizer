@@ -18,7 +18,7 @@ const solved = (inputs = DEFAULT_INPUTS, L = 30000, n = 0): SolveData => {
   if (o.kind !== "solve") throw new Error();
   return { ...o, key: solveKeyOf(inputs, { L_mm: L, numSupports: n })!, inputs, derived };
 };
-const ready = <T,>(data: T, id = 1): ChannelState<T> => ({ latestId: id, status: "ready", data, refreshing: false, error: null });
+const ready = <T,>(data: T, id = 1): ChannelState<T> => ({ latestId: id, status: "ready", data, refreshing: false, error: null, progress: null });
 const idle = initialChannel<SearchData>();
 const extras = { searchStatus: null, ranges: [] };
 
@@ -73,5 +73,22 @@ describe("V2-3-R1 freshness", () => {
     expect(Math.abs(d.derived.q - 0.4254062819) / 0.4254).toBeLessThan(1e-8);
     if (d.result.status !== "ok") throw new Error();
     expect(Math.abs(d.result.maxStress - 340.2702057) / 340.27).toBeLessThan(1e-8);
+  });
+});
+
+// V2-8: progress messages are accepted only for the latest request.
+describe("channel progress", () => {
+  it("ignores stale progress and clears it on completion", () => {
+    let st = channelReducer(initialChannel<number>(), { type: "request", id: 1 });
+    st = channelReducer(st, { type: "request", id: 2 });
+    st = channelReducer(st, { type: "progress", id: 1, progress: { n: 3 } });
+    expect(st.progress).toBeNull();
+    st = channelReducer(st, { type: "progress", id: 2, progress: { n: 1 } });
+    expect(st.progress).toEqual({ n: 1 });
+    st = channelReducer(st, { type: "success", id: 1, data: 5 });
+    expect(st.status).toBe("loading");
+    st = channelReducer(st, { type: "success", id: 2, data: 7 });
+    expect(st.progress).toBeNull();
+    expect(channelReducer(st, { type: "progress", id: 2, progress: { n: 9 } }).progress).toBeNull();
   });
 });

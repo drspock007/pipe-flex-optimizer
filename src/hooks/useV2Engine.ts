@@ -3,6 +3,7 @@
 // Modifié par Giovanni Malagnino, 2026-09-25 17:40 CEST: Find h search channel (L relaunches it, hv only the solve).
 // Modifié par Giovanni Malagnino, 2026-09-25 22:40 CEST: Find h with ground (V2-6).
 // Modifié par Giovanni Malagnino, 2026-09-26 04:30 CEST: Find L with ground (V2-7).
+// Modifié par Giovanni Malagnino, 2026-09-26 05:10 CEST: Min. supports with ground, worker cancellation, progress (V2-8).
 // Runs V2 searches and fixed-length solutions in a Web Worker.
 // Two channels: "search" (not re-run when only the represented length changes)
 // and "solve". A request id is allocated as soon as the relevant inputs change,
@@ -12,7 +13,7 @@
 
 import { useEffect, useReducer, useRef, useState } from "react";
 import { AppInputs } from "@/lib/v2-app/inputs";
-import { derive, Derived, groundBlocksSearch, isLengthGround, searchKey, solveKeyOf, toFixedInput, toHeightInput, toSearchInput, toLengthGroundInput } from "@/lib/v2-app/bridge";
+import { derive, Derived, isLengthGround, isMinGround, searchKey, solveKeyOf, toFixedInput, toHeightInput, toSearchInput, toLengthGroundInput } from "@/lib/v2-app/bridge";
 import { EngineRequest, SearchOutcome, SolveOutcome, WorkerRequestMsg, WorkerResponseMsg } from "@/lib/v2-app/protocol";
 import { ChannelAction, ChannelState, channelReducer, initialChannel } from "@/lib/v2-app/channel-state";
 
@@ -28,49 +29,59 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
   const [solveTarget, setSolveTarget] = useState<SolveTarget | null>(null);
   const [search, dSearch] = useReducer(channelReducer<SearchData>, initialChannel<SearchData>()) as [ChannelState<SearchData>, (a: ChannelAction<SearchData>) => void];
   const [solve, dSolve] = useReducer(channelReducer<SolveData>, initialChannel<SolveData>()) as [ChannelState<SolveData>, (a: ChannelAction<SolveData>) => void];
-  const workerRef = useRef<Worker | null>(null);
+  // One worker per channel: a new request terminates a busy worker of its channel,
+  // so an obsolete search never has to consume its budget (V2-8 cancellation).
+  const workers = useRef<Record<Channel, Worker | null>>({ search: null, solve: null });
+  const busy = useRef<Record<Channel, boolean>>({ search: false, solve: false });
   const nextId = useRef(0);
   const pending = useRef<Record<Channel, number>>({ search: 0, solve: 0 });
   const ctx = useRef(new Map<number, Ctx>());
   const dispatchOf = (c: Channel) => (c === "search" ? dSearch : dSolve) as (a: ChannelAction<never>) => void;
 
-  useEffect(() => {
-    if (typeof Worker === "undefined") return;
+  const spawn = (c: Channel): Worker | null => {
+    if (typeof Worker === "undefined") return null;
     const w = new Worker(new URL("../lib/v2-app/engine.worker.ts", import.meta.url), { type: "module" });
     w.onmessage = (e: MessageEvent<WorkerResponseMsg>) => {
-      const m = e.data;
-      const c = ctx.current.get(m.id);
+      const m = e.data, d = dispatchOf(c);
+      if ("progress" in m) { d({ type: "progress", id: m.id, progress: m.progress }); return; }
+      if (m.id === pending.current[c]) busy.current[c] = false;
+      const x = ctx.current.get(m.id);
       ctx.current.delete(m.id);
-      const d = dispatchOf(m.channel);
-      if (m.ok && c) d({ type: "success", id: m.id, data: { ...m.outcome, ...c } as never });
-      else if (!m.ok) d({ type: "failure", id: m.id, error: (m as Extract<WorkerResponseMsg, { ok: false }>).error });
+      if (m.ok && x) d({ type: "success", id: m.id, data: { ...m.outcome, ...x } as never });
+      else if (!m.ok) d({ type: "failure", id: m.id, error: (m as { error: string }).error });
     };
     w.onerror = (ev) => {
       ev.preventDefault();
-      const msg = `Calculation worker failed${ev.message ? `: ${ev.message}` : ""}`;
-      dSearch({ type: "failure", id: pending.current.search, error: msg });
-      dSolve({ type: "failure", id: pending.current.solve, error: msg });
+      busy.current[c] = false;
+      dispatchOf(c)({ type: "failure", id: pending.current[c], error: `Calculation worker failed${ev.message ? `: ${ev.message}` : ""}` });
     };
-    workerRef.current = w;
-    return () => { w.terminate(); workerRef.current = null; };
+    workers.current[c] = w;
+    return w;
+  };
+  useEffect(() => {
+    spawn("search"); spawn("solve");
+    return () => { (["search", "solve"] as Channel[]).forEach((c) => { workers.current[c]?.terminate(); workers.current[c] = null; }); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** Invalidate the channel now and return the id reserved for the next dispatch. */
+  /** Invalidate the channel now (terminating a busy worker) and return the id reserved for the next dispatch. */
   const begin = (c: Channel) => {
     const id = ++nextId.current;
     pending.current[c] = id;
+    if (busy.current[c] && workers.current[c]) { workers.current[c]!.terminate(); busy.current[c] = false; spawn(c); }
     dispatchOf(c)({ type: "request", id });
     return id;
   };
   const send = (c: Channel, id: number, request: EngineRequest, context: Ctx) => {
-    if (!workerRef.current) { dispatchOf(c)({ type: "failure", id, error: "Web Workers are not available in this browser" }); return; }
+    const w = workers.current[c];
+    if (!w) { dispatchOf(c)({ type: "failure", id, error: "Web Workers are not available in this browser" }); return; }
     ctx.current.set(id, context);
-    workerRef.current.postMessage({ id, channel: c, request } satisfies WorkerRequestMsg);
+    busy.current[c] = true;
+    w.postMessage({ id, channel: c, request } satisfies WorkerRequestMsg);
   };
 
   const sKey = searchKey(inputs);
-  // Ground contact: Fixed L, Find h and Find L; Min. supports stays blocked.
-  const searchActive = (isSearchMode(inputs.mode) || inputs.mode === "findH") && !groundBlocksSearch(inputs);
+  // Ground contact: available in every mode (V2-8).
+  const searchActive = isSearchMode(inputs.mode) || inputs.mode === "findH";
   useEffect(() => {
     if (!searchActive) { dSearch({ type: "reset" }); return; }
     const id = begin("search");
@@ -83,6 +94,8 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
           : { kind: "findH", input: toHeightInput(snap, d), numSupports: snap.numSupports }
         : isLengthGround(snap)
         ? { kind: "searchLengthGround", input: toLengthGroundInput(snap, d), numSupports: snap.numSupports }
+        : isMinGround(snap)
+        ? { kind: "minSupportsGround", input: toLengthGroundInput(snap, d), maxSupports: snap.maxSupports }
         : snap.mode === "minSupports"
         ? { kind: "minSupports", input, maxSupports: snap.maxSupports }
         : { kind: "searchLength", input, numSupports: snap.numSupports }, { key: sKey, inputs: snap, derived: d });
