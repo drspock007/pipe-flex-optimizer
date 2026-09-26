@@ -117,7 +117,7 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
         : isLengthGround(snap)
         ? { kind: "searchLengthGround", input: toLengthGroundInput(snap, d), numSupports: snap.numSupports }
         : isMinGround(snap)
-        ? { kind: "minSupportsGround", input: toLengthGroundInput(snap, d), maxSupports: snap.maxSupports }
+        ? { kind: "minSupportsGround", input: snap.axialMode === "restrained" ? toLengthRestrainedInput(snap, d) : toLengthGroundInput(snap, d), maxSupports: snap.maxSupports }
         : snap.mode === "minSupports"
         ? { kind: "minSupports", input, maxSupports: snap.maxSupports }
         : { kind: "searchLength", input, numSupports: snap.numSupports }, { key: sKey, inputs: snap, derived: d });

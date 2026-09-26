@@ -9,6 +9,7 @@
 // Modifié par Giovanni Malagnino, 2026-09-26 05:10 CEST: Min. supports with ground (V2-8).
 // Modifié par Giovanni Malagnino, 2026-09-26 17:30 CEST: Find h restrained (V2-10).
 // Modifié par Giovanni Malagnino, 2026-09-26 17:55 CEST: Find L restrained (V2-11).
+// Modifié par Giovanni Malagnino, 2026-09-26 20:05 CEST: Min. supports restrained (V2-12).
 
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +37,7 @@ import HeightSearchCard, { useFmtHeight } from "./HeightSearchCard";
 import { GROUND_HEIGHT_LIMITS, groundHeightRows } from "@/lib/v2-app/ground-height-text";
 import { checkedHeight, HeightSelection, heightRangeText, heightRanges, initialHeight, selectedHeight } from "@/lib/v2-app/height-selection";
 import { RESTRAINED_HEIGHT_LIMITS, restrainedHeightRows } from "@/lib/v2-app/restrained-height-text";
+import type { RestrainedLengthResult } from "@/lib/mechanics-v2";
 import { RESTRAINED_LENGTH_LIMITS, restrainedLengthRows, RL_BEST_LABEL } from "@/lib/v2-app/restrained-length-text";
 
 const V2Workspace = ({ inputs, exportBlocked = null }: { inputs: AppInputs; derived?: Derived; exportBlocked?: string | null }) => {
@@ -94,23 +96,25 @@ const V2Workspace = ({ inputs, exportBlocked = null }: { inputs: AppInputs; deri
   const glRows = rlr ? restrainedLengthRows(rlr, fmt, fmtS) : glr ? groundLengthRows(glr, fmt, fmtS) : [];
   const glLimits = rlr ? RESTRAINED_LENGTH_LIMITS : GROUND_LENGTH_LIMITS;
   const gmRows = gmr ? groundMinRows(gmr, fmt, fmtS) : [];
-  const rangeExists = minGround ? (search.data ? (gmr?.status === "found" ? true : "undecidable" as const) : null) : rlr && !glr ? (rlr.status === "undecidable" ? "undecidable" as const : null) : glr ? ("ranges" in glr && glr.ranges.length > 0 ? true : glr.status === "impossible" ? false : "undecidable" as const) : !(searchMode || heightMode) || !search.data ? null
+  const gmrR = gmr?.status === "found" && "meta" in gmr.candidate.search ? (gmr.candidate.search as RestrainedLengthResult) : null;
+  const gmLenRows = gmrR ? restrainedLengthRows(gmrR, fmt, fmtS) : glRows;
+  const rangeExists = minGround ? (search.data ? (gmr?.status === "found" ? true : gmr?.status === "impossible" ? false : "undecidable" as const) : null) : rlr && !glr ? (rlr.status === "undecidable" ? "undecidable" as const : null) : glr ? ("ranges" in glr && glr.ranges.length > 0 ? true : glr.status === "impossible" ? false : "undecidable" as const) : !(searchMode || heightMode) || !search.data ? null
     : gh || rh ? (hRanges.length > 0 ? true : (gh ?? rh)!.status === "impossible" ? false : "undecidable" as const)
     : search.data.kind !== "minSupports" && search.data.kind !== "findHRestrained" && search.data.result.status === "undecidable" ? "undecidable" as const
     : heightMode ? hRanges.length > 0 : (view?.ranges.length ?? 0) > 0;
   const report = buildReport(inputs, target, searchMode || heightMode || lengthGround, search, solve, {
     searchStatus: searchStatus?.title ?? null,
     ranges: glr ? [] : heightMode ? hRanges.map((r) => heightRangeText(r, fmtH)) : view?.ranges.map((r) => rangeText(r, fmt)) ?? [],
-    searchNotes: gh || rh ? [...ghRows, ["Search method and limits", hLimits!]] : gmr ? [...gmRows, ["Support-count search method and limits", GROUND_MIN_LIMITS], ...glRows.map(([a, b]) => [`Candidate length search: ${a}`, b] as [string, string]), ["Length search method and limits", GROUND_LENGTH_LIMITS]] : glr || rlr ? [...glRows, ["Search method and limits", glLimits]] : undefined,
+    searchNotes: gh || rh ? [...ghRows, ["Search method and limits", hLimits!]] : gmr ? [...gmRows, ["Support-count search method and limits", GROUND_MIN_LIMITS], ...gmLenRows.map(([a, b]) => [`Candidate length search: ${a}`, b] as [string, string]), ["Length search method and limits", gmrR ? RESTRAINED_LENGTH_LIMITS : GROUND_LENGTH_LIMITS]] : glr || rlr ? [...glRows, ["Search method and limits", glLimits]] : undefined,
   });
   const stale = solve.data !== null && solve.data.key !== solveKeyOf(inputs, target);
 
   return (
     <div className="space-y-4">
       {minGround && <GroundMinCard loading={search.status === "loading"} refreshing={search.refreshing} error={search.status === "error" ? search.error : null}
-        status={searchStatus} result={gmr} details={gmRows} progress={search.status === "loading" ? (search.progress as never) : null} />}
+        status={searchStatus} result={gmr} details={gmRows} title={inputs.axialMode === "restrained" ? `Minimum supports, axial restraint ${inputs.groundEnabled ? "with" : "without"} ground` : undefined} progress={search.status === "loading" ? (search.progress as never) : null} />}
       {lengthGround && (!minGround || glr) && (
-        <GroundLengthCard best={best} limits={glLimits} bestLabel={rlr ? RL_BEST_LABEL : undefined} details={glRows}
+        <GroundLengthCard best={best} limits={gmrR ? RESTRAINED_LENGTH_LIMITS : glLimits} bestLabel={rlr || gmrR ? RL_BEST_LABEL : undefined} details={minGround ? gmLenRows : glRows}
           title={minGround ? `Candidate (${gmr?.status === "found" ? gmr.candidate.n : "–"} installed supports): estimated length ranges` : rlr ? `Length search, axial restraint ${inputs.groundEnabled ? "with" : "without"} ground` : undefined}
           loading={!minGround && search.status === "loading"} refreshing={search.refreshing} error={!minGround && search.status === "error" ? search.error : null}
           status={minGround ? null : searchStatus} result={glr} selection={glSel} selectedL={glL} onChange={setGlSel} />

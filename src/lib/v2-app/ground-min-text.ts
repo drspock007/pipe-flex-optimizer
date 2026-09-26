@@ -27,6 +27,9 @@ export function describeGroundMin(r: GroundMinResult): StatusText {
     case "invalid-input": return { tone: "error", title: "Invalid input", detail: r.errors.join("; ") };
     case "geometry-incompatible": return { tone: "error", title: "Geometric incompatibility", detail: r.message };
     case "not-implemented": return { tone: "info", title: "Not available in this mode", detail: r.message };
+    case "impossible": return { tone: "error", title: "No support count can work in the searched domain (necessary axial condition, proof independent of n)", detail: r.message };
+    case "undecidable": return { tone: "warn", title: "Undecidable: axial bound equal to the search maximum length within rounding", detail: r.message };
+    case "numerical-failure": return { tone: "error", title: "Numerical failure", detail: r.message };
   }
 }
 
@@ -42,8 +45,9 @@ export function groundMinRows(r: GroundMinResult, fmt: (mm: number) => string, f
   if (!("rows" in r)) return [];
   const d = r.diagnostics, rows: [string, string][] = [
     ["Searched length domain (exploration, not a mechanical bound)", `[${fmt(r.domain.lower)} ; ${fmt(r.domain.upper)}]`],
+    ...(r.axial ? [["Necessary axial condition (independent of n, applied once)", `L >= Lax = ${fmt(r.axial.Lax)}; excluded ${r.axial.excluded ? `[${fmt(r.axial.excluded.lower)} ; ${fmt(r.axial.excluded.upper)})` : "none"}; sampled ${r.axial.sampled ? `[${fmt(r.axial.sampled.lower)} ; ${fmt(r.axial.sampled.upper)}]` : "none"}`] as [string, string]] : []),
     ["Support-count ceiling", `${r.scope.maxSupports} (counts examined in order 0, 1, 2…; no bisection)`],
-    ["Candidate", r.status === "found" ? `${r.candidate.n} installed support${r.candidate.n === 1 ? "" : "s"}, verified at L = ${fmt(r.candidate.L)} (${fmtS(r.candidate.maxStress)}, final check passed)` : "none"],
+    ["Candidate", r.status === "found" ? `${r.candidate.n} installed support${r.candidate.n === 1 ? "" : "s"}, verified at L = ${fmt(r.candidate.L)} (${fmtS(r.candidate.maxStress)}${r.axial ? " combined" : ""}, final check passed)` : "none"],
     ["Minimality", `${r.minimality.certified ? "CERTIFIED" : "NOT certified"} — ${r.minimality.reason}`],
     ["Length-search coverage", "NOT certified (exploratory sampling for every count)"],
     ["Algorithm completion", STOP[d.stopCause]],
@@ -56,6 +60,6 @@ export function groundMinRows(r: GroundMinResult, fmt: (mm: number) => string, f
 }
 
 export const GROUND_MIN_LIMITS =
-  "Method: Find L with ground for n = 0, 1, … under one global budget (evaluations and time, final checks included). The first count whose admissible L passes an independent complete solve (valid, criterion met, not uncertain) is retained. " +
+  "Method: Find L (with ground, or restrained with/without ground) for n = 0, 1, … under one global budget (evaluations and time, final checks included). The first count whose admissible L passes an independent complete solve (valid, criterion met — combined stress when restrained — not uncertain) is retained; restrained counts reuse the Find L final check (at most 3 points, counted in the budget). " +
   "Only n = 0 is certified minimal (no smaller count exists). For n > 0 the minimum is NOT certified: an exploratory search without admissible point is not an impossibility proof. " +
   "A point solve already started may exceed the time limit slightly.";

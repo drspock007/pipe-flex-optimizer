@@ -48,7 +48,10 @@ export interface GroundMinDiagnostics {
 }
 
 interface Common {
-  scope: { maxSupports: number; hv: number; hl: number; groundZ: number };
+  /** groundZ null: no ground (restrained without ground, V2-12). */
+  scope: { maxSupports: number; hv: number; hl: number; groundZ: number | null };
+  /** Restrained only: necessary axial bound, evaluated ONCE (independent of n). */
+  axial?: MinAxialInfo;
   domain: { lower: number; upper: number };
   rows: GroundMinRow[];
   /** "certified" only for n = 0 (no smaller count exists); never for n > 0 here. */
@@ -65,10 +68,27 @@ export type GroundMinResult =
   | (Common & { status: "incomplete"; candidate: null; message: string })
   | { status: "invalid-input"; errors: string[] }
   | { status: "geometry-incompatible"; message: string }
-  | { status: "not-implemented"; message: string };
+  | { status: "not-implemented"; message: string }
+  /** Restrained: whole domain excluded by the n-independent axial condition (proof). */
+  | { status: "impossible"; message: string; axial: MinAxialInfo }
+  /** Restrained: Lax equals Lmax within rounding. */
+  | { status: "undecidable"; message: string; axial: MinAxialInfo }
+  | { status: "numerical-failure"; message: string };
+
+/** Necessary axial condition L >= Lax (restrained), shared by every count. */
+export interface MinAxialInfo {
+  Lax: number;
+  excluded: { lower: number; upper: number } | null;
+  sampled: { lower: number; upper: number } | null;
+}
 
 /** Global budget of the whole support-count search (all n and final checks). */
 export const GM_MAX_EVALUATIONS = 2400;
 export const GM_MAX_MS = 45000;
 /** Final checks tried per count (admissible samples by increasing stress). */
 export const GM_MAX_CHECKS = 5;
+/** Restrained Min. supports (V2-12): explicit global budget, final checks
+ *  included (NOT 21 x the Find L budget); restrained Find L checks at most
+ *  RL_FINAL_CHECKS points per count inside it. */
+export const RM_MAX_EVALUATIONS = 2400;
+export const RM_MAX_MS = 45000;

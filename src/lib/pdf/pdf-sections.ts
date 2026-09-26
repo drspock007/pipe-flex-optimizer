@@ -38,6 +38,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
     ["Calculation mode", inputs.mode === "searchLength" && s.axial ? `Length range search WITH axial restraint (exploratory, fixed hv and hl, ${inputs.groundEnabled ? "with" : "without"} ground contact)`
       : inputs.mode === "searchLength" && inputs.groundEnabled ? "Length range search WITH ground contact (exploratory, fixed hv and hl)"
       : inputs.mode === "findH" && s.axial ? `Find h WITH axial restraint (exploratory, fixed L and hl, ${inputs.groundEnabled ? "with" : "without"} ground contact)`
+      : inputs.mode === "minSupports" && inputs.axialMode === "restrained" ? `Minimum installed supports search, axial RESTRAINT ${inputs.groundEnabled ? "WITH" : "without"} ground contact (exploratory restrained length searches)`
       : inputs.mode === "minSupports" && inputs.groundEnabled ? "Minimum installed supports search WITH ground contact (exploratory length searches)" : MODE_LABEL[inputs.mode]],
     ...(s.axial ? [] : [["Axial mode", "Free longitudinal sliding"] as Row]),
   ];

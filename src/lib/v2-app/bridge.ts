@@ -63,7 +63,8 @@ export function toRestrainedHeightInput(i: AppInputs, d: Derived = derive(i)): R
  *  Find h ignores the entered h (it neither limits nor drives the search). */
 /** Ground contact is available in every mode since V2-8 (kept for callers). */
 export const groundBlocksSearch = (_i: AppInputs) => false;
-export const isMinGround = (i: AppInputs) => i.groundEnabled && i.mode === "minSupports";
+/** Exploratory Min. supports on a domain: with ground, or restrained with/without ground (V2-12). */
+export const isMinGround = (i: AppInputs) => i.mode === "minSupports" && (i.groundEnabled || i.axialMode === "restrained");
 /** Find L with ground, free sliding (V2-7). */
 export const isLengthGround = (i: AppInputs) => i.groundEnabled && i.mode === "searchLength" && i.axialMode !== "restrained";
 /** Find L restrained, with or without ground (V2-11). */

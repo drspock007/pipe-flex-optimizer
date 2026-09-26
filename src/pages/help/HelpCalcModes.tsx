@@ -131,7 +131,9 @@ const HelpCalcModes = () => (
       safeguarded regula falsi, so deflection, contacts and N are solved together. Mesh doubled until two successive comparisons agree.
       Verdict: combined normal stress max(|N/A &plusmn; c/I&middot;hypot(M<sub>v</sub>, M<sub>l</sub>)|) &le; &sigma;<sub>allow</sub>; the bending-only criterion is
       shown for information. Not a code check nor a von Mises stress (no pressure, no shear). N/(EA) and the maximum transverse slope are
-      shown as domain indicators without a universal threshold. Min. supports is not available in this mode.
+      shown as domain indicators without a universal threshold. Min. supports (with or without ground) runs restrained Find L for n = 0, 1, &hellip;
+      under one global budget (2400 solves or 45 s, final checks included); the axial bound L &ge; L<sub>ax</sub> does not depend on n and is
+      applied once. Only a candidate at n = 0 is certified minimal; for n &gt; 0 the minimum is not certified.
     </p>
     <h3 className="text-base font-semibold mt-4">9.11 Find h with axial restraint</h3>
     <p className="text-sm text-muted-foreground leading-relaxed">
