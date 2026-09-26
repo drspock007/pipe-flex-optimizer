@@ -52,7 +52,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
     ["Moments at max (vertical / lateral)", formatMomentPair(s.critical.Mv, s.critical.Ml, system)],
     [s.axial ? "Combined normal stress criterion at represented length (governs)" : inputs.mode === "findH" ? "Bending criterion at represented hv" : "Bending criterion at represented length", verdictText(s).uncertain ? "UNCERTAIN (mesh precision)" : verdictText(s).met ? "met" : "NOT met"],
     ["Numerical validity", s.numericalValid ? "valid" : "NOT valid"],
-    ["Physical validity (linear model)", "not assessed"],
+    [s.axial ? "Physical validity (see domain indicators)" : "Physical validity (linear model)", "not assessed"],
   );
 
   const geometry: Row[] = [
@@ -86,7 +86,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
   ]);
 
   const limits: Row[] = [
-    ["Model", "Linear Euler-Bernoulli, small rotations, fixed ends"],
+    ...(s.axial ? [] : [["Model", "Linear Euler-Bernoulli, small rotations, fixed ends"] as Row]),
     ["Supports", "Equally spaced, unilateral vertical contact, no lateral restraint"],
     ...(s.axial ? [["Model", RESTRAINED_MODEL_TEXT] as Row, ["Combined stress", COMBINED_NOTE] as Row, ["Not covered", "Friction, temperature, internal pressure, plasticity, exact large rotations, 3D effects"] as Row]
       : [["Not covered", "Axial restraint, large displacements, 3D effects"] as Row]),
@@ -102,7 +102,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
       ["Estimated zones near the ground (graphical grouping)", g.contactZones.length ? g.contactZones.map((z) => `${fmt(z.xStart / 1000, "m", 3)} - ${fmt(z.xEnd / 1000, "m", 3)}`).join("; ") : "none"],
       ["Max residual penetration", `${c(g.maxPenetration, "mm").toExponential(2)} ${u("mm")}`],
       ["Calculation method", groundMethodText(g, (mm) => fmt(mm, "mm", 3))],
-      ["Bending criterion vs mesh precision", g.criterionUncertain ? "UNCERTAIN - not decidable at the convergence precision" : "decidable"],
+      [s.axial ? "Combined criterion vs mesh precision" : "Bending criterion vs mesh precision", g.criterionUncertain ? "UNCERTAIN - not decidable at the convergence precision" : "decidable"],
       ["Maximum stress", "Computed on the discretized model with mesh-convergence control"],
       ["Stress convergence", STRESS_CONVERGENCE_TEXT],
       ["Model limits", "Numerical approximation (beam elements + nodal unilateral contacts), not an exact analytical solution"],
