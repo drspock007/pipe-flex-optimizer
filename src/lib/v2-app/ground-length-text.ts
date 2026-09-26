@@ -4,7 +4,7 @@
 
 import { GroundLengthResult } from "@/lib/mechanics-v2";
 import type { StatusText } from "./status-text";
-import { ZONE_LABEL } from "./ground-height-text";
+import { ZONE_LABEL, zoneLabel } from "./ground-height-text";
 
 const plural = (n: number) => `${n} installed support${n === 1 ? "" : "s"}`;
 const EXPLAIN = "Each range bound is an individually verified admissible L. Points between verified samples are ESTIMATED (adaptive sampling in ln L with estimated slopes), not verified; narrower non-admissible pockets may exist.";
