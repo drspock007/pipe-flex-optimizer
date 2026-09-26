@@ -63,7 +63,9 @@ export function orchestrateMinSupports(a: OrchestratorArgs): GroundMinResult {
     if (candidate) { stop = "candidate-found"; break; }
     if (r.status === "incomplete" || (row.status === "rejected" && st.checksCut)) {
       row.status = "interrupted";
-      stop = used >= maxE ? "evaluation-budget" : "time-budget"; break;
+      // Time is the only limit that can be tested unambiguously: the restrained step keeps a
+      // final-check reserve, so an evaluation-limited stop may leave used < maxE.
+      stop = now() - t0 >= maxMs ? "time-budget" : "evaluation-budget"; break;
     }
   }
   const last = rows.length ? rows[rows.length - 1].n : -1;
