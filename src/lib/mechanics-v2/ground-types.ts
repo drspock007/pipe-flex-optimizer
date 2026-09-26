@@ -86,7 +86,7 @@ export interface GroundReport {
    *  "analytical-full-contact" (V2-11-R1): exactly flat pipe on the ground, continuous
    *  contact over [0, L] carrying p = q (no mesh, no nodal contacts, no point reactions). */
   method: "exact-no-contact" | "mesh-refinement" | "analytical-full-contact";
-  /** Analytical path only: continuous ground pressure p (N/mm); resultant = totalReaction. */
+  /** Analytical path only: continuous linear ground reaction p (N/mm); resultant = totalReaction. */
   distributedReaction?: number;
   /** Exact path only: minimum clearance above the ground over (0, L) (mm). */
   minClearance?: number;

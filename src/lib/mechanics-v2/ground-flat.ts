@@ -6,7 +6,7 @@
 // Continuous solution: z = y = 0, z' = y' = 0, Mv = Ml = 0, shear 0, stresses 0,
 // N = 0 in restrained mode (no slope -> EA/(2L) int (z'^2 + y'^2) = 0).
 // Reactions: with z = 0, EI z'''' = 0 = -q + p(x) + sum F_i delta(x - x_i),
-// with a ground pressure measure p >= 0 and support forces F_i >= 0. q has no
+// with a linear ground reaction measure p >= 0 and support forces F_i >= 0. q has no
 // atom and p >= 0, so every F_i = 0; boundary shear and moment vanish, so the
 // clamp forces and couples are 0. The ground carries p(x) = q on [0, L]
 // (resultant qL). Unique; no mesh, no nodal contact, no refinement.
