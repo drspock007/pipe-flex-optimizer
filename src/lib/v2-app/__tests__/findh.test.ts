@@ -64,8 +64,21 @@ describe("ground contact wiring (V2-5)", () => {
     const g = { ...legacy, groundEnabled: true, groundContactZ: -50 };
     expect(toFixedInput(g, 30000, 0).groundZ).toBe(-50);
     expect(groundBlocksSearch({ ...g, mode: "findH" })).toBe(false); // V2-6: Find h runs with ground
-    expect(groundBlocksSearch({ ...g, mode: "searchLength" })).toBe(true);
+    expect(groundBlocksSearch({ ...g, mode: "searchLength" })).toBe(false); // V2-7
     expect(groundBlocksSearch({ ...g, mode: "minSupports" })).toBe(true);
     expect(groundBlocksSearch(g)).toBe(false);
+  });
+});
+
+import { normalizeAppInputs } from "../inputs";
+import { searchKey as sk } from "../bridge";
+describe("Find L with ground wiring (V2-7)", () => {
+  it("legacy presets get [L/4, 4L] once; stored domain is kept; domain only keys the ground search", () => {
+    const a = normalizeAppInputs({ L: 40 });
+    expect([a.searchLmin, a.searchLmax]).toEqual([10, 160]);
+    expect(normalizeAppInputs({ L: 40, searchLmin: 3, searchLmax: 9 }).searchLmin).toBe(3);
+    const f = { ...a, mode: "searchLength" as const };
+    expect(sk(f)).toBe(sk({ ...f, searchLmax: 200 }));
+    expect(sk({ ...f, groundEnabled: true })).not.toBe(sk({ ...f, groundEnabled: true, searchLmax: 200 }));
   });
 });
