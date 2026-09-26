@@ -18,7 +18,7 @@ const solved = (inputs = DEFAULT_INPUTS, L = 30000, n = 0): SolveData => {
   if (o.kind !== "solve") throw new Error();
   return { ...o, key: solveKeyOf(inputs, { L_mm: L, numSupports: n })!, inputs, derived };
 };
-const ready = <T,>(data: T, id = 1): ChannelState<T> => ({ latestId: id, status: "ready", data, refreshing: false, error: null });
+const ready = <T,>(data: T, id = 1): ChannelState<T> => ({ latestId: id, status: "ready", data, refreshing: false, error: null, progress: null });
 const idle = initialChannel<SearchData>();
 const extras = { searchStatus: null, ranges: [] };
 

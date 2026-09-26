@@ -48,7 +48,7 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
       const x = ctx.current.get(m.id);
       ctx.current.delete(m.id);
       if (m.ok && x) d({ type: "success", id: m.id, data: { ...m.outcome, ...x } as never });
-      else if (!m.ok) d({ type: "failure", id: m.id, error: m.error });
+      else if (!m.ok) d({ type: "failure", id: m.id, error: (m as { error: string }).error });
     };
     w.onerror = (ev) => {
       ev.preventDefault();
