@@ -34,7 +34,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
   const coat = effectiveCoating(inputs.coatingType as CoatingType, inputs.coatingThickness, inputs.coatingDensity, findNpsByOd(inputs.Do));
 
   const results: Row[] = [
-    ["Calculation mode", MODE_LABEL[inputs.mode]],
+    ["Calculation mode", inputs.mode === "searchLength" && inputs.groundEnabled ? "Length range search WITH ground contact (exploratory, fixed hv and hl)" : MODE_LABEL[inputs.mode]],
     ["Axial mode", "Free longitudinal sliding"],
   ];
   if (rep.searchStatus) results.push(["Search status", rep.searchStatus]);
