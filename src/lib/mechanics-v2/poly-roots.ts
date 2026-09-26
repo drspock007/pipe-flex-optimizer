@@ -9,7 +9,7 @@
 // scale (its contribution on [0,1] is then below round-off). Every returned
 // root is validated by its scaled residual.
 
-export const POLY_RESIDUAL_TOL = 1e-10;
+export const POLY_RESIDUAL_TOL = 1e-14;
 const LEAD_TOL = 1e-15;
 const DEDUP = 1e-12;
 
