@@ -21,7 +21,7 @@ export function searchLengthGround(input: GroundLengthInput, numSupports: number
   if (typeof groundZ !== "number" || !Number.isFinite(groundZ)) errors.push("groundZ must be a finite number");
   if (!Number.isFinite(Lmin) || !Number.isFinite(Lmax) || !(Lmin > 0) || !(Lmin < Lmax)) errors.push("Search domain requires finite 0 < Lmin < Lmax");
   if (errors.length) return { status: "invalid-input", errors };
-  if (input.axialMode === "restrained") return { status: "not-implemented", message: 'axialMode "restrained" is available in Fixed L only: searches are not available with it' };
+  if (input.axialMode === "restrained") return { status: "not-implemented", message: 'axialMode "restrained" is available in Fixed L and Find h only: Find L and Min. supports are not available with it' };
   if (groundZ > 0 || hv < groundZ) {
     const which = [groundZ > 0 ? "left end (z = 0)" : "", hv < groundZ ? `right end (z = hv = ${hv} mm)` : ""].filter(Boolean).join(" and ");
     return { status: "geometry-incompatible", message: `Imposed ${which} below the minimum pipe-axis elevation ${groundZ} mm` };
