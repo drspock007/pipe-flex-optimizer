@@ -43,7 +43,7 @@ export function groundMinRows(r: GroundMinResult, fmt: (mm: number) => string, f
   const d = r.diagnostics, rows: [string, string][] = [
     ["Searched length domain (exploration, not a mechanical bound)", `[${fmt(r.domain.lower)} ; ${fmt(r.domain.upper)}]`],
     ["Support-count ceiling", `${r.scope.maxSupports} (counts examined in order 0, 1, 2…; no bisection)`],
-    ["Candidate", r.status === "found" ? `${r.candidate.n} installed supports, verified at L = ${fmt(r.candidate.L)} (${fmtS(r.candidate.maxStress)}, final check passed)` : "none"],
+    ["Candidate", r.status === "found" ? `${r.candidate.n} installed support${r.candidate.n === 1 ? "" : "s"}, verified at L = ${fmt(r.candidate.L)} (${fmtS(r.candidate.maxStress)}, final check passed)` : "none"],
     ["Minimality", `${r.minimality.certified ? "CERTIFIED" : "NOT certified"} — ${r.minimality.reason}`],
     ["Length-search coverage", "NOT certified (exploratory sampling for every count)"],
     ["Algorithm completion", STOP[d.stopCause]],
