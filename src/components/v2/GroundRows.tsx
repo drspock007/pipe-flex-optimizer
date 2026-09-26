@@ -2,7 +2,7 @@
 // Ground contact results (V2-5). Nodal reactions are discrete forces, not pressures.
 
 import { GroundReport } from "@/lib/mechanics-v2";
-import { groundReactionRows, STRESS_CONVERGENCE_TEXT } from "@/lib/v2-app/ground-labels";
+import { groundMethodText, groundReactionRows, STRESS_CONVERGENCE_TEXT } from "@/lib/v2-app/ground-labels";
 import { useUnits } from "@/contexts/UnitContext";
 
 const GroundRows = ({ g }: { g: GroundReport }) => {
@@ -17,7 +17,7 @@ const GroundRows = ({ g }: { g: GroundReport }) => {
     ["Estimated zones near the ground (graphical grouping)", zones],
     ["Numerical contact points (not installed supports)", String(g.contactNodes)],
     ["Max residual penetration", `${conv(g.maxPenetration, "mm").toExponential(2)} ${label("mm")} (tol. ${conv(g.tolPenetration, "mm").toExponential(1)})`],
-    ["Mesh convergence", `${g.converged ? "converged" : "NOT converged"} — ${g.elements} elements, ${g.refinement.length} refinement levels${g.precisionLoss ? ", precision loss" : ""}`],
+    ["Calculation method", groundMethodText(g, (mm) => `${conv(mm, "mm").toFixed(3)} ${label("mm")}`)],
     ["Bending criterion vs mesh precision", g.criterionUncertain ? "UNCERTAIN — verdict not decidable at the convergence precision" : "decidable"],
   ];
   return (

@@ -4,7 +4,7 @@
 // Modifié par Giovanni Malagnino, 2026-09-25 20:10 CEST: optional ground data (V2-5).
 // Units used everywhere in this engine: mm, N, MPa, N*mm, mm^2, mm^4.
 
-import type { GroundReport, RefinementLevel } from "./ground-types";
+import type { GroundFailureCause, GroundReport, RefinementLevel } from "./ground-types";
 
 export type AxialMode = "free" | "restrained";
 
@@ -126,7 +126,7 @@ export type BiaxialResult =
   | { status: "contact-not-converged"; diagnostics: Diagnostics }
   | { status: "numerical-failure"; message: string; diagnostics?: Diagnostics }
   | { status: "geometry-incompatible"; message: string }
-  | { status: "incomplete"; message: string; refinement: RefinementLevel[]; diagnostics?: Diagnostics };
+  | { status: "incomplete"; message: string; refinement: RefinementLevel[]; diagnostics?: Diagnostics; cause?: GroundFailureCause };
 
 export interface FieldValues {
   x: number;

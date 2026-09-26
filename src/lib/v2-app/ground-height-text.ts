@@ -6,6 +6,7 @@
 
 import { GroundHeightResult, UnresolvedZone } from "@/lib/mechanics-v2";
 import type { StatusText } from "./status-text";
+import { CAUSE_LABEL } from "./ground-labels";
 
 const plural = (n: number) => `${n} installed support${n === 1 ? "" : "s"}`;
 const EXPLAIN = "Each range bound is an individually verified admissible hv. Points between verified samples are ESTIMATED (adaptive sampling with estimated slopes), not verified; narrower non-admissible pockets may exist.";
@@ -25,10 +26,14 @@ export function describeGroundHeight(r: GroundHeightResult): StatusText {
 export const ZONE_LABEL: Record<UnresolvedZone["reason"], string> = {
   "transition-bracket": "transition bracket (admissible / not admissible, both decidable)",
   "uncertain-verdict": "unresolved: uncertain verdict",
-  "solver-failure": "unresolved: solver did not converge",
+  "solver-failure": "unresolved: solver failure",
   "narrow-feature-not-excluded": "unresolved: narrow feature not excluded",
   budget: "unresolved: not explored (resource limit)",
 };
+
+/** Zone label with the precise failure causes when known (V2-7-R1). */
+export const zoneLabel = (z: UnresolvedZone) =>
+  ZONE_LABEL[z.reason] + (z.causes?.length ? ` (${z.causes.map((c) => CAUSE_LABEL[c]).join(", ")})` : "");
 
 /** Rows (label, value) describing status facets, domain, ranges, zones and limits. */
 /** Small lengths (e.g. boundary tolerance) in 3 significant digits, same unit as fmt
@@ -47,7 +52,7 @@ export function groundHeightRows(r: GroundHeightResult, fmt: (mm: number) => str
   rows.push(["Searched hv domain", r.domain ? `[${fmt(r.domain.lower)} ; ${fmt(r.domain.upper)}]` : "empty"]);
   rows.push(["Hcap = sA L^2/(4 E c) (necessary, not sufficient)", fmt(d.Hcap)]);
   r.ranges.forEach((g, i) => rows.push([`Estimated range ${i + 1} (verified end samples)`, `${fmt(g.lower.value)} ; ${fmt(g.upper.value)}`]));
-  r.zones.forEach((z) => rows.push([`Zone: ${ZONE_LABEL[z.reason]}`, `${fmt(z.from)} to ${fmt(z.to)}`]));
+  r.zones.forEach((z) => rows.push([`Zone: ${zoneLabel(z)}`, `${fmt(z.from)} to ${fmt(z.to)}`]));
   rows.push(["Largest verified admissible hv found", r.largestFound === null ? "none" : `${fmt(r.largestFound)} (not a demonstrated global maximum)`]);
   rows.push(["Sampling resolution", `min step ${fmt(d.minStep)}, boundary tol ${fmtSmall(d.boundaryTol, fmt)}, ${d.evaluations} solves, ${(d.elapsedMs / 1000).toFixed(1)} s`]);
   return rows;

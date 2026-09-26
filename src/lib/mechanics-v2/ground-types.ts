@@ -81,4 +81,13 @@ export interface GroundReport {
   refinement: RefinementLevel[];
   converged: boolean;
   elements: number;
+  /** "exact-no-contact": exact no-ground member solution, clearance verified on
+   *  every member (no mesh, no refinement). "mesh-refinement": nodal contact mesh. */
+  method: "exact-no-contact" | "mesh-refinement";
+  /** Exact path only: minimum clearance above the ground over (0, L) (mm). */
+  minClearance?: number;
 }
+
+/** Known causes of a failed ground solve (never "not admissible"). */
+export type GroundFailureCause =
+  | "contact-not-converged" | "mesh-not-converged" | "precision-loss" | "numerical-overflow" | "resource-limit" | "solver-error";
