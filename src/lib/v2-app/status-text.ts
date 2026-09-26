@@ -8,6 +8,7 @@ import { SearchOutcome } from "./protocol";
 import { describeGroundHeight } from "./ground-height-text";
 import { describeGroundLength } from "./ground-length-text";
 import { describeGroundMin } from "./ground-min-text";
+import { describeRestrainedHeight } from "./restrained-height-text";
 
 export type Tone = "ok" | "warn" | "error" | "info";
 export interface StatusText { tone: Tone; title: string; detail?: string }
@@ -15,6 +16,7 @@ export interface StatusText { tone: Tone; title: string; detail?: string }
 const plural = (n: number) => `${n} installed support${n === 1 ? "" : "s"}`;
 
 export function describeSearch(o: SearchOutcome): StatusText {
+  if (o.kind === "findHRestrained") return describeRestrainedHeight(o.result);
   if (o.kind === "findHGround") return describeGroundHeight(o.result);
   if (o.kind === "searchLengthGround") return describeGroundLength(o.result);
   if (o.kind === "minSupportsGround") return describeGroundMin(o.result);

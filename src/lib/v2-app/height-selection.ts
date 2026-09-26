@@ -12,6 +12,7 @@ export interface HeightOption { id: string; label: string; hv: number }
 export interface HeightSelection { rangeIndex: number; optionId: string; customH: number | null }
 
 export function heightRanges(o: SearchOutcome | null): HeightRange[] {
+  if (o?.kind === "findHRestrained") return "ranges" in o.result ? o.result.ranges : [];
   if (o?.kind === "findHGround") return "ranges" in o.result ? o.result.ranges : [];
   return o?.kind === "findH" && o.result.status === "ok" ? o.result.ranges : [];
 }
@@ -26,8 +27,23 @@ export function heightOptions(r: HeightRange): HeightOption[] {
   ];
 }
 
-export function initialHeight(ranges: HeightRange[]): HeightSelection | null {
-  if (!ranges.length) return null;
+/** Restrained (V2-10): the finally re-verified hv, when available. */
+export function checkedHeight(o: SearchOutcome | null): number | null | undefined {
+  if (o?.kind !== "findHRestrained" || !("meta" in o.result)) return undefined;
+  return o.result.meta.finalCheck.hv;
+}
+
+/** preferred: re-verified hv (restrained); null = none verified (no initial choice). */
+export function initialHeight(ranges: HeightRange[], preferred?: number | null): HeightSelection | null {
+  if (!ranges.length || preferred === null) return null;
+  if (preferred !== undefined) {
+    for (let k = ranges.length - 1; k >= 0; k--) {
+      const opt = heightOptions(ranges[k]).find((o) => o.id !== "mid" && o.hv === preferred);
+      if (opt) return { rangeIndex: k, optionId: opt.id, customH: null };
+    }
+    const k = ranges.findIndex((r) => r.lower.value <= preferred && preferred <= r.upper.value);
+    return { rangeIndex: Math.max(0, k), optionId: "custom", customH: preferred };
+  }
   const k = ranges.length - 1;
   return { rangeIndex: k, optionId: heightOptions(ranges[k])[0].id, customH: null };
 }

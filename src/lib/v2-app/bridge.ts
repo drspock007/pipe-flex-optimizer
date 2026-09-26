@@ -9,7 +9,7 @@
 
 import { calcSectionProperties, getYieldStrength, SectionProperties } from "@/lib/calculations";
 import { findNpsByOd } from "@/lib/pipe-presets";
-import { BiaxialInput, GroundLengthInput, HeightSearchInput, LengthSearchInput } from "@/lib/mechanics-v2";
+import { BiaxialInput, RestrainedHeightInput, GroundLengthInput, HeightSearchInput, LengthSearchInput } from "@/lib/mechanics-v2";
 import { AppInputs } from "./inputs";
 
 export const M_TO_MM = 1000;
@@ -51,6 +51,12 @@ export function toFixedInput(i: AppInputs, L_mm: number, numSupports: number, d:
 export function toHeightInput(i: AppInputs, d: Derived = derive(i)): HeightSearchInput {
   const { hv: _hv, ...rest } = toSearchInput(i, d);
   return { ...rest, L: i.L * M_TO_MM };
+}
+
+/** Find h restrained input (V2-10): groundZ only when the ground is enabled. */
+export function toRestrainedHeightInput(i: AppInputs, d: Derived = derive(i)): RestrainedHeightInput {
+  const base = { ...toHeightInput(i, d), axialMode: "restrained" as const };
+  return i.groundEnabled ? { ...base, groundZ: i.groundContactZ } : base;
 }
 
 /** Key of everything that influences the search: length searches ignore L,
