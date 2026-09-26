@@ -71,12 +71,4 @@ describe("restrained Find L, real solver", { timeout: 60000 }, () => {
     expect(r.meta.excluded).toBeNull();
     expect(r.boundaryHits).toContain("lower");
   });
-  it("hv = hl = 0, ground at 0, 20 supports: mesh failures stay unresolved, never non-admissible", () => {
-    const r = searchLengthRestrained({ ...B, hv: 0, groundZ: 0, Lmax: 30000 }, 20, { maxEvaluations: 40 });
-    if (!("zones" in r)) throw new Error(r.status);
-    const failed = r.samples.filter((s) => s.cls === "failed");
-    expect(failed.length).toBeGreaterThan(0);
-    expect(failed.every((s) => s.status === "incomplete")).toBe(true);
-    expect(r.zones.some((z) => z.reason === "solver-failure" || z.reason === "budget")).toBe(true);
-  });
 });

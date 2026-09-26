@@ -11,6 +11,11 @@ export const STRESS_CONVERGENCE_TEXT =
 /** Reaction rows: [label, value, note]. Signed values are kept as computed (a clamp reaction may be negative). */
 export function groundReactionRows(g: GroundReport, fmtN: (v: number) => string): [string, string, string][] {
   const terms: string[] = ["ground"];
+  if (g.method === "analytical-full-contact") return [
+    ["Ground reaction (resultant of the continuous pressure p = q over [0, L])", fmtN(g.totalReaction), "analytical, distributed, no nodal forces"],
+    ["Supports and clamped ends", fmtN(0), "analytical: zero shear and moment, no point reactions"],
+    ["Sum of vertical reactions at ground level (including clamps)", fmtN(g.contactTotal), "= q L"],
+  ];
   const rows: [string, string, string][] = [
     ["Ground reaction", fmtN(g.totalReaction), "discrete nodal forces at ground nodes"],
   ];
@@ -39,6 +44,8 @@ export const CAUSE_LABEL: Record<GroundFailureCause, string> = {
 
 /** Method / convergence line: the exact path never claims a mesh convergence. */
 export function groundMethodText(g: GroundReport, fmtMm: (mm: number) => string): string {
+  if (g.method === "analytical-full-contact")
+    return "analytical full-ground-contact solution (exactly flat pipe on the ground, no mesh): z = y = 0, moments 0, continuous contact over [0, L]";
   if (g.method === "exact-no-contact")
     return `exact member solution without ground contact (no mesh): minimum clearance ${g.minClearance === undefined || !Number.isFinite(g.minClearance) ? "n/a" : fmtMm(g.minClearance)} verified on every member`;
   return `mesh ${g.converged ? "converged" : "NOT converged"} — ${g.elements} elements, ${g.refinement.length} refinement levels${g.precisionLoss ? ", precision loss" : ""}`;
@@ -54,6 +61,10 @@ export function groundContactRows(g: GroundReport, hv: number, L: number, fmtX: 
   const zones = g.contactZones.filter((z) => z.xEnd > z.xStart);
   const points = g.contactZones.filter((z) => z.xEnd === z.xStart && !(isEnd(z.xStart) && !g.contactPoints.includes(z.xStart)));
   const ends = [left ? "left end (x = 0)" : "", right ? "right end (x = L)" : ""].filter(Boolean);
+  if (g.method === "analytical-full-contact") return [
+    ["Contact (analytical, continuous)", `${fmtX(0)} ${dash} ${fmtX(L)} (whole length)`],
+    ["Clamped ends imposed at ground level", "left end (x = 0), right end (x = L)"],
+  ];
   const none = "No interior ground-contact nodes";
   return [
     ["Estimated contact zones (graphical grouping of computed contacts)", g.contactNodes === 0 ? none : zones.length ? zones.map((z) => `${fmtX(z.xStart)} ${dash} ${fmtX(z.xEnd)}`).join("; ") : "none"],

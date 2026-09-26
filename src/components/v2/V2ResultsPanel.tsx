@@ -85,7 +85,7 @@ const V2ResultsPanel = ({ s, rangeExists, infimum, atBound, mode, yieldStrength 
           </div>
         )}
         {s.ground && <GroundRows g={s.ground} hv={s.input.hv} L={s.L} />}
-        <SupportsTable supports={s.supports} />
+        <SupportsTable supports={s.supports} analytical={s.ground?.method === "analytical-full-contact"} />
         <details className="text-[11px] text-muted-foreground">
           <summary className="cursor-pointer">Diagnostics</summary>
           <p>Contact iterations: {s.diagnostics.iterations}; converged: {String(s.diagnostics.converged)}; equilibrium OK: {String(s.diagnostics.equilibriumOk)}</p>

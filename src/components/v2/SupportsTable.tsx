@@ -2,7 +2,7 @@
 import { SupportResult } from "@/lib/mechanics-v2";
 import { useUnits } from "@/contexts/UnitContext";
 
-const SupportsTable = ({ supports }: { supports: SupportResult[] }) => {
+const SupportsTable = ({ supports, analytical = false }: { supports: SupportResult[]; analytical?: boolean }) => {
   const { conv, label } = useUnits();
   if (!supports.length) return <p className="text-xs text-muted-foreground">No intermediate support installed.</p>;
   return (
@@ -24,7 +24,7 @@ const SupportsTable = ({ supports }: { supports: SupportResult[] }) => {
               <td className="text-right pr-2">{conv(s.x / 1000, "m").toFixed(3)}</td>
               <td className="text-right pr-2">{conv(s.reaction, "N").toFixed(1)}</td>
               <td className="text-right pr-2">{conv(s.gap, "mm").toFixed(2)}</td>
-              <td className={`text-right ${s.active ? "text-primary font-semibold" : "text-muted-foreground"}`}>{s.active ? "active" : "open"}{s.sharedWithGround ? " (support + ground, combined)" : ""}</td>
+              <td className={`text-right ${s.active ? "text-primary font-semibold" : "text-muted-foreground"}`}>{analytical ? "touching, zero force (analytical)" : <>{s.active ? "active" : "open"}{s.sharedWithGround ? " (support + ground, combined)" : ""}</>}</td>
             </tr>
           ))}
         </tbody>
