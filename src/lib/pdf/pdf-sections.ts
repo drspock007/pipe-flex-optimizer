@@ -89,7 +89,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
 
   const supports: Row[] = s.supports.map((x) => [
     `Support ${x.index} @ ${fmt(x.x / 1000, "m", 3)}`,
-    `${x.active ? "active" : "open"} — reaction ${fmt(x.reaction, "N", 1)}, gap ${fmt(x.gap, "mm")}`,
+    `${s.ground?.method === "analytical-full-contact" ? "touching, zero force (analytical)" : x.active ? "active" : "open"} — reaction ${fmt(x.reaction, "N", 1)}, gap ${fmt(x.gap, "mm")}`,
   ]);
 
   const limits: Row[] = [
