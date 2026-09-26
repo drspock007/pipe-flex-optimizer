@@ -9,7 +9,7 @@
 
 import { calcSectionProperties, getYieldStrength, SectionProperties } from "@/lib/calculations";
 import { findNpsByOd } from "@/lib/pipe-presets";
-import { BiaxialInput, HeightSearchInput, LengthSearchInput } from "@/lib/mechanics-v2";
+import { BiaxialInput, GroundLengthInput, HeightSearchInput, LengthSearchInput } from "@/lib/mechanics-v2";
 import { AppInputs } from "./inputs";
 
 export const M_TO_MM = 1000;
@@ -55,13 +55,20 @@ export function toHeightInput(i: AppInputs, d: Derived = derive(i)): HeightSearc
 
 /** Key of everything that influences the search: length searches ignore L,
  *  Find h ignores the entered h (it neither limits nor drives the search). */
-/** Ground contact is supported in Fixed L and Find h (V2-6) only. */
-export const groundBlocksSearch = (i: AppInputs) => i.groundEnabled && (i.mode === "searchLength" || i.mode === "minSupports");
+/** Ground contact: Fixed L, Find h (V2-6) and Find L (V2-7); Min. supports stays blocked. */
+export const groundBlocksSearch = (i: AppInputs) => i.groundEnabled && i.mode === "minSupports";
+export const isLengthGround = (i: AppInputs) => i.groundEnabled && i.mode === "searchLength";
+
+/** Find L with ground input: domain m -> mm. */
+export function toLengthGroundInput(i: AppInputs, d: Derived = derive(i)): GroundLengthInput {
+  return { ...toSearchInput(i, d), groundZ: i.groundContactZ, Lmin: i.searchLmin * M_TO_MM, Lmax: i.searchLmax * M_TO_MM };
+}
 
 export function searchKey(i: AppInputs): string {
-  if (i.mode === "findH") { const { h: _h, ...rest } = i; return JSON.stringify(rest); }
-  const { L: _L, ...rest } = i;
-  return JSON.stringify(rest);
+  if (i.mode === "findH") { const { h: _h, searchLmin: _a, searchLmax: _b, ...rest } = i; return JSON.stringify(rest); }
+  const { L: _L, searchLmin, searchLmax, ...rest } = i;
+  // The domain only matters for Find L with ground.
+  return JSON.stringify(isLengthGround(i) ? { ...rest, searchLmin, searchLmax } : rest);
 }
 
 /** Key of a fixed-length solve request: physical inputs + represented L, supports and hv. */

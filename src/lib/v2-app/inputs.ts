@@ -4,6 +4,7 @@
 // units happens only in bridge.ts. Legacy presets are normalized here with
 // explicit defaults for the new fields.
 // Modifié par Giovanni Malagnino, 2026-09-25 20:10 CEST: ground contact (V2-5).
+// Modifié par Giovanni Malagnino, 2026-09-26 04:30 CEST: Find L search domain (V2-7).
 
 import { MAX_SUPPORTS } from "@/lib/mechanics-v2";
 
@@ -29,8 +30,10 @@ export interface AppInputs {
   numSupports: number; // installed candidate supports, integer 0..20
   maxSupports: number; // search ceiling, integer 0..20
   axialMode: AppAxialMode;
-  groundEnabled: boolean; // rigid horizontal frictionless ground (Fixed L and Find h)
+  groundEnabled: boolean; // rigid horizontal frictionless ground (Fixed L, Find L, Find h)
   groundContactZ: number; // mm, minimum pipe-AXIS elevation (ground + outer radius incl. coating)
+  searchLmin: number; // m, Find L with ground: exploration domain (not a mechanical bound)
+  searchLmax: number; // m
 }
 
 export const DEFAULT_INPUTS: AppInputs = {
@@ -39,7 +42,7 @@ export const DEFAULT_INPUTS: AppInputs = {
   allowablePercent: 80, includeSelfWeight: true, density: 7850,
   coatingType: "none", coatingThickness: 1.5, coatingDensity: 950,
   mode: "fixedLength", numSupports: 0, maxSupports: MAX_SUPPORTS, axialMode: "free",
-  groundEnabled: false, groundContactZ: 0,
+  groundEnabled: false, groundContactZ: 0, searchLmin: 7.5, searchLmax: 120,
 };
 
 const LEGACY_MODE: Record<string, AppMode> = {
@@ -71,5 +74,9 @@ export function normalizeAppInputs(values: Record<string, unknown>, base: AppInp
   // Legacy presets: ground disabled.
   out.groundEnabled = values.groundEnabled === true;
   out.groundContactZ = num(values.groundContactZ, 0);
+  // Legacy presets without a domain: initialized ONCE around the stored L ([L/4, 4L]).
+  const L0 = out.L > 0 ? out.L : DEFAULT_INPUTS.L;
+  out.searchLmin = num(values.searchLmin, L0 / 4);
+  out.searchLmax = num(values.searchLmax, L0 * 4);
   return out;
 }
