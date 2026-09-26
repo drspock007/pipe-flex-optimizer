@@ -70,7 +70,6 @@ describe("ground contact wiring (V2-5)", () => {
   });
 });
 
-import { normalizeAppInputs } from "../inputs";
 import { searchKey as sk } from "../bridge";
 describe("Find L with ground wiring (V2-7)", () => {
   it("legacy presets get [L/4, 4L] once; stored domain is kept; domain only keys the ground search", () => {
