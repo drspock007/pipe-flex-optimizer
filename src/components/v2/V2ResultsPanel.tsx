@@ -30,7 +30,7 @@ const Row = ({ k, v, strong }: { k: string; v: string; strong?: boolean }) => (
   </div>
 );
 
-const V2ResultsPanel = ({ s, rangeExists, infimum, atBound, mode }: Props) => {
+const V2ResultsPanel = ({ s, rangeExists, infimum, atBound, mode, yieldStrength }: Props) => {
   const { conv, label, system } = useUnits();
   const m = (mm: number) => `${conv(mm / 1000, "m").toFixed(3)} ${label("m")}`;
   const mpa = (v: number) => `${conv(v, "MPa").toFixed(2)} ${label("MPa")}`;
