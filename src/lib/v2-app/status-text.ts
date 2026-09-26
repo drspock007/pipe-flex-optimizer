@@ -26,7 +26,7 @@ export function describeSearch(o: SearchOutcome): StatusText {
       case "undecidable": return { tone: "warn", title: "Numerically undecidable", detail: "The allowable stress is within the tangency tolerance below the minimum stress. No hv is published; absence of solution is not proven." };
       case "incomplete": return { tone: "warn", title: "Search incomplete", detail: r.message };
       case "invalid-input": return { tone: "error", title: "Invalid input", detail: r.errors.join("; ") };
-      case "not-implemented": return { tone: "info", title: "Not implemented", detail: r.message };
+      case "not-implemented": return { tone: "info", title: "Not available in this mode", detail: r.message };
       case "numerical-failure": return { tone: "error", title: "Numerical failure", detail: r.message };
     }
   }
@@ -44,7 +44,7 @@ export function describeSearch(o: SearchOutcome): StatusText {
       case "invalid-input":
         return { tone: "error", title: "Invalid input", detail: r.errors.join("; ") };
       case "not-implemented":
-        return { tone: "info", title: "Not implemented", detail: r.message };
+        return { tone: "info", title: "Not available in this mode", detail: r.message };
       case "numerical-failure":
         return { tone: "error", title: "Numerical failure", detail: r.message };
     }
@@ -62,6 +62,6 @@ export function describeSearch(o: SearchOutcome): StatusText {
     case "invalid-input":
       return { tone: "error", title: "Invalid input", detail: r.errors.join("; ") };
     case "not-implemented":
-      return { tone: "info", title: "Not implemented", detail: r.message };
+      return { tone: "info", title: "Not available in this mode", detail: r.message };
   }
 }

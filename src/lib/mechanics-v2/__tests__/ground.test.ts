@@ -90,7 +90,7 @@ describe("ground contact (V2-5)", () => {
     expect(r.status).toBe("ok");
     const lim = solveGroundFixedLength({ ...REF, groundZ: 0, hv: 1000 }, { maxElements: 64, minElements: 64 });
     expect(lim.status).toBe("incomplete");
-    expect(g({ axialMode: "restrained" }).status).toBe("not-implemented");
+    expect(g({ axialMode: "restrained" }).status).toBe("ok"); // V2-9: implemented in Fixed L
     expect(g({ groundZ: NaN }).status).toBe("invalid-input");
   });
 });

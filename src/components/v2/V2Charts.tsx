@@ -18,6 +18,7 @@ const V2Charts = ({ solution, samples }: Props) => {
   const data = samples.map((p) => ({
     x: conv(p.x / 1000, "m"),
     sigma: conv(p.sigma, "MPa"),
+    ...(p.sigmaCombined === undefined ? {} : { sigmaC: conv(p.sigmaCombined, "MPa") }),
     z: conv(deviation ? p.deltaZ : p.z, "mm"),
     y: conv(deviation ? p.deltaY : p.y, "mm"),
     // Ground level in the same axes; in chord coordinates it becomes groundZ - hv*x/L (not horizontal).
@@ -33,7 +34,7 @@ const V2Charts = ({ solution, samples }: Props) => {
             label={{ value: `x (${label("m")})`, position: "insideBottom", offset: 0, fontSize: 11 }} tick={{ fontSize: 11 }} height={40} />
           <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => String(Math.round(v))} width={64}
             label={{ value: `${name} (${label(unit)})`, angle: -90, position: "insideLeft", offset: 4, fontSize: 11, style: { textAnchor: "middle" } }} />
-          <Tooltip formatter={(v: number) => [`${v.toFixed(3)} ${label(unit)}`, name]} labelFormatter={(v: number) => `x = ${v.toFixed(3)} ${label("m")}`} />
+          <Tooltip formatter={(v: number, n: string) => [`${v.toFixed(3)} ${label(unit)}`, n === "sigmaC" ? "Combined normal stress N/A + σb" : n === "sigma" || n === "z" || n === "y" ? name : n]} labelFormatter={(v: number) => `x = ${v.toFixed(3)} ${label("m")}`} />
           {supports.map((s) => (
             <ReferenceLine key={s.i} x={s.x} stroke="hsl(var(--primary))" strokeDasharray={s.active ? undefined : "4 3"} strokeOpacity={s.active ? 0.9 : 0.4}
               label={{ value: `S${s.i}${s.active ? "" : " (open)"}`, fontSize: 9, position: "top" }} />
@@ -59,7 +60,9 @@ const V2Charts = ({ solution, samples }: Props) => {
       </div>
       <TabsContent value="stress">
         {chart("sigma", "MPa", "Resultant bending stress",
-          <ReferenceLine y={conv(solution.sigmaAllow, "MPa")} stroke="hsl(var(--destructive))" strokeDasharray="6 3" label={{ value: "allowable", fontSize: 9, position: "insideTopRight" }} />)}
+          [<ReferenceLine key="allow" y={conv(solution.sigmaAllow, "MPa")} stroke="hsl(var(--destructive))" strokeDasharray="6 3" label={{ value: "allowable", fontSize: 9, position: "insideTopRight" }} />,
+            ...(solution.axial ? [<Line key="comb" type="monotone" dataKey="sigmaC" stroke="hsl(var(--foreground))" strokeDasharray="5 3" dot={false} strokeWidth={1.5} isAnimationActive={false} />] : [])])}
+        {solution.axial && <p className="text-[11px] text-muted-foreground">Restrained axial mode — solid orange: resultant bending stress σb; dashed: combined normal stress N/A + σb (governs the verdict). Pressure and shear are not included.</p>}
       </TabsContent>
       <TabsContent value="z">{chart("z", "mm", deviation ? "Δz = z − hv·x/L" : "Absolute vertical z (up +)", solution.ground ? [
         ...solution.ground.contactZones.map((z, i) => (

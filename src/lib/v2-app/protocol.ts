@@ -8,7 +8,7 @@
 
 import {
   BiaxialInput, GroundLengthInput, GroundLengthResult, searchLengthGround, GroundMinInput, GroundMinResult, searchMinSupportsGround, BiaxialResult, GroundHeightInput, GroundHeightResult, searchHeightGround, CurveSample, GeneralFixedResult, GeneralMinResult, HeightSearchInput, HeightSearchResult, LengthSearchInput, searchHeightFixedSupports,
-  sampleCurve, searchLengthGeneral, solveGroundFixedLength, searchMinSupportsGeneral, solveBiaxialFixedLength,
+  sampleCurve, sampleRestrained, searchLengthGeneral, solveGroundFixedLength, searchMinSupportsGeneral, solveBiaxialFixedLength,
 } from "@/lib/mechanics-v2";
 
 export type SearchRequest =
@@ -51,7 +51,8 @@ export function runEngine(req: EngineRequest, onProgress?: (p: SearchProgress) =
   if (req.kind === "findH") return { kind: req.kind, result: searchHeightFixedSupports(req.input, req.numSupports) };
   const { groundZ, ...input } = req.input;
   const result = groundZ === undefined ? solveBiaxialFixedLength(input) : solveGroundFixedLength({ ...input, groundZ });
-  const samples = result.status === "ok" ? thin(sampleCurve(result, perMember(result.members.length)), 800) : null;
+  const samples = result.status !== "ok" ? null
+    : thin(result.axial ? sampleRestrained(result, perMember(result.members.length)) : sampleCurve(result, perMember(result.members.length)), 800);
   return { kind: "solve", result, samples };
 }
 

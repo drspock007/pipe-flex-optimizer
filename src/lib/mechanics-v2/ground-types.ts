@@ -90,4 +90,4 @@ export interface GroundReport {
 
 /** Known causes of a failed ground solve (never "not admissible"). */
 export type GroundFailureCause =
-  | "contact-not-converged" | "mesh-not-converged" | "precision-loss" | "numerical-overflow" | "resource-limit" | "solver-error";
+  | "contact-not-converged" | "mesh-not-converged" | "precision-loss" | "numerical-overflow" | "resource-limit" | "solver-error" | "axial-not-converged";

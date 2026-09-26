@@ -19,7 +19,7 @@ export function describeGroundHeight(r: GroundHeightResult): StatusText {
     case "incomplete": return { tone: "warn", title: "Search interrupted (resource limit) — coverage not certified", detail: r.message };
     case "invalid-input": return { tone: "error", title: "Invalid input", detail: r.errors.join("; ") };
     case "geometry-incompatible": return { tone: "error", title: "Geometric incompatibility", detail: r.message };
-    case "not-implemented": return { tone: "info", title: "Not implemented", detail: r.message };
+    case "not-implemented": return { tone: "info", title: "Not available in this mode", detail: r.message };
   }
 }
 

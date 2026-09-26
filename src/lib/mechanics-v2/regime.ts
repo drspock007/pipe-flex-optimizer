@@ -59,7 +59,7 @@ export function computeRegime(input: RegimeInput): RegimeResult {
   const errors = validate(input);
   if (errors.length) return { status: "invalid-input", errors };
   if (input.axialMode === "restrained") {
-    return { status: "not-implemented", message: 'axialMode "restrained" is not implemented' };
+    return { status: "not-implemented", message: 'axialMode "restrained" is available in Fixed L only: searches are not available with it' };
   }
   try {
     const Lq = loadLengthScale(input.E, input.I, input.q);

@@ -7,6 +7,7 @@
 
 import { BiaxialInput, BiaxialResult, BiaxialSuccess, Diagnostics, MemberResult, SupportResult } from "./types";
 import { validateInput } from "./validate";
+import { solveRestrained } from "./restrained-solve";
 import { buildVerticalSystem, condense, nodalReactions, solveDisplacements } from "./vertical-system";
 import { solveContact } from "./contact";
 import { memberEndActions } from "./beam-member";
@@ -17,9 +18,7 @@ import { checkEquilibrium, equilibriumResiduals, equilibriumTolerances, normaliz
 export function solveBiaxialFixedLength(input: BiaxialInput): BiaxialResult {
   const errors = validateInput(input);
   if (errors.length) return { status: "invalid-input", errors };
-  if (input.axialMode === "restrained") {
-    return { status: "not-implemented", message: 'axialMode "restrained" is not implemented' };
-  }
+  if (input.axialMode === "restrained") return solveRestrained(input); // V2-9 dedicated solver
   try {
     return run(input);
   } catch (e) {

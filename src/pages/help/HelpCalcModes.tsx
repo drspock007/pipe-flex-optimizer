@@ -119,6 +119,20 @@ const HelpCalcModes = () => (
       The largest admissible h<sub>v</sub> found is not a demonstrated maximum. Limits: 600 solves or 25 s; beyond, the search is
       reported as incomplete.
     </p>
+    <h3 className="text-base font-semibold mt-4">9.10 Restrained axial mode (Fixed L only)</h3>
+    <p className="text-sm text-muted-foreground leading-relaxed">
+      &laquo; Axial end separation fixed; initially straight pipe, no prestress &raquo;: u(0) = u(L) = 0, clamped rotations, no friction,
+      supports and ground vertical only; L stays the longitudinal reference distance (not the inclined chord). Euler&ndash;Bernoulli with a
+      von K&aacute;rm&aacute;n strain &epsilon; = u&prime; + &frac12;(z&prime;&sup2; + y&prime;&sup2;): small strains, moderate rotations, not an exact
+      large-rotation kinematics. The constant tension is N = EA/(2L)&int;(z&prime;&sup2; + y&prime;&sup2;)dx &ge; 0 and both planes are coupled through
+      it (EI z&Prime;&Prime; &minus; N z&Prime; = &minus;q, EI y&Prime;&Prime; &minus; N y&Prime; = 0): changing h<sub>l</sub> can change the vertical contacts.
+      Method: Hermite beam elements with the exactly integrated geometric matrix; for a given N the problem is linear with unilateral
+      contacts (active set, no penalty); the reduced energy is convex and its dual in N gives a monotone compatibility equation, solved by
+      safeguarded regula falsi, so deflection, contacts and N are solved together. Mesh doubled until two successive comparisons agree.
+      Verdict: combined normal stress max(|N/A &plusmn; c/I&middot;hypot(M<sub>v</sub>, M<sub>l</sub>)|) &le; &sigma;<sub>allow</sub>; the bending-only criterion is
+      shown for information. Not a code check nor a von Mises stress (no pressure, no shear). N/(EA) and the maximum transverse slope are
+      shown as domain indicators without a universal threshold. Searches (Find L, Min. supports, Find h) are not available in this mode.
+    </p>
   </section>
 );
 

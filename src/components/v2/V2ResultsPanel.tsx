@@ -10,6 +10,7 @@ import { formatMomentPair } from "@/lib/unit-conversions";
 import SupportsTable from "./SupportsTable";
 import GroundRows from "./GroundRows";
 import { AppMode } from "@/lib/v2-app/inputs";
+import { axialRows, COMBINED_NOTE, verdictText } from "@/lib/v2-app/axial-text";
 
 interface Props {
   s: BiaxialSuccess;
@@ -33,16 +34,18 @@ const V2ResultsPanel = ({ s, rangeExists, infimum, atBound, mode }: Props) => {
   const mpa = (v: number) => `${conv(v, "MPa").toFixed(2)} ${label("MPa")}`;
   const active = s.supports.filter((x) => x.active).length;
   const excess = s.maxStress - s.sigmaAllow;
+  const verdict = verdictText(s);
+  const N = (v: number) => `${conv(v, "N").toFixed(1)} ${label("N")}`;
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-sm"><Gauge className="h-4 w-4 text-primary" /> Results at the represented length</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className={`rounded-md border px-3 py-2 text-sm font-semibold ${s.bendingCriterionMet ? "border-primary/50 bg-primary/10" : "border-destructive/50 bg-destructive/10 text-destructive"}`}>
-          Bending criterion {s.bendingCriterionMet ? "met" : "not met"} {mode === "findH" ? `at hv = ${conv(s.input.hv, "mm").toFixed(1)} ${label("mm")}` : `at L = ${m(s.L)}`}
+        <div className={`rounded-md border px-3 py-2 text-sm font-semibold ${verdict.met ? "border-primary/50 bg-primary/10" : "border-destructive/50 bg-destructive/10 text-destructive"}`}>
+          {verdict.label} {verdict.met ? "met" : "not met"} {mode === "findH" ? `at hv = ${conv(s.input.hv, "mm").toFixed(1)} ${label("mm")}` : `at L = ${m(s.L)}`}
         </div>
-        {s.ground?.criterionUncertain && (
+        {verdict.uncertain && (
           <p className="rounded-md border border-destructive/50 px-3 py-2 text-[11px]">
             Verdict uncertain: the last mesh refinements change it, or the stress lies within the convergence threshold of the allowable. Compliance is not certain.
           </p>
@@ -68,8 +71,15 @@ const V2ResultsPanel = ({ s, rangeExists, infimum, atBound, mode }: Props) => {
           )}
           <Row k="End reactions left / right" v={`${conv(s.endReactions.left.force, "N").toFixed(1)} / ${conv(s.endReactions.right.force, "N").toFixed(1)} ${label("N")}`} />
           <Row k="Numerical validity" v={s.numericalValid ? "valid (contact converged, equilibrium checked)" : "NOT valid"} />
-          <Row k="Physical validity (small rotations, linear model)" v="not assessed" />
+          <Row k={s.axial ? "Physical validity (see domain indicators below)" : "Physical validity (small rotations, linear model)"} v="not assessed" />
         </div>
+        {s.axial && (
+          <div className="rounded-md border border-border/60 p-2">
+            <p className="text-xs font-semibold mb-1">Axial restraint (coupled solution)</p>
+            {axialRows(s.axial, s, { force: N, stress: mpa, length: m }).map(([k, v]) => <Row key={k} k={k} v={v} />)}
+            <p className="mt-1 text-[11px] text-muted-foreground">{COMBINED_NOTE}</p>
+          </div>
+        )}
         {s.ground && <GroundRows g={s.ground} />}
         <SupportsTable supports={s.supports} />
         <details className="text-[11px] text-muted-foreground">
