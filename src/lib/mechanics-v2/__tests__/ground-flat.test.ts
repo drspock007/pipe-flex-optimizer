@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import { evaluateAt, sampleCurve, searchHeightRestrained, searchLengthRestrained, solveGroundFixedLength } from "..";
 import { REF } from "./helpers";
 
+const { L: _L, numSupports: _n, hv: _hv, ...B0 } = REF;
+const ms0 = (t: number) => Date.now() - t;
 const flat = (o: Record<string, unknown> = {}) => ({ ...REF, hv: 0, hl: 0, groundZ: 0, ...o }) as Parameters<typeof solveGroundFixedLength>[0];
 
 describe("analytical flat-on-ground branch", () => {
@@ -49,19 +51,22 @@ describe("analytical flat-on-ground branch", () => {
 
   it("Find L restrained 7.5-120 m, hv = hl = 0, ground 0, 20 supports: fast, no failure, bound not mechanical", () => {
     const t0 = Date.now();
-    const r = searchLengthRestrained({ ...REF, axialMode: "restrained", numSupports: 20, hv: 0, hl: 0, groundZ: 0, Lmin: 7500, Lmax: 120000 } as Parameters<typeof searchLengthRestrained>[0]);
+    const r = searchLengthRestrained({ ...B0, axialMode: "restrained", hv: 0, hl: 0, groundZ: 0, Lmin: 7500, Lmax: 120000 }, 20);
+    console.log("V2_11_R1_BENCH", ms0(t0), r.samples.length, r.samples.filter((x) => x.cls === "failed").length);
     const ms = Date.now() - t0;
     expect(r.status).toBe("found");
     if (r.status !== "found") return;
-    expect(r.samples.filter((x) => x.status === "failed")).toHaveLength(0);
-    expect(r.ranges[0].lower).toBe(7500);
-    expect(r.ranges[r.ranges.length - 1].upper).toBe(120000);
+    expect(r.samples.filter((x) => x.cls === "failed")).toHaveLength(0);
+    expect(r.ranges[0].lower.value).toBe(7500);
+    expect(r.ranges[r.ranges.length - 1].upper.value).toBe(120000);
+    expect(r.boundaryHits).toEqual(["lower", "upper"]);
+    expect(r.ranges[0].lower.domainEdge && r.ranges[0].upper.domainEdge).toBe(true);
     expect(ms).toBeLessThan(5000);
   });
 
   it("Find h restrained with ground at 0 includes hv = 0 (analytical point)", () => {
-    const r = searchHeightRestrained({ ...REF, axialMode: "restrained", numSupports: 20, hl: 0, groundZ: 0 } as Parameters<typeof searchHeightRestrained>[0]);
+    const r = searchHeightRestrained({ ...B0, L: 30000, axialMode: "restrained", hl: 0, groundZ: 0 }, 20);
     if (r.status !== "found") throw new Error(r.status);
-    expect(r.ranges[0].lower).toBe(0);
+    expect(r.ranges[0].lower.value).toBe(0);
   });
 });
