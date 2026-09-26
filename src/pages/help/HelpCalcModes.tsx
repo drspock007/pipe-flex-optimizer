@@ -60,7 +60,7 @@ const HelpCalcModes = () => (
       full solver. The initial represented h<sub>v</sub> is the upper bound of the range with the largest admissible value;
       midpoint, bounds or a signed custom value can be chosen. Details and charts come from a full solution at that h<sub>v</sub>.
     </P>
-    <h3 className="text-base font-semibold mt-4">9.6 Ground contact (Fixed L, Find L range, Find h)</h3>
+    <h3 className="text-base font-semibold mt-4">9.6 Ground contact (all modes)</h3>
     <p className="text-sm text-muted-foreground">
       Optional rigid, horizontal, frictionless ground over the full length, vertical plane only. The input is the minimum
       pipe-axis elevation (ground elevation + outer radius, coating included), in the same axes as h<sub>v</sub>
@@ -74,8 +74,7 @@ const HelpCalcModes = () => (
       it measures the change between meshes and is neither a mechanical margin nor a guaranteed error bound. The criterion
       &sigma; &le; &sigma;<sub>allow</sub> stays strict; a verdict not decidable at that precision is flagged as uncertain.
       Reactions at ground level are listed separately (ground, combined support/ground, clamps; a clamp reaction is signed)
-      and their sum explicitly includes the clamps. Min. supports is not
-      available with ground contact in this version.
+      and their sum explicitly includes the clamps.
     </p>
     <h3 className="text-base font-semibold mt-4">9.8 Find L range with ground contact</h3>
     <p className="text-sm text-muted-foreground leading-relaxed">
@@ -86,6 +85,18 @@ const HelpCalcModes = () => (
       coverage is never certified, and every conclusion holds within the searched length domain only. An admissible sample at a domain
       edge is reported as &laquo; admissible at search boundary &mdash; range may continue beyond &raquo;. The initial represented L is
       the verified admissible sample with the lowest computed stress (not a global minimum); a midpoint is re-solved and its own verdict shown.
+    </p>
+    <h3 className="text-base font-semibold mt-4">9.9 Min. supports with ground contact</h3>
+    <p className="text-sm text-muted-foreground leading-relaxed">
+      With ground contact, Min. supports runs Find L range with ground for 0, 1, 2&hellip; installed supports in order, up to the
+      chosen ceiling (max 20), inside the same length domain. No bisection is used: support positions change with their number.
+      The first count whose admissible length passes an independent complete solve (valid, criterion met, not uncertain) is retained.
+      A single global budget (evaluations and time) covers all counts and final checks; partial results are reported if it runs out.
+      <strong> Found is not the same as demonstrated minimal.</strong> If 0 supports suffice, the minimum is certified in the model
+      (no smaller count exists), even though the length coverage stays uncertified. For a candidate above 0 the result reads
+      &laquo; Smallest support count with a verified solution found &mdash; minimum not certified &raquo;: lower counts were only explored,
+      and an exploratory search without admissible point is not an impossibility proof. Installed supports and actually active contacts
+      are distinguished; the installed-supports input of the other modes is not modified.
     </p>
     <h3 className="text-base font-semibold mt-4">9.7 Find h with ground contact</h3>
     <p className="text-sm text-muted-foreground leading-relaxed">
