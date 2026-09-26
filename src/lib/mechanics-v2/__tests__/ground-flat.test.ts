@@ -52,7 +52,6 @@ describe("analytical flat-on-ground branch", () => {
   it("Find L restrained 7.5-120 m, hv = hl = 0, ground 0, 20 supports: fast, no failure, bound not mechanical", () => {
     const t0 = Date.now();
     const r = searchLengthRestrained({ ...B0, axialMode: "restrained", hv: 0, hl: 0, groundZ: 0, Lmin: 7500, Lmax: 120000 }, 20);
-    console.log("V2_11_R1_BENCH", ms0(t0), r.samples.length, r.samples.filter((x) => x.cls === "failed").length);
     const ms = Date.now() - t0;
     expect(r.status).toBe("found");
     if (r.status !== "found") return;
