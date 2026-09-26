@@ -15,6 +15,7 @@ export const groundLengthResult = (o: SearchOutcome | null): GroundLengthResult 
 export const glBest = (o: SearchOutcome | null): number | null =>
   o?.kind === "minSupportsGround" ? (o.result.status === "found" ? o.result.candidate.L : null)
   : o?.kind === "searchLengthGround" && "lowestStress" in o.result ? o.result.lowestStress?.L ?? null : null;
+const lowest = (r: GroundLengthResult | null): number | null => (r && "lowestStress" in r ? r.lowestStress?.L ?? null : null);
 export const glRanges = (r: GroundLengthResult | null): GroundLengthRange[] => (r && "ranges" in r ? r.ranges : []);
 
 export function glOptions(r: GroundLengthRange, best: number | null): GLOption[] {
@@ -25,14 +26,14 @@ export function glOptions(r: GroundLengthRange, best: number | null): GLOption[]
   return out;
 }
 
-export function glInitial(r: GroundLengthResult | null, best: number | null = r && "lowestStress" in r ? r.lowestStress?.L ?? null : null): GLSelection | null {
+export function glInitial(r: GroundLengthResult | null, best: number | null = lowest(r)): GLSelection | null {
   const ranges = glRanges(r);
   if (!ranges.length || !r) return null;
   const k = Math.max(0, ranges.findIndex((g) => best !== null && best >= g.lower.value && best <= g.upper.value));
   return { rangeIndex: k, optionId: glOptions(ranges[k], best)[0].id, custom: null };
 }
 
-export function glSelected(r: GroundLengthResult | null, s: GLSelection | null, best: number | null = r && "lowestStress" in r ? r.lowestStress?.L ?? null : null): number | null {
+export function glSelected(r: GroundLengthResult | null, s: GLSelection | null, best: number | null = lowest(r)): number | null {
   const ranges = glRanges(r);
   if (!s || !ranges[s.rangeIndex]) return null;
   if (s.optionId === "custom") return s.custom !== null && Number.isFinite(s.custom) && s.custom > 0 ? s.custom : null;
