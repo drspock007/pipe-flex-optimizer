@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search } from "lucide-react";
+import { useUnits } from "@/contexts/UnitContext";
 import { useV2Engine, isSearchMode, SolveTarget } from "@/hooks/useV2Engine";
 import { AppInputs } from "@/lib/v2-app/inputs";
 import { Derived, groundBlocksSearch, isLengthGround, solveKeyOf } from "@/lib/v2-app/bridge";
@@ -42,6 +43,8 @@ const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
   const [selection, setSelection] = useState<Selection | null>(null);
   const heightMode = inputs.mode === "findH" && !blocked;
   const fmtH = useFmtHeight();
+  const { conv, label } = useUnits();
+  const fmtS = (v: number) => `${conv(v, "MPa").toFixed(2)} ${label("MPa")}`;
   const hRanges = heightMode ? heightRanges(search.data) : [];
   const [hSel, setHSel] = useState<HeightSelection | null>(null);
   const selectedH = selectedHeight(hRanges, hSel);
@@ -73,8 +76,7 @@ const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
   const searchStatus = search.data ? describeSearch(search.data) : null;
   const gh = heightMode && search.data?.kind === "findHGround" ? search.data.result : null;
   const ghRows = gh ? groundHeightRows(gh, fmtH) : [];
-  const mpa = (v: number) => `${v.toFixed(2)} MPa`;
-  const glRows = glr ? groundLengthRows(glr, fmt, mpa) : [];
+  const glRows = glr ? groundLengthRows(glr, fmt, fmtS) : [];
   const rangeExists = glr ? ("ranges" in glr && glr.ranges.length > 0 ? true : "undecidable" as const) : !(searchMode || heightMode) || !search.data ? null
     : gh ? (hRanges.length > 0 ? true : gh.status === "impossible" ? false : "undecidable" as const)
     : search.data.kind !== "minSupports" && search.data.result.status === "undecidable" ? "undecidable" as const

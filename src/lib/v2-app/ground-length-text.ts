@@ -21,6 +21,7 @@ export function describeGroundLength(r: GroundLengthResult): StatusText {
   }
 }
 
+const MAX_ZONES = 5;
 const pct = (x: number) => `${(x * 100).toPrecision(3)} %`;
 
 export function groundLengthRows(r: GroundLengthResult, fmt: (mm: number) => string, fmtS: (mpa: number) => string): [string, string][] {
@@ -34,7 +35,12 @@ export function groundLengthRows(r: GroundLengthResult, fmt: (mm: number) => str
     const edges = [g.lower.domainEdge ? "lower" : "", g.upper.domainEdge ? "upper" : ""].filter(Boolean);
     rows.push([`Estimated range ${i + 1} (verified end samples)`, `${fmt(g.lower.value)} ; ${fmt(g.upper.value)}${edges.length ? ` — ${edges.join(" & ")} end ${EDGE_TEXT}` : ""}`]);
   });
-  r.zones.forEach((z) => rows.push([`Zone: ${ZONE_LABEL[z.reason]}`, `${fmt(z.from)} to ${fmt(z.to)}`]));
+  // Readability: at most MAX_ZONES listed per kind, the rest counted.
+  for (const reason of [...new Set(r.zones.map((z) => z.reason))]) {
+    const zs = r.zones.filter((z) => z.reason === reason);
+    zs.slice(0, MAX_ZONES).forEach((z) => rows.push([`Zone: ${ZONE_LABEL[reason]}`, `${fmt(z.from)} to ${fmt(z.to)}`]));
+    if (zs.length > MAX_ZONES) rows.push([`Zone: ${ZONE_LABEL[reason]}`, `+ ${zs.length - MAX_ZONES} more between ${fmt(zs[MAX_ZONES].from)} and ${fmt(zs[zs.length - 1].to)}`]);
+  }
   rows.push(["Domain limits reached by admissible samples", r.boundaryHits.length ? `${r.boundaryHits.join(" & ")} — ${EDGE_TEXT}` : "none"]);
   rows.push(["Largest verified admissible L found", r.largestFound === null ? "none" : `${fmt(r.largestFound)} (within the searched domain, not a global maximum)`]);
   rows.push(["Lowest computed stress among admissible samples", r.lowestStress ? `${fmtS(r.lowestStress.maxStress as number)} at ${fmt(r.lowestStress.L)} (not a global minimum)` : "none"]);
