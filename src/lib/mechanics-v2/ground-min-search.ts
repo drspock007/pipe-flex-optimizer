@@ -9,7 +9,7 @@ import { searchLengthGround, LengthEvaluator } from "./ground-length-search";
 import type { GroundLimits } from "./ground-solve";
 import type { HeightSample } from "./ground-height-types";
 import type { LengthSample } from "./ground-length-types";
-import { GM_MAX_CHECKS, GM_MAX_EVALUATIONS, GM_MAX_MS, GroundMinCandidate, GroundMinInput, GroundMinResult, GroundMinRow } from "./ground-min-types";
+import { GM_MAX_CHECKS, GM_MAX_EVALUATIONS, GM_MAX_MS, GroundMinCandidate, GroundMinDiagnostics, GroundMinInput, GroundMinResult, GroundMinRow } from "./ground-min-types";
 
 export interface GroundMinLimits {
   maxEvaluations?: number; maxMs?: number; grid?: number; solve?: GroundLimits;
@@ -28,7 +28,7 @@ export function searchMinSupportsGround(input: GroundMinInput, maxSupports: numb
   const now = limits.now ?? clock, t0 = now();
   const maxE = limits.maxEvaluations ?? GM_MAX_EVALUATIONS, maxMs = limits.maxMs ?? GM_MAX_MS;
   const rows: GroundMinRow[] = [];
-  let used = 0, candidate: GroundMinCandidate | null = null, stop: GroundMinResult extends never ? never : "candidate-found" | "ceiling-reached" | "evaluation-budget" | "time-budget" = "ceiling-reached";
+  let used = 0, candidate: GroundMinCandidate | null = null, stop: GroundMinDiagnostics["stopCause"] = "ceiling-reached";
   const verify = (n: number, L: number) => limits.verify ? limits.verify(n, L) : classifyGround({ ...input, L, numSupports: n }, limits.solve);
 
   for (let n = 0; n <= maxSupports; n++) {
