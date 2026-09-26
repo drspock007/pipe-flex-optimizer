@@ -1,73 +1,57 @@
-# Welcome to your Lovable project
+# Pipe Lowering
 
-## Project info
+Application React/TypeScript de calcul de descente de conduite : Vite, Vitest,
+Tailwind/shadcn, Recharts, jsPDF et jsPDF-autotable. Le développement local
+conserve la connexion Lovable et l'hébergement existant.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Démarrer
 
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Prérequis : Git, Node.js 24 LTS et Bun 1.3.11 (validation avec Node 24.19.0).
+`bun.lock` est le verrou de référence : il correspond à `package.json`, contrairement
+au `package-lock.json` historique (notamment jsPDF, Recharts et React Router).
+Aucune configuration CI n'est présente dans cette version. Ne pas lancer `npm install`
+ou régénérer les deux verrous pour une modification de code.
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+git clone https://github.com/drspock007/pipe-flex-optimizer.git
+cd pipe-flex-optimizer
+git switch codex/v2-13-handoff-fixes
+bun install --frozen-lockfile
+bun run dev --host 127.0.0.1
 ```
 
-**Edit a file directly in GitHub**
+Ouvrir l'adresse indiquée par Vite (par défaut http://127.0.0.1:8080).
+Les calculs et les exports locaux n'exigent pas de connexion à Lovable.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Vérifier une modification
 
-**Use GitHub Codespaces**
+```sh
+bun run test                          # Vitest, suite complète (pas « bun test »)
+bun run test -- src/lib/pdf/__tests__/pagination.test.ts
+bun run typecheck                     # TypeScript local, application ET configuration Vite
+bun run build
+bun run lint
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+`bun run test:watch` lance Vitest en mode interactif ; `bun run preview` sert le build.
+Le lint historique n'est pas entièrement propre : comparer avec la branche de départ
+et ne pas confondre ces diagnostics avec de nouvelles régressions.
 
-## What technologies are used for this project?
+## Poursuivre dans Codex
 
-This project is built with:
+Lire [AGENTS.md](AGENTS.md) et le [contrat technique](docs/technical-context.md),
+vérifier `git status`, puis travailler sur une branche dédiée à partir de la branche
+convenue (`remix` pour cette reprise). Exécuter les tests ciblés puis les commandes
+ci-dessus. Pour un changement PDF, exporter SI et impérial et regarder toutes les pages.
+Ne pas fusionner ni déployer sans demande explicite. La visibilité dans Lovable dépend
+de la branche effectivement connectée ; publier une branche de travail ne modifie pas `remix`.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+La version affichée est `vYYYYMMDDHHmmss`, calculée avec `Europe/Rome` (par exemple
+`Intl.DateTimeFormat` avec `timeZone: "Europe/Rome"`), jamais avec un décalage UTC fixe.
 
-## How can I deploy this project?
+Repères : `src/lib/mechanics-v2/` pour le moteur, `src/lib/v2-app/` pour l'adaptation
+et les workers, `src/hooks/useV2Engine.ts` pour l'orchestration, `src/components/v2/`
+pour l'interface et `src/lib/pdf/` pour les rapports.
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Pour reproduire les deux rapports de contrôle : `bun run scripts/check-report.ts`.
+Les PDF sont écrits dans `output/pdf/` (non versionné).

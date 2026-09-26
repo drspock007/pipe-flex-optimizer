@@ -11,7 +11,7 @@
 // clamp forces and couples are 0. The ground carries p(x) = q on [0, L]
 // (resultant qL). Unique; no mesh, no nodal contact, no refinement.
 
-import { BiaxialSuccess, EquilibriumSet } from "./types";
+import { BiaxialResult, BiaxialSuccess, EquilibriumSet } from "./types";
 import { equilibriumTolerances } from "./equilibrium";
 import type { GroundInput } from "./ground-solve";
 
@@ -23,18 +23,27 @@ export function isExactFlatOnGround(input: GroundInput): boolean {
 }
 
 /** Caller validates the input first. Returns null when the exact conditions do not hold. */
-export function solveFlatOnGround(input: GroundInput): BiaxialSuccess | null {
+export function solveFlatOnGround(input: GroundInput): BiaxialResult | null {
   if (!isExactFlatOnGround(input)) return null;
   const { L, q, E, I, sigmaAllow, numSupports: n } = input;
   const EI = E * I, total = q * L;
-  if (![EI, total].every(Number.isFinite)) return null; // caller falls back to the general path
-  const xs = Array.from({ length: n + 2 }, (_, i) => (i * L) / (n + 1));
+  // Divide the bounded index first: i*L can overflow even when x <= L is finite.
+  const xs = Array.from({ length: n + 2 }, (_, i) => (i / (n + 1)) * L);
   const zero: EquilibriumSet = { translation: 0, rotation: 0, globalForce: 0, globalMoment: 0 };
   const forceScale = Math.max(total, 1e-6);
+  const momentScale = forceScale * L;
+  const residualTolerances = equilibriumTolerances(forceScale, L);
+  const lengths = xs.slice(0, -1).map((x, k) => xs[k + 1] - x);
+  if (![EI, total, forceScale, momentScale, ...xs, ...lengths, ...Object.values(residualTolerances)].every(Number.isFinite)
+    || EI <= 0 || momentScale <= 0 || (q > 0 && total <= 0)
+    || lengths.some((length) => length <= 0) || Object.values(residualTolerances).some((tol) => tol <= 0)) {
+    // An exact trigger with unrepresentable output is a failure, not a mesh fallback.
+    return { status: "numerical-failure", message: "Analytical flat solution: derived rigidity, reactions, spans, scales or tolerances are not representable" };
+  }
   const nodes = xs.map((x) => ({ x, z: 0, theta: 0 }));
   // One member per span; member q is the NET distributed load q - p = 0.
   const members = xs.slice(0, -1).map((x0, k) => ({
-    index: k, xStart: x0, length: xs[k + 1] - x0, nodalDisplacements: [0, 0, 0, 0] as [number, number, number, number],
+    index: k, xStart: x0, length: lengths[k], nodalDisplacements: [0, 0, 0, 0] as [number, number, number, number],
     endActions: { Fi: 0, Ci: 0, Fj: 0, Cj: 0 }, EI, q: 0,
   }));
   const supports = xs.slice(1, -1).map((x, k) => ({ index: k + 1, x, level: 0, z: 0, gap: 0, reaction: 0, active: false, sharedWithGround: true }));
@@ -44,8 +53,8 @@ export function solveFlatOnGround(input: GroundInput): BiaxialSuccess | null {
     critical: { x: 0, memberIndex: 0, Mv: 0, Ml: 0, Mres: 0, sigma: 0, phiTension: null, phiCompression: null },
     maxStress: 0, sigmaAllow, bendingCriterionMet: true, numericalValid: true, physicalValidity: "not-assessed",
     diagnostics: {
-      converged: true, iterations: 0, contactValid: true, scales: { force: forceScale, moment: forceScale * L, displacement: 1e-3 },
-      residuals: zero, residualTolerances: equilibriumTolerances(forceScale, L), normalizedResiduals: zero, equilibriumOk: true,
+      converged: true, iterations: 0, contactValid: true, scales: { force: forceScale, moment: momentScale, displacement: 1e-3 },
+      residuals: zero, residualTolerances, normalizedResiduals: zero, equilibriumOk: true,
       tolDisp: 0, tolForce: 0, messages: [`${FLAT_METHOD_LABEL}: exact, no mesh`],
     },
     ground: {

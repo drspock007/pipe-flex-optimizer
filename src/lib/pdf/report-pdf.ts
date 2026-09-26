@@ -3,7 +3,7 @@
 
 import { jsPDF } from "jspdf";
 import autoTable, { UserOptions } from "jspdf-autotable";
-import { headAlone, rowsOnLastPage } from "./pdf-measure";
+import { planTable } from "./pdf-measure";
 import { V2Report } from "./report-types";
 import { UnitSystem } from "@/lib/unit-conversions";
 import { buildSections } from "./pdf-sections";
@@ -21,17 +21,15 @@ const ORANGE: [number, number, number] = [255, 142, 4];
 /** Space reserved at the bottom of every page for the footer (mm). */
 const FOOTER_SPACE = 20;
 const TOP_MARGIN = 20;
-/** Sections up to this many rows are never split across pages. */
+/** Keep short sections together when their wrapped rows fit on a fresh page. */
 const KEEP_TOGETHER_ROWS = 8;
-const ROW_H = 6.2;
 
-export const generateReportPdf = (
+export const createReportPdf = (
   report: V2Report,
   meta: ReportMeta,
-): string => {
+): jsPDF => {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
 
   // Header band
   doc.setFillColor(...ORANGE);
@@ -52,11 +50,6 @@ export const generateReportPdf = (
 
   let cursorY = 52;
   for (const section of buildSections(report.inputs, report.derived, report, meta.system)) {
-    const estimated = (section.rows.length + 1) * ROW_H;
-    if (section.rows.length <= KEEP_TOGETHER_ROWS && cursorY + estimated > pageHeight - FOOTER_SPACE) {
-      doc.addPage();
-      cursorY = TOP_MARGIN;
-    }
     const opts: UserOptions = {
       startY: cursorY,
       head: [[section.title, ""]],
@@ -68,17 +61,12 @@ export const generateReportPdf = (
       margin: { left: 14, right: 14, top: TOP_MARGIN, bottom: FOOTER_SPACE },
       rowPageBreak: "avoid",
     };
-    // Never leave a single last row alone on the next page.
-    // Never leave the title alone at the bottom (title + first real row reserved),
-    // nor a single last row alone on the next page.
-    if (section.rows.length > 0 && headAlone(opts)) {
-      doc.addPage();
-      opts.startY = TOP_MARGIN;
-    } else if (section.rows.length > 1 && rowsOnLastPage(opts) <= 1) {
-      doc.addPage();
-      opts.startY = TOP_MARGIN;
+    const plan = planTable(opts, TOP_MARGIN, KEEP_TOGETHER_ROWS);
+    if (plan.newPage) doc.addPage();
+    for (const [index, part] of plan.parts.entries()) {
+      if (index > 0) doc.addPage();
+      autoTable(doc, part);
     }
-    autoTable(doc, opts);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     cursorY = (doc as any).lastAutoTable.finalY + 6;
   }
@@ -98,6 +86,11 @@ export const generateReportPdf = (
     doc.text(`Page ${i} / ${pageCount}`, pageWidth - 14, h - 10, { align: "right" });
   }
 
+  return doc;
+};
+
+export const generateReportPdf = (report: V2Report, meta: ReportMeta): string => {
+  const doc = createReportPdf(report, meta);
   const fileName = buildPdfFileName(meta.projectName, meta.date);
   doc.save(`${fileName}.pdf`);
   return fileName;
