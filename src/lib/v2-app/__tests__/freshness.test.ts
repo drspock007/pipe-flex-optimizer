@@ -75,3 +75,20 @@ describe("V2-3-R1 freshness", () => {
     expect(Math.abs(d.result.maxStress - 340.2702057) / 340.27).toBeLessThan(1e-8);
   });
 });
+
+// V2-8: progress messages are accepted only for the latest request.
+describe("channel progress", () => {
+  it("ignores stale progress and clears it on completion", () => {
+    let st = channelReducer(initialChannel<number>(), { type: "request", id: 1 });
+    st = channelReducer(st, { type: "request", id: 2 });
+    st = channelReducer(st, { type: "progress", id: 1, progress: { n: 3 } });
+    expect(st.progress).toBeNull();
+    st = channelReducer(st, { type: "progress", id: 2, progress: { n: 1 } });
+    expect(st.progress).toEqual({ n: 1 });
+    st = channelReducer(st, { type: "success", id: 1, data: 5 });
+    expect(st.status).toBe("loading");
+    st = channelReducer(st, { type: "success", id: 2, data: 7 });
+    expect(st.progress).toBeNull();
+    expect(channelReducer(st, { type: "progress", id: 2, progress: { n: 9 } }).progress).toBeNull();
+  });
+});
