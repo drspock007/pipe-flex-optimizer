@@ -11,15 +11,15 @@ import { StatusBanner, Busy } from "./StatusBanner";
 
 interface Props {
   loading: boolean; refreshing: boolean; error: string | null; status: StatusText | null;
-  result: GroundMinResult | null; details: [string, string][]; progress: SearchProgress | null;
+  result: GroundMinResult | null; details: [string, string][]; progress: SearchProgress | null; title?: string;
 }
 
-const GroundMinCard = ({ loading, refreshing, error, status, result, details, progress }: Props) => {
+const GroundMinCard = ({ loading, refreshing, error, status, result, details, progress, title = "Minimum supports with ground" }: Props) => {
   const rows = result && "rows" in result ? result.rows : [];
   const busy = progress ? `Examining ${progress.n} installed support${progress.n === 1 ? "" : "s"} (ceiling ${progress.maxSupports}, ${progress.evaluations} solves so far)…` : "Searching the smallest support count…";
   return (
     <Card>
-      <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-sm"><ListOrdered className="h-4 w-4 text-primary" /> Minimum supports with ground</CardTitle></CardHeader>
+      <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-sm"><ListOrdered className="h-4 w-4 text-primary" /> {title}</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         {loading && <Busy label={refreshing ? `${busy} — the content below belongs to the previous inputs` : busy} />}
         {error && <StatusBanner s={{ tone: "error", title: "Search failed", detail: error }} />}
