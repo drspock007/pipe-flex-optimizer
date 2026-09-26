@@ -80,6 +80,11 @@ describe("classification on the combined criterion", () => {
     expect(r.ranges.length).toBeGreaterThanOrEqual(2);
     expect(r.ranges.some((g) => g.lower.value < -150) && r.ranges.some((g) => g.upper.value > 150)).toBe(true);
   });
+  it("very narrow range: missing it is reported as not found, never as impossible", () => {
+    const r = run((h) => 290 - 10 * Math.max(0, 1 - Math.abs(h - 300.3) / 3));
+    expect(["found", "none-found"]).toContain(r.status);
+    if (r.status === "found") expect(r.ranges.every((g) => Math.abs(g.lower.value - 300.3) < 3)).toBe(true);
+  });
   it("solver failures form unresolved zones with causes", () => {
     const r = run(() => 400, (h) => (Math.abs(h) < 100 ? "failed" : null));
     expect(r.status).toBe("none-found");
