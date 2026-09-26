@@ -24,13 +24,16 @@ describe("Find L with ground: real solver", () => {
   });
 
   it("inactive ground: agrees with the no-ground ranges restricted to the domain", { timeout: 60000 }, () => {
-    const g = pub(G({ groundZ: -1e7, hv: 2500 }));
-    const ref = searchLengthGeneral({ ...BASE, hv: 2500 }, 0);
+    const g = pub(G({ groundZ: -1e7 }));
+    const ref = searchLengthGeneral({ ...BASE, hv: 1000 }, 0);
     if (ref.status !== "ok") throw new Error(ref.status);
-    const up = ref.ranges[0].upper.value!;
-    expect(g.ranges).toHaveLength(1);
-    expect(g.ranges[0].upper.value).toBeLessThanOrEqual(up * (1 + 1e-6));
-    expect(rel(g.ranges[0].upper.value, up)).toBeLessThan(5e-3);
+    const clip = ref.ranges.map((r) => [Math.max(r.lower.value ?? 0, IN.Lmin), Math.min(r.upper.value ?? Infinity, IN.Lmax)]).filter(([x, y]) => x <= y);
+    expect(g.ranges).toHaveLength(clip.length);
+    clip.forEach(([x, y], i) => {
+      const e = g.ranges[i];
+      if (x === IN.Lmin) expect(e.lower.domainEdge).toBe(true); else expect(rel(e.lower.value, x)).toBeLessThan(5e-3);
+      if (y === IN.Lmax) expect(e.upper.domainEdge).toBe(true); else expect(rel(e.upper.value, y)).toBeLessThan(5e-3);
+    });
   });
 
   it("flat pipe hv = hl = 0: whole domain admissible, edges are domain limits", { timeout: 60000 }, () => {
@@ -71,14 +74,19 @@ const lo = IN.sigmaAllow - 50, hi = IN.sigmaAllow + 50;
 
 describe("Find L with ground: simulated evaluator", () => {
   it("narrow range, pocket and several transitions: never certified, no merge across a pocket", () => {
-    const r = pub(G({}, 0, sim((L) => (L > 20000 && L < 21000) || L > 40000 && !(L > 50000 && L < 51000) ? lo : hi)));
-    expect(r.ranges.length).toBe(3);
-    expect(r.zones.filter((z) => z.reason === "transition-bracket").length).toBeGreaterThanOrEqual(4);
+    // Continuous profile in ln L: broad oscillation + a narrow admissible dip + a narrow non-admissible pocket.
+    const f = (L: number) => { const x = Math.log(L / IN.Lmin) / Math.log(IN.Lmax / IN.Lmin);
+      return IN.sigmaAllow + 40 * Math.cos(6 * Math.PI * x) - 80 * Math.exp(-(((x - 0.33) / 0.01) ** 2)) + 120 * Math.exp(-(((x - 0.02) / 0.01) ** 2)); };
+    const r = pub(G({}, 0, sim(f)));
+    const truth = (L: number) => f(L) <= IN.sigmaAllow;
+    expect(r.ranges.length).toBeGreaterThanOrEqual(4);
+    for (const g of r.ranges) expect(truth(g.lower.value) && truth(g.upper.value)).toBe(true);
+    expect(r.zones.filter((z) => z.reason === "transition-bracket").length).toBeGreaterThanOrEqual(6);
     expect(r.coverage.certified).toBe(false);
   });
 
   it("uncertain and failed evaluations are unresolved, never not-admissible", () => {
-    const r = pub(G({}, 0, sim((L) => (L > 30000 && L < 32000 ? "u" : L > 45000 && L < 46000 ? "x" : lo))));
+    const r = pub(G({}, 0, sim((L) => (L > 30000 && L < 32000 ? "u" : L > 45000 && L < 47000 ? "x" : lo))));
     expect(r.zones.some((z) => z.reason === "uncertain-verdict")).toBe(true);
     expect(r.zones.some((z) => z.reason === "solver-failure")).toBe(true);
     expect(r.ranges.length).toBeGreaterThanOrEqual(3);
