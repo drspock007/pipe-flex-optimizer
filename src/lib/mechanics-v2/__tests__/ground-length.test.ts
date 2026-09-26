@@ -86,7 +86,7 @@ describe("Find L with ground: simulated evaluator", () => {
   });
 
   it("uncertain and failed evaluations are unresolved, never not-admissible", () => {
-    const r = pub(G({}, 0, sim((L) => (L > 30000 && L < 32000 ? "u" : L > 45000 && L < 47000 ? "x" : lo))));
+    const r = pub(G({}, 0, sim((L) => (L > 30000 && L < 36000 ? "u" : L > 45000 && L < 52000 ? "x" : lo))));
     expect(r.zones.some((z) => z.reason === "uncertain-verdict")).toBe(true);
     expect(r.zones.some((z) => z.reason === "solver-failure")).toBe(true);
     expect(r.ranges.length).toBeGreaterThanOrEqual(3);
