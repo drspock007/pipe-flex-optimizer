@@ -64,7 +64,15 @@ export function groundHeightRows(r: GroundHeightResult, fmt: (mm: number) => str
   rows.push(["Uncertain / failed evaluations", `${c.uncertainEvaluations} / ${c.failedEvaluations}`]);
   rows.push(["Searched hv domain", r.domain ? `[${fmt(r.domain.lower)} ; ${fmt(r.domain.upper)}]` : "empty"]);
   rows.push(boundRow ?? ["Hcap = sA L^2/(4 E c) (necessary, not sufficient)", fmt(d.Hcap)]);
-  r.ranges.forEach((g, i) => rows.push([`Estimated range ${i + 1} (verified end samples)`, fmtInterval(g.lower.value, g.upper.value, fmt)]));
+  r.ranges.forEach((g, i) => {
+    rows.push([`Estimated range ${i + 1} (verified end samples)`, fmtInterval(g.lower.value, g.upper.value, fmt)]);
+    // A bound adjacent to an unresolved (failed / uncertain) zone is only the first admissible sample found there.
+    const touch = (v: number) => r.zones.find((z) => z.reason !== "transition-bracket" && (z.from === v || z.to === v));
+    for (const [side, v] of [["lower", g.lower.value], ["upper", g.upper.value]] as const) {
+      const z = touch(v);
+      if (z) rows.push([`Range ${i + 1} ${side} bound`, `first admissible sample found next to an unresolved zone (${zoneLabel(z)}); not an established mechanical boundary`]);
+    }
+  });
   r.zones.forEach((z) => rows.push([`Zone: ${zoneLabel(z)}`, fmtInterval(z.from, z.to, fmt)]));
   rows.push(["Largest verified admissible hv found", r.largestFound === null ? "none" : `${fmt(r.largestFound)} (not a demonstrated global maximum)`]);
   rows.push(["Sampling resolution", `min step ${fmt(d.minStep)}, boundary tol ${fmtSmall(d.boundaryTol, fmt)}, ${d.evaluations} solves, ${(d.elapsedMs / 1000).toFixed(1)} s`]);
