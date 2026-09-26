@@ -4,7 +4,7 @@
 
 import { GroundLengthResult } from "@/lib/mechanics-v2";
 import type { StatusText } from "./status-text";
-import { ZONE_LABEL, zoneLabel } from "./ground-height-text";
+import { fmtSmall, ZONE_LABEL, zoneLabel } from "./ground-height-text";
 
 const plural = (n: number) => `${n} installed support${n === 1 ? "" : "s"}`;
 const EXPLAIN = "Each range bound is an individually verified admissible L. Points between verified samples are ESTIMATED (adaptive sampling in ln L with estimated slopes), not verified; narrower non-admissible pockets may exist.";
@@ -44,7 +44,9 @@ export function groundLengthRows(r: GroundLengthResult, fmt: (mm: number) => str
   rows.push(["Domain limits reached by admissible samples", r.boundaryHits.length ? `${r.boundaryHits.join(" & ")} — ${EDGE_TEXT}` : "none"]);
   rows.push(["Largest verified admissible L found", r.largestFound === null ? "none" : `${fmt(r.largestFound)} (within the searched domain, not a global maximum)`]);
   rows.push(["Lowest computed stress among admissible samples", r.lowestStress ? `${fmtS(r.lowestStress.maxStress as number)} at ${fmt(r.lowestStress.L)} (not a global minimum)` : "none"]);
-  rows.push(["Sampling resolution (relative, ln L)", `min step ${pct(d.minStepRel)}, boundary tol ${pct(d.boundaryTolRel)}, ${d.evaluations} solves, ${(d.elapsedMs / 1000).toFixed(1)} s`]);
+  rows.push(["Sampling resolution (relative: step in ln L, i.e. L2/L1 - 1)", `min step ${pct(d.minStepRel)}, boundary tol ${pct(d.boundaryTolRel)}, ${d.evaluations} solves, ${(d.elapsedMs / 1000).toFixed(1)} s`]);
+  const U = r.domain.upper;
+  rows.push(["Absolute resolution at the domain upper limit", `min step ${fmtSmall(U * d.minStepRel, fmt)}, boundary tol ${fmtSmall(U * d.boundaryTolRel, fmt)} (scales with L)`]);
   return rows;
 }
 
