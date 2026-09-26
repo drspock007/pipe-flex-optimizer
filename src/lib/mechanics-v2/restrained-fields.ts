@@ -16,7 +16,7 @@ export type RestrainedPoint = FieldValues & { Mres: number; sigma: number; sigma
 /** Fields of element e at u = xi/l in [0, 1] (caller validates). */
 export function restrainedPoint(r: BiaxialSuccess, e: number, u: number): RestrainedPoint {
   const ax = r.axial!, m = r.members[e], ln = ax.lateral.nodes, al = ax.lateral.endActions[e];
-  const { I, c, A, q } = r.input, N = ax.N, l = m.length;
+  const { I, c, A } = r.input, q = m.q, N = ax.N, l = m.length;
   const dz = m.nodalDisplacements, dy = [ln[e].y, ln[e].theta, ln[e + 1].y, ln[e + 1].theta];
   const cv = momentCoeffsN(l, N, q, dz, m.endActions.Fi, m.endActions.Ci);
   const cl = momentCoeffsN(l, N, 0, dy, al[0], al[1]);

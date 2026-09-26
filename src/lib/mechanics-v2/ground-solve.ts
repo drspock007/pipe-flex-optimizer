@@ -18,6 +18,7 @@ import { buildGroundMesh, GroundMesh } from "./ground-mesh";
 import { maxPenetration, refineActive, solveGroundContact } from "./ground-contact";
 import { buildLevelResult, LevelResult } from "./ground-result";
 import { tryExactNoContact } from "./ground-fast";
+import { solveFlatOnGround } from "./ground-flat";
 import { GROUND_CONV_REL, GROUND_MAX_ELEMENTS, GROUND_MIN_ELEMENTS, GROUND_PEN_REL, GROUND_STRESS_FLOOR, RefinementLevel } from "./ground-types";
 
 export interface GroundInput extends BiaxialInput { groundZ: number }
@@ -32,6 +33,9 @@ export function solveGroundFixedLength(input: GroundInput, limits: GroundLimits 
     const which = [0 < groundZ ? "left end (z = 0)" : "", hv < groundZ ? `right end (z = hv = ${hv} mm)` : ""].filter(Boolean).join(" and ");
     return { status: "geometry-incompatible", message: `Imposed ${which} below the minimum pipe-axis elevation ${groundZ} mm` };
   }
+  // V2-11-R1: exact flat case on the ground line, shared by free and restrained.
+  const flat = solveFlatOnGround(input);
+  if (flat) return flat;
   if (input.axialMode === "restrained") return solveRestrained(input, limits); // V2-9 dedicated solver
   try { return run(input, limits.maxElements ?? GROUND_MAX_ELEMENTS, limits.minElements ?? GROUND_MIN_ELEMENTS); }
   catch (e) {

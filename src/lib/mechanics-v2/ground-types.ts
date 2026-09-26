@@ -83,7 +83,11 @@ export interface GroundReport {
   elements: number;
   /** "exact-no-contact": exact no-ground member solution, clearance verified on
    *  every member (no mesh, no refinement). "mesh-refinement": nodal contact mesh. */
-  method: "exact-no-contact" | "mesh-refinement";
+   *  "analytical-full-contact" (V2-11-R1): exactly flat pipe on the ground, continuous
+   *  contact over [0, L] carrying p = q (no mesh, no nodal contacts, no point reactions). */
+  method: "exact-no-contact" | "mesh-refinement" | "analytical-full-contact";
+  /** Analytical path only: continuous ground pressure p (N/mm); resultant = totalReaction. */
+  distributedReaction?: number;
   /** Exact path only: minimum clearance above the ground over (0, L) (mm). */
   minClearance?: number;
 }

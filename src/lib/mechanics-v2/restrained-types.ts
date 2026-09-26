@@ -39,6 +39,8 @@ export interface AxialReport {
   elements: number;
   refinement: RestrainedLevel[];
   precisionLoss: boolean;
+  /** Set only by the analytical flat-on-ground branch (no mesh, no iterations). */
+  method?: "analytical-full-contact";
   /** Longitudinal end reactions: -N at x = 0 and +N at x = L (N, along x). */
   longitudinalReaction: number;
   lateral: {
