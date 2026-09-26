@@ -2,6 +2,7 @@
 // Modifié par Giovanni Malagnino, 2026-09-25 20:10 CEST: ground contact rows, Find h labels (V2-5).
 // Builds structured report rows (label / value) from V2 inputs and results.
 
+import { axialRows, COMBINED_NOTE, RESTRAINED_MODEL_TEXT, verdictText } from "@/lib/v2-app/axial-text";
 import { groundMethodText, groundReactionRows, STRESS_CONVERGENCE_TEXT } from "@/lib/v2-app/ground-labels";
 import { formatMomentPair, UnitSystem, UnitType, toDisplay, unitLabel } from "@/lib/unit-conversions";
 import { COATING_LABELS, CoatingType, effectiveCoating } from "@/lib/coating-presets";
@@ -36,7 +37,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
   const results: Row[] = [
     ["Calculation mode", inputs.mode === "searchLength" && inputs.groundEnabled ? "Length range search WITH ground contact (exploratory, fixed hv and hl)"
       : inputs.mode === "minSupports" && inputs.groundEnabled ? "Minimum installed supports search WITH ground contact (exploratory length searches)" : MODE_LABEL[inputs.mode]],
-    ["Axial mode", "Free longitudinal sliding"],
+    ...(s.axial ? [] : [["Axial mode", "Free longitudinal sliding"] as Row]),
   ];
   if (rep.searchStatus) results.push(["Search status", rep.searchStatus]);
   rep.ranges.forEach((r, i) => results.push([inputs.mode === "findH" ? `Admissible hv range ${i + 1}${rep.searchNotes ? " (estimated)" : ""}` : `Admissible range ${i + 1}`, r]));
@@ -49,7 +50,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
     ["Allowable stress", fmt(s.sigmaAllow, "MPa", 2)],
     ["Position of the maximum", fmt(s.critical.x / 1000, "m", 3)],
     ["Moments at max (vertical / lateral)", formatMomentPair(s.critical.Mv, s.critical.Ml, system)],
-    [inputs.mode === "findH" ? "Bending criterion at represented hv" : "Bending criterion at represented length", s.ground?.criterionUncertain ? "UNCERTAIN (mesh precision)" : s.bendingCriterionMet ? "met" : "NOT met"],
+    [s.axial ? "Combined normal stress criterion at represented length (governs)" : inputs.mode === "findH" ? "Bending criterion at represented hv" : "Bending criterion at represented length", verdictText(s).uncertain ? "UNCERTAIN (mesh precision)" : verdictText(s).met ? "met" : "NOT met"],
     ["Numerical validity", s.numericalValid ? "valid" : "NOT valid"],
     ["Physical validity (linear model)", "not assessed"],
   );
@@ -87,7 +88,8 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
   const limits: Row[] = [
     ["Model", "Linear Euler-Bernoulli, small rotations, fixed ends"],
     ["Supports", "Equally spaced, unilateral vertical contact, no lateral restraint"],
-    ["Not covered", "Axial restraint, large displacements, 3D effects"],
+    ...(s.axial ? [["Model", RESTRAINED_MODEL_TEXT] as Row, ["Combined stress", COMBINED_NOTE] as Row, ["Not covered", "Friction, temperature, internal pressure, plasticity, exact large rotations, 3D effects"] as Row]
+      : [["Not covered", "Axial restraint, large displacements, 3D effects"] as Row]),
   ];
   const g = s.ground;
   const ground: Row[] = [["Ground contact", g ? "enabled" : "disabled"]];
@@ -112,6 +114,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
     { title: "Geometry", rows: geometry },
     { title: "Material, section & loading", rows: material },
   ];
+  if (s.axial) sections.push({ title: "Axial restraint (coupled solution)", rows: axialRows(s.axial, s, { force: (v) => fmt(v, "N", 1), stress: (v) => fmt(v, "MPa", 2), length: (mm) => fmt(mm / 1000, "m", 3) }) });
   sections.push({ title: "Ground contact", rows: ground });
   if (supports.length) sections.push({ title: "Supports", rows: supports });
   sections.push({ title: "Model limits", rows: limits });

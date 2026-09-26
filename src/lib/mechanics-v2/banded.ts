@@ -1,4 +1,5 @@
 // créé par Giovanni Malagnino, 2026-09-25 20:10 CEST (Europe/Rome, UTC+2)
+// Modifié par Giovanni Malagnino, 2026-09-26 14:30 CEST: factor/solve split (V2-9, iterative refinement).
 // Symmetric positive-definite band matrix and Cholesky solver (A = U^T U).
 // Symmetric diagonal equilibration (D A D, unit diagonal) is applied before
 // factorization; a non-positive pivot raises LinearSolveError (no regularization).
@@ -24,7 +25,8 @@ export class BandMatrix {
 
 const PIVOT_TOL = 1e-14; // on the equilibrated (unit-diagonal) matrix
 
-export function bandSolve(M: BandMatrix, b: number[]): number[] {
+/** Factorize once; the returned function solves A x = b for any b. */
+export function bandFactor(M: BandMatrix): (b: number[]) => number[] {
   const { n, w } = M;
   const D = new Float64Array(n);
   for (let i = 0; i < n; i++) {
@@ -44,19 +46,25 @@ export function bandSolve(M: BandMatrix, b: number[]): number[] {
       } else U[i][k] = s / U[i][0];
     }
   }
-  const y = new Float64Array(n);
-  for (let i = 0; i < n; i++) {
-    let s = b[i] * D[i];
-    for (let p = Math.max(0, i - w); p < i; p++) s -= U[p][i - p] * y[p];
-    y[i] = s / U[i][0];
-  }
-  const xs = new Float64Array(n);
-  for (let i = n - 1; i >= 0; i--) {
-    let s = y[i];
-    for (let k = 1; k <= w && i + k < n; k++) s -= U[i][k] * xs[i + k];
-    xs[i] = s / U[i][0];
-  }
-  const x = Array.from(xs, (v, i) => v * D[i]);
-  if (!x.every(Number.isFinite)) throw new LinearSolveError("Non-finite band solution");
-  return x;
+  return (b: number[]) => {
+    const y = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      let s = b[i] * D[i];
+      for (let p = Math.max(0, i - w); p < i; p++) s -= U[p][i - p] * y[p];
+      y[i] = s / U[i][0];
+    }
+    const xs = new Float64Array(n);
+    for (let i = n - 1; i >= 0; i--) {
+      let s = y[i];
+      for (let k = 1; k <= w && i + k < n; k++) s -= U[i][k] * xs[i + k];
+      xs[i] = s / U[i][0];
+    }
+    const x = Array.from(xs, (v, i) => v * D[i]);
+    if (!x.every(Number.isFinite)) throw new LinearSolveError("Non-finite band solution");
+    return x;
+  };
+}
+
+export function bandSolve(M: BandMatrix, b: number[]): number[] {
+  return bandFactor(M)(b);
 }

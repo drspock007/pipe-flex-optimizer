@@ -10,6 +10,7 @@ import { Settings2 } from "lucide-react";
 import { AppInputs } from "@/lib/v2-app/inputs";
 import { MAX_SUPPORTS } from "@/lib/mechanics-v2";
 import GroundControls from "./GroundControls";
+import { RESTRAINED_EXPLANATION, RESTRAINED_SEARCH_UNAVAILABLE } from "@/lib/v2-app/axial-text";
 
 interface Props {
   inputs: AppInputs;
@@ -65,13 +66,18 @@ const AnalysisCard = ({ inputs, onChange }: Props) => (
           <SelectTrigger id="axialMode" className="h-8 text-sm"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="free">Free sliding</SelectItem>
-            <SelectItem value="restrained">Restrained (not implemented)</SelectItem>
+            <SelectItem value="restrained">Restrained (Fixed L only)</SelectItem>
           </SelectContent>
         </Select>
       </div>
+      {inputs.axialMode === "restrained" && (
+        <p className={`col-span-2 text-[11px] ${inputs.mode === "fixedLength" ? "text-muted-foreground" : "text-destructive"}`}>
+          {inputs.mode === "fixedLength" ? `${RESTRAINED_EXPLANATION}. Coupled axial tension N; combined normal stress governs the verdict.` : RESTRAINED_SEARCH_UNAVAILABLE}
+        </p>
+      )}
       <GroundControls inputs={inputs} onChange={onChange} />
       <p className="col-span-2 text-[11px] text-muted-foreground">
-        Supports are equally spaced candidate vertical supports (unilateral contact). Fixed-end pipe, linear model.
+        Supports are equally spaced candidate vertical supports (unilateral contact). Fixed-end pipe; linear model in free sliding, von Karman axial coupling when restrained.
       </p>
     </CardContent>
   </Card>

@@ -9,7 +9,7 @@ export const solveText = (r: BiaxialResult): StatusText | null => {
   switch (r.status) {
     case "ok": return null;
     case "invalid-input": return { tone: "error", title: "Invalid input", detail: r.errors.join("; ") };
-    case "not-implemented": return { tone: "info", title: "Not implemented", detail: r.message };
+    case "not-implemented": return { tone: "info", title: "Not available in this mode", detail: r.message };
     case "geometry-incompatible": return { tone: "error", title: "Geometric incompatibility", detail: r.message };
     case "incomplete": return { tone: "warn", title: `Calculation incomplete: ${CAUSE_LABEL[r.cause ?? "mesh-not-converged"]} (no result published)`, detail: r.message };
     case "contact-not-converged": return { tone: "error", title: "Contact did not converge", detail: r.diagnostics.messages.join("; ") };

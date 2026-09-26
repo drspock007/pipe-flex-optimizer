@@ -24,7 +24,7 @@ export function searchHeightGround(input: GroundHeightInput, numSupports: number
   const errors = validateInput({ ...input, hv: 0, numSupports });
   if (typeof input.groundZ !== "number" || !Number.isFinite(input.groundZ)) errors.push("groundZ must be a finite number");
   if (errors.length) return { status: "invalid-input", errors };
-  if (input.axialMode === "restrained") return { status: "not-implemented", message: 'axialMode "restrained" is not implemented' };
+  if (input.axialMode === "restrained") return { status: "not-implemented", message: 'axialMode "restrained" is available in Fixed L only: searches are not available with it' };
   if (input.groundZ > 0) return { status: "geometry-incompatible", message: `Imposed left end (z = 0) below the minimum pipe-axis elevation ${input.groundZ} mm` };
   let Hcap: number;
   try { Hcap = heightCap(input.sigmaAllow, input.L, input.E, input.c); }

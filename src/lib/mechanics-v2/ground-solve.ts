@@ -12,6 +12,7 @@
 
 import { BiaxialInput, BiaxialResult } from "./types";
 import { validateInput } from "./validate";
+import { solveRestrained } from "./restrained-solve";
 import { LinearSolveError } from "./linear-algebra";
 import { buildGroundMesh, GroundMesh } from "./ground-mesh";
 import { maxPenetration, refineActive, solveGroundContact } from "./ground-contact";
@@ -26,12 +27,12 @@ export function solveGroundFixedLength(input: GroundInput, limits: GroundLimits 
   const errors = validateInput(input);
   if (typeof input.groundZ !== "number" || !Number.isFinite(input.groundZ)) errors.push("groundZ must be a finite number");
   if (errors.length) return { status: "invalid-input", errors };
-  if (input.axialMode === "restrained") return { status: "not-implemented", message: 'axialMode "restrained" is not implemented' };
   const { groundZ, hv } = input;
   if (0 < groundZ || hv < groundZ) {
     const which = [0 < groundZ ? "left end (z = 0)" : "", hv < groundZ ? `right end (z = hv = ${hv} mm)` : ""].filter(Boolean).join(" and ");
     return { status: "geometry-incompatible", message: `Imposed ${which} below the minimum pipe-axis elevation ${groundZ} mm` };
   }
+  if (input.axialMode === "restrained") return solveRestrained(input, limits); // V2-9 dedicated solver
   try { return run(input, limits.maxElements ?? GROUND_MAX_ELEMENTS, limits.minElements ?? GROUND_MIN_ELEMENTS); }
   catch (e) {
     if (e instanceof LinearSolveError) return { status: "solver-error", message: e.message };

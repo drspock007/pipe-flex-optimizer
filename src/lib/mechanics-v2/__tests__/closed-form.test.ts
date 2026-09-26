@@ -56,7 +56,7 @@ describe("mechanics-v2 closed form (no support)", () => {
   });
 
   it("input contract", () => {
-    expect(solveBiaxialFixedLength({ ...REF, axialMode: "restrained" }).status).toBe("not-implemented");
+    expect(solveBiaxialFixedLength({ ...REF, axialMode: "restrained" }).status).toBe("ok"); // V2-9: implemented in Fixed L
     expect(solveBiaxialFixedLength({ ...REF, L: -1 }).status).toBe("invalid-input");
     expect(solveBiaxialFixedLength({ ...REF, q: -0.1 }).status).toBe("invalid-input");
     expect(solveBiaxialFixedLength({ ...REF, numSupports: 1.5 }).status).toBe("invalid-input");

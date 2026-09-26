@@ -30,6 +30,8 @@ export interface CurveSample extends FieldValues {
   deltaZ: number; // z - hv*x/L (signed)
   Mres: number;
   sigma: number;
+  /** Restrained mode only: N/A + bending stress (MPa). */
+  sigmaCombined?: number;
 }
 
 /** Sample the curve with `perMember` intervals per member; ends and supports included. */

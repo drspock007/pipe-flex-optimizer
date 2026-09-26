@@ -31,3 +31,6 @@ export type { GroundLengthLimits, LengthEvaluator } from "./ground-length-search
 export * from "./ground-min-types";
 export { searchMinSupportsGround } from "./ground-min-search";
 export type { GroundMinLimits } from "./ground-min-search";
+export * from "./restrained-types";
+export { sampleRestrained } from "./restrained-fields";
+export { solveRestrained } from "./restrained-solve";

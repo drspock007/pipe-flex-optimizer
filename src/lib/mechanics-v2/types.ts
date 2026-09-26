@@ -5,6 +5,7 @@
 // Units used everywhere in this engine: mm, N, MPa, N*mm, mm^2, mm^4.
 
 import type { GroundFailureCause, GroundReport, RefinementLevel } from "./ground-types";
+import type { AxialReport } from "./restrained-types";
 
 export type AxialMode = "free" | "restrained";
 
@@ -116,6 +117,8 @@ export interface BiaxialSuccess {
   diagnostics: Diagnostics;
   /** Present only for the ground-contact branch. */
   ground?: GroundReport;
+  /** Present only for axialMode "restrained" (V2-9): N, combined stress and verdict. */
+  axial?: AxialReport;
 }
 
 export type BiaxialResult =

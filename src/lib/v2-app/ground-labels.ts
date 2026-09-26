@@ -34,6 +34,7 @@ export const CAUSE_LABEL: Record<GroundFailureCause, string> = {
   "numerical-overflow": "numerical overflow",
   "resource-limit": "resource limit",
   "solver-error": "linear solver error",
+  "axial-not-converged": "axial compatibility not converged",
 };
 
 /** Method / convergence line: the exact path never claims a mesh convergence. */
