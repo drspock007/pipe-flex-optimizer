@@ -102,7 +102,7 @@ const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
         status={searchStatus} result={gmr} details={gmRows} progress={search.status === "loading" ? (search.progress as never) : null} />}
       {lengthGround && (!minGround || glr) && (
         <GroundLengthCard best={best} title={minGround ? `Candidate (${gmr?.status === "found" ? gmr.candidate.n : "–"} installed supports): estimated length ranges` : undefined}
-          loading={!minGround && search.status === "loading"} refreshing={search.refreshing} error={search.status === "error" ? search.error : null}
+          loading={!minGround && search.status === "loading"} refreshing={search.refreshing} error={!minGround && search.status === "error" ? search.error : null}
           status={minGround ? null : searchStatus} result={glr} details={glRows} selection={glSel} selectedL={glL} onChange={setGlSel} />
       )}
       {heightMode && (
