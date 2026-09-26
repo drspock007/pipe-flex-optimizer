@@ -13,6 +13,7 @@
 
 import type { HeightSearchInput } from "./height-search-types";
 
+import type { GroundFailureCause } from "./ground-types";
 export type GroundHeightInput = HeightSearchInput & { groundZ: number };
 
 /** Sample classification from a complete ground solve at one hv. */
@@ -23,6 +24,8 @@ export interface HeightSample {
   cls: SampleClass;
   maxStress: number | null; // MPa, only for converged solves
   status: string; // solver status (or "ok")
+  /** Failed samples only: precise failure cause (V2-7-R1). */
+  cause?: GroundFailureCause;
 }
 
 /** Estimated range bound: a verified admissible sample; bracket = neighbouring sample
@@ -40,6 +43,8 @@ export interface UnresolvedZone {
    *  detection of all ranges is implied. Uncertain / failed samples never form
    *  a transition bracket (they give "uncertain-verdict" / "solver-failure"). */
   reason: "transition-bracket" | "uncertain-verdict" | "solver-failure" | "narrow-feature-not-excluded" | "budget";
+  /** "solver-failure" only: distinct failure causes of the samples in the zone. */
+  causes?: GroundFailureCause[];
 }
 
 export interface GroundHeightDiagnostics {

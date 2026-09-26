@@ -68,7 +68,8 @@ export function assemble(s: HeightSample[], sa: number, S: number, minStep: numb
     const reason = run.some((x) => x.cls === "failed") ? "solver-failure"
       : "uncertain-verdict"; // never a transition bracket
 
-    zones.push({ from: L ? L.hv : s[i].hv, to: R ? R.hv : s[j].hv, reason });
+    const causes = [...new Set(run.flatMap((x) => (x.cls === "failed" && x.cause ? [x.cause] : [])))];
+    zones.push({ from: L ? L.hv : s[i].hv, to: R ? R.hv : s[j].hv, reason, ...(reason === "solver-failure" ? { causes } : {}) });
     i = j + 1;
   }
   // Transition brackets: adjacent decidable admissible / not-admissible pairs.
