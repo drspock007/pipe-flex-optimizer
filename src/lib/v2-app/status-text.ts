@@ -6,6 +6,7 @@
 
 import { SearchOutcome } from "./protocol";
 import { describeGroundHeight } from "./ground-height-text";
+import { describeGroundLength } from "./ground-length-text";
 
 export type Tone = "ok" | "warn" | "error" | "info";
 export interface StatusText { tone: Tone; title: string; detail?: string }
@@ -14,6 +15,7 @@ const plural = (n: number) => `${n} installed support${n === 1 ? "" : "s"}`;
 
 export function describeSearch(o: SearchOutcome): StatusText {
   if (o.kind === "findHGround") return describeGroundHeight(o.result);
+  if (o.kind === "searchLengthGround") return describeGroundLength(o.result);
   if (o.kind === "findH") {
     const r = o.result;
     switch (r.status) {

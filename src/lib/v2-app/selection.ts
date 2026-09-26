@@ -17,7 +17,7 @@ export interface SearchView {
 
 /** Ranges and installed count usable for representation (none on failures). */
 export function searchView(o: SearchOutcome): SearchView {
-  if (o.kind === "findH" || o.kind === "findHGround") return { ranges: [], infimum: null, numSupports: null };
+  if (o.kind === "findH" || o.kind === "findHGround" || o.kind === "searchLengthGround") return { ranges: [], infimum: null, numSupports: null };
   if (o.kind === "searchLength") {
     const r = o.result;
     if (r.status === "ok") return { ranges: r.ranges, infimum: r.infimum, numSupports: r.scope.numSupports };

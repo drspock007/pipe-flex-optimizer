@@ -60,7 +60,7 @@ const HelpCalcModes = () => (
       full solver. The initial represented h<sub>v</sub> is the upper bound of the range with the largest admissible value;
       midpoint, bounds or a signed custom value can be chosen. Details and charts come from a full solution at that h<sub>v</sub>.
     </P>
-    <h3 className="text-base font-semibold mt-4">9.6 Ground contact (Fixed L only)</h3>
+    <h3 className="text-base font-semibold mt-4">9.6 Ground contact (Fixed L, Find L range, Find h)</h3>
     <p className="text-sm text-muted-foreground">
       Optional rigid, horizontal, frictionless ground over the full length, vertical plane only. The input is the minimum
       pipe-axis elevation (ground elevation + outer radius, coating included), in the same axes as h<sub>v</sub>
@@ -74,8 +74,18 @@ const HelpCalcModes = () => (
       it measures the change between meshes and is neither a mechanical margin nor a guaranteed error bound. The criterion
       &sigma; &le; &sigma;<sub>allow</sub> stays strict; a verdict not decidable at that precision is flagged as uncertain.
       Reactions at ground level are listed separately (ground, combined support/ground, clamps; a clamp reaction is signed)
-      and their sum explicitly includes the clamps. Find L and Min. supports are not
+      and their sum explicitly includes the clamps. Min. supports is not
       available with ground contact in this version.
+    </p>
+    <h3 className="text-base font-semibold mt-4">9.8 Find L range with ground contact</h3>
+    <p className="text-sm text-muted-foreground leading-relaxed">
+      With ground contact, Find L range searches L inside an explicit exploration domain [L<sub>min</sub>, L<sub>max</sub>] entered by
+      the user (older configurations get [L/4, 4L] once). h<sub>v</sub>, h<sub>l</sub>, q (total weight qL), supports
+      (x<sub>i</sub> = iL/(n+1)) and the ground level are fixed. Each L is solved with the complete ground solver; sampling uses ln L
+      with adaptive refinement, without assuming monotone or convex stress. Ranges are estimated between verified admissible samples,
+      coverage is never certified, and every conclusion holds within the searched length domain only. An admissible sample at a domain
+      edge is reported as &laquo; admissible at search boundary &mdash; range may continue beyond &raquo;. The initial represented L is
+      the verified admissible sample with the lowest computed stress (not a global minimum); a midpoint is re-solved and its own verdict shown.
     </p>
     <h3 className="text-base font-semibold mt-4">9.7 Find h with ground contact</h3>
     <p className="text-sm text-muted-foreground leading-relaxed">

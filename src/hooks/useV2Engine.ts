@@ -2,6 +2,7 @@
 // Modifié par Giovanni Malagnino, 2026-09-25 01:43 CEST (Europe/Rome, UTC+2)
 // Modifié par Giovanni Malagnino, 2026-09-25 17:40 CEST: Find h search channel (L relaunches it, hv only the solve).
 // Modifié par Giovanni Malagnino, 2026-09-25 22:40 CEST: Find h with ground (V2-6).
+// Modifié par Giovanni Malagnino, 2026-09-26 04:30 CEST: Find L with ground (V2-7).
 // Runs V2 searches and fixed-length solutions in a Web Worker.
 // Two channels: "search" (not re-run when only the represented length changes)
 // and "solve". A request id is allocated as soon as the relevant inputs change,
@@ -11,7 +12,7 @@
 
 import { useEffect, useReducer, useRef, useState } from "react";
 import { AppInputs } from "@/lib/v2-app/inputs";
-import { derive, Derived, groundBlocksSearch, searchKey, solveKeyOf, toFixedInput, toHeightInput, toSearchInput } from "@/lib/v2-app/bridge";
+import { derive, Derived, groundBlocksSearch, isLengthGround, searchKey, solveKeyOf, toFixedInput, toHeightInput, toSearchInput, toLengthGroundInput } from "@/lib/v2-app/bridge";
 import { EngineRequest, SearchOutcome, SolveOutcome, WorkerRequestMsg, WorkerResponseMsg } from "@/lib/v2-app/protocol";
 import { ChannelAction, ChannelState, channelReducer, initialChannel } from "@/lib/v2-app/channel-state";
 
@@ -68,7 +69,7 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
   };
 
   const sKey = searchKey(inputs);
-  // Ground contact: Fixed L and Find h only; length searches stay blocked.
+  // Ground contact: Fixed L, Find h and Find L; Min. supports stays blocked.
   const searchActive = (isSearchMode(inputs.mode) || inputs.mode === "findH") && !groundBlocksSearch(inputs);
   useEffect(() => {
     if (!searchActive) { dSearch({ type: "reset" }); return; }
@@ -80,6 +81,8 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
         ? snap.groundEnabled
           ? { kind: "findHGround", input: { ...toHeightInput(snap, d), groundZ: snap.groundContactZ }, numSupports: snap.numSupports }
           : { kind: "findH", input: toHeightInput(snap, d), numSupports: snap.numSupports }
+        : isLengthGround(snap)
+        ? { kind: "searchLengthGround", input: toLengthGroundInput(snap, d), numSupports: snap.numSupports }
         : snap.mode === "minSupports"
         ? { kind: "minSupports", input, maxSupports: snap.maxSupports }
         : { kind: "searchLength", input, numSupports: snap.numSupports }, { key: sKey, inputs: snap, derived: d });
