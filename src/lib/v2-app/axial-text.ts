@@ -6,7 +6,9 @@ import { AxialReport, BiaxialSuccess } from "@/lib/mechanics-v2";
 
 export const RESTRAINED_EXPLANATION = "Axial end separation fixed; initially straight pipe, no prestress";
 export const RESTRAINED_SEARCH_UNAVAILABLE =
-  "Restrained axial mode is available in Fixed L only: searches (Find L, Min. supports, Find h) are not available with it. Select Free sliding or Fixed L.";
+  "Restrained axial mode is available in Fixed L and Find h only: Find L and Min. supports are not available with it. Select Free sliding, Fixed L or Find h.";
+export const RESTRAINED_FINDH_TEXT =
+  "Find h with axial restraint: each hv is solved with the complete restrained solver (N and contacts recomputed); the combined normal stress governs.";
 export const RESTRAINED_MODEL_TEXT =
   "Euler-Bernoulli with von Karman axial strain (small strains, moderate rotations; not an exact large-rotation kinematics). N constant, tension positive, u(0) = u(L) = 0.";
 export const COMBINED_NOTE =

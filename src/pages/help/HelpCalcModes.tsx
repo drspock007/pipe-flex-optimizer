@@ -119,7 +119,7 @@ const HelpCalcModes = () => (
       The largest admissible h<sub>v</sub> found is not a demonstrated maximum. Limits: 600 solves or 25 s; beyond, the search is
       reported as incomplete.
     </p>
-    <h3 className="text-base font-semibold mt-4">9.10 Restrained axial mode (Fixed L only)</h3>
+    <h3 className="text-base font-semibold mt-4">9.10 Restrained axial mode (Fixed L and Find h)</h3>
     <p className="text-sm text-muted-foreground leading-relaxed">
       &laquo; Axial end separation fixed; initially straight pipe, no prestress &raquo;: u(0) = u(L) = 0, clamped rotations, no friction,
       supports and ground vertical only; L stays the longitudinal reference distance (not the inclined chord). Euler&ndash;Bernoulli with a
@@ -131,7 +131,21 @@ const HelpCalcModes = () => (
       safeguarded regula falsi, so deflection, contacts and N are solved together. Mesh doubled until two successive comparisons agree.
       Verdict: combined normal stress max(|N/A &plusmn; c/I&middot;hypot(M<sub>v</sub>, M<sub>l</sub>)|) &le; &sigma;<sub>allow</sub>; the bending-only criterion is
       shown for information. Not a code check nor a von Mises stress (no pressure, no shear). N/(EA) and the maximum transverse slope are
-      shown as domain indicators without a universal threshold. Searches (Find L, Min. supports, Find h) are not available in this mode.
+      shown as domain indicators without a universal threshold. Find L and Min. supports are not available in this mode.
+    </p>
+    <h3 className="text-base font-semibold mt-4">9.11 Find h with axial restraint</h3>
+    <p className="text-sm text-muted-foreground leading-relaxed">
+      L, h<sub>l</sub>, section, material, q, installed supports and (optionally) the ground level are fixed; h<sub>v</sub> is searched.
+      Every sampled h<sub>v</sub> is solved by the complete restrained solver: N and the contacts are recomputed, never reused from another height.
+      Necessary domain: compatibility gives N/A = E/(2L)&int;(z&prime;&sup2; + y&prime;&sup2;)dx and, by Cauchy&ndash;Schwarz with &int;z&prime; = h<sub>v</sub>
+      and &int;y&prime; = h<sub>l</sub>, N/A &ge; E(h<sub>v</sub>&sup2; + h<sub>l</sub>&sup2;)/(2L&sup2;). The combined stress is at least N/A, so
+      h<sub>v</sub>&sup2; + h<sub>l</sub>&sup2; &le; 2L&sup2;&sigma;<sub>allow</sub>/E: a necessary condition, not a bending check. The domain is
+      [&minus;H<sub>ax</sub>, H<sub>ax</sub>] with H<sub>ax</sub> = &radic;(2L&sup2;&sigma;<sub>allow</sub>/E &minus; h<sub>l</sub>&sup2;), intersected with h<sub>v</sub> &ge; ground level.
+      If h<sub>l</sub> alone violates it, no h<sub>v</sub> can be admissible (demonstrated for that reason only); within rounding the case is reported as undecidable.
+      The free-mode curvature bound H<sub>cap</sub> is not reused. Sampling and classification follow 9.7: a height is admissible only if the solve is
+      converged, the combined criterion is met and the verdict is not uncertain (bending-only compliance never suffices). Ranges are estimated,
+      coverage is not certified and the largest height found is not a demonstrated maximum. The initially represented h<sub>v</sub> is
+      re-solved once more. One budget covers the whole search, final check included: 500 solves or 25 s; beyond, the search is incomplete.
     </p>
   </section>
 );
