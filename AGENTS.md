@@ -1,1 +1,2 @@
 - Ground searches (Find h, Find L) share one adaptive sampler (mechanics-v2/ground-sampler.ts) and one solve classifier (ground-classify.ts); Find L samples ln L. Why: identical exploratory guarantees, one place to fix.
+- Ground fixed-L solve tries the exact no-ground solution first (ground-fast.ts), accepted only if exact member minima clear the ground by > tolPenetration; else the mesh path, which stops after 2 consecutive precision-loss levels. Why: round-off in K d - F grows ~N^3, so ground-inactive cases must not be meshed.
