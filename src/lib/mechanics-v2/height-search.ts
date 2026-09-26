@@ -66,7 +66,7 @@ function merge(rs: HeightRange[]): HeightRange[] {
 export function searchHeightFixedSupports(input: HeightSearchInput, numSupports: number): HeightSearchResult {
   const errors = validateInput({ ...input, hv: 0, numSupports });
   if (errors.length) return { status: "invalid-input", errors };
-  if (input.axialMode === "restrained") return { status: "not-implemented", message: 'axialMode "restrained" is available in Fixed L only: searches are not available with it' };
+  if (input.axialMode === "restrained") return { status: "not-implemented", message: 'axialMode "restrained": this free-mode search does not apply; Find h in restrained mode uses searchHeightRestrained' };
   const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
   const scope = { numSupports, L: input.L, hl: input.hl };
   try {
