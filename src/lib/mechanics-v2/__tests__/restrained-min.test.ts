@@ -34,14 +34,18 @@ describe("Min. supports restrained: orchestration (simulated)", () => {
     expect(r.rows[0].status).toBe("failed");
     expect(r.minimality.certified).toBe(false);
   });
-  it("final check uncertain at n = 0 (all 3 attempts): count rejected, search continues", () => {
-    // Sampling evaluations are admissible; any call after the sampling budget is uncertain for n = 0.
-    const calls: Record<number, number> = {};
+  it("final check uncertain at n = 0: count rejected, checks counted, search continues", () => {
+    const seen = new Map<number, Set<number>>();
     const r = pub(searchMinSupportsRestrained(IN, 3, { grid: 8, evaluate: (n) => (L) => {
-      calls[n] = (calls[n] ?? 0) + 1;
-      return s(n === 0 && checking.has(L) ? "uncertain" : "admissible");
+      const m = seen.get(n) ?? new Set<number>(); seen.set(n, m);
+      const again = m.has(L); m.add(L);
+      return s(n === 0 && again ? "uncertain" : "admissible");
     } }));
-    void r; // placeholder replaced below
+    expect(r.status === "found" && r.candidate.n).toBe(1);
+    expect(r.rows[0].status).toBe("rejected");
+    expect(r.rows[0].finalChecks).toBe(3);
+    expect(r.rows[0].checkNotes[0]).toMatch(/uncertain/);
+    expect(r.diagnostics.finalChecks).toBe(3 + 1);
   });
   it("no candidate, ceiling 0 and ceiling 3", () => {
     expect(pub(searchMinSupportsRestrained(IN, 0, sim(() => "not-admissible"))).rows).toHaveLength(1);
