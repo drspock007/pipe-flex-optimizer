@@ -36,13 +36,14 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
 
   const results: Row[] = [
     ["Calculation mode", inputs.mode === "searchLength" && inputs.groundEnabled ? "Length range search WITH ground contact (exploratory, fixed hv and hl)"
+      : inputs.mode === "findH" && s.axial ? `Find h WITH axial restraint (exploratory, fixed L and hl, ${inputs.groundEnabled ? "with" : "without"} ground contact)`
       : inputs.mode === "minSupports" && inputs.groundEnabled ? "Minimum installed supports search WITH ground contact (exploratory length searches)" : MODE_LABEL[inputs.mode]],
     ...(s.axial ? [] : [["Axial mode", "Free longitudinal sliding"] as Row]),
   ];
   if (rep.searchStatus) results.push(["Search status", rep.searchStatus]);
   rep.ranges.forEach((r, i) => results.push([inputs.mode === "findH" ? `Admissible hv range ${i + 1}${rep.searchNotes ? " (estimated)" : ""}` : `Admissible range ${i + 1}`, r]));
   rep.searchNotes?.forEach((r) => results.push(r));
-  if (inputs.mode === "findH") results.push(["Fixed length L", fmt(s.L / 1000, "m", 3)], ["Fixed lateral offset hl", fmt(inputs.hl, "mm")], ["Represented vertical offset hv", fmt(inputs.h, "mm")]);
+  if (inputs.mode === "findH") results.push(["Fixed length L", fmt(s.L / 1000, "m", 3)], ["Fixed lateral offset hl", fmt(inputs.hl, "mm")], ["Represented vertical offset hv", fmt(s.input.hv, "mm")]);
   results.push(
     ...(inputs.mode === "findH" ? [] : [["Represented length L", fmt(s.L / 1000, "m", 3)] as Row]),
     ["Installed supports / active contacts", `${s.supports.length} / ${s.supports.filter((x) => x.active).length}`],
@@ -60,7 +61,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
     ["Outside diameter (Do)", fmt(inputs.Do, "mm")],
     ["Wall thickness (t)", fmt(inputs.t, "mm")],
     ["Inside diameter (Di)", fmt(d.section.Di, "mm")],
-    [inputs.mode === "findH" ? "Represented vertical offset hv (up +)" : "Vertical end offset hv (up +)", fmt(inputs.h, "mm")],
+    [inputs.mode === "findH" ? "Represented vertical offset hv (up +)" : "Vertical end offset hv (up +)", fmt(s.input.hv, "mm")],
     ["Lateral end offset hl", fmt(inputs.hl, "mm")],
   ];
   if (inputs.mode === "fixedLength" || inputs.mode === "findH") geometry.push(["Imposed length L", fmt(inputs.L, "m", 3)]);
