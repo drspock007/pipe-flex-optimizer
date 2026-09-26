@@ -21,7 +21,7 @@ export function describeGroundMin(r: GroundMinResult): StatusText {
   switch (r.status) {
     case "found": return r.candidate.n === 0
       ? { tone: "ok", title: "0 installed supports suffice — minimum certified (0 is the smallest count); length coverage not certified", detail: r.minimality.reason }
-      : { tone: "warn", title: `${NOT_CERTIFIED_TITLE}: ${r.candidate.n} installed supports`, detail: r.minimality.reason };
+      : { tone: "warn", title: `${NOT_CERTIFIED_TITLE}: ${r.candidate.n} installed support${r.candidate.n === 1 ? "" : "s"}`, detail: r.minimality.reason };
     case "none-found": return { tone: "warn", title: NONE_TITLE, detail: "Exploratory searches without an admissible point do not demonstrate impossibility, inside or outside the domain." };
     case "incomplete": return { tone: "warn", title: "Support-count search interrupted (global budget) — no candidate found so far, absence not certified", detail: r.message };
     case "invalid-input": return { tone: "error", title: "Invalid input", detail: r.errors.join("; ") };
