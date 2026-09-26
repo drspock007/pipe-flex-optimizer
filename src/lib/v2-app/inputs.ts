@@ -7,6 +7,7 @@
 // Modifié par Giovanni Malagnino, 2026-09-26 04:30 CEST: Find L search domain (V2-7).
 
 import { MAX_SUPPORTS } from "@/lib/mechanics-v2";
+import { COATING_LABELS } from "@/lib/coating-presets";
 
 export type AppMode = "fixedLength" | "searchLength" | "minSupports" | "findH";
 export type AppAxialMode = "free" | "restrained";
@@ -62,7 +63,9 @@ export function normalizeAppInputs(values: Record<string, unknown>, base: AppInp
   for (const k of ["Do", "t", "L", "h", "customYield", "E", "allowablePercent", "density", "coatingThickness", "coatingDensity"] as const) {
     out[k] = num(values[k], base[k]);
   }
-  for (const k of ["grade", "coatingType"] as const) if (typeof values[k] === "string") out[k] = values[k] as string;
+  if (typeof values.grade === "string") out.grade = values.grade;
+  // Unknown coating keys (corrupted or foreign presets) would crash the coating card: fall back to "none".
+  if (typeof values.coatingType === "string") out.coatingType = values.coatingType in COATING_LABELS ? values.coatingType : "none";
   if (typeof values.includeSelfWeight === "boolean") out.includeSelfWeight = values.includeSelfWeight;
   // New fields: explicit defaults when absent (legacy presets).
   out.hl = num(values.hl, 0);
