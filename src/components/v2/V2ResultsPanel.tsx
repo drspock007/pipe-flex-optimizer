@@ -71,7 +71,7 @@ const V2ResultsPanel = ({ s, rangeExists, infimum, atBound, mode }: Props) => {
           )}
           <Row k="End reactions left / right" v={`${conv(s.endReactions.left.force, "N").toFixed(1)} / ${conv(s.endReactions.right.force, "N").toFixed(1)} ${label("N")}`} />
           <Row k="Numerical validity" v={s.numericalValid ? "valid (contact converged, equilibrium checked)" : "NOT valid"} />
-          <Row k="Physical validity (small rotations, linear model)" v="not assessed" />
+          <Row k={s.axial ? "Physical validity (see domain indicators below)" : "Physical validity (small rotations, linear model)"} v="not assessed" />
         </div>
         {s.axial && (
           <div className="rounded-md border border-border/60 p-2">
