@@ -55,8 +55,9 @@ export function toHeightInput(i: AppInputs, d: Derived = derive(i)): HeightSearc
 
 /** Key of everything that influences the search: length searches ignore L,
  *  Find h ignores the entered h (it neither limits nor drives the search). */
-/** Ground contact: Fixed L, Find h (V2-6) and Find L (V2-7); Min. supports stays blocked. */
-export const groundBlocksSearch = (i: AppInputs) => i.groundEnabled && i.mode === "minSupports";
+/** Ground contact is available in every mode since V2-8 (kept for callers). */
+export const groundBlocksSearch = (_i: AppInputs) => false;
+export const isMinGround = (i: AppInputs) => i.groundEnabled && i.mode === "minSupports";
 export const isLengthGround = (i: AppInputs) => i.groundEnabled && i.mode === "searchLength";
 
 /** Find L with ground input: domain m -> mm. */
@@ -67,7 +68,9 @@ export function toLengthGroundInput(i: AppInputs, d: Derived = derive(i)): Groun
 export function searchKey(i: AppInputs): string {
   if (i.mode === "findH") { const { h: _h, searchLmin: _a, searchLmax: _b, ...rest } = i; return JSON.stringify(rest); }
   const { L: _L, searchLmin, searchLmax, ...rest } = i;
-  // The domain only matters for Find L with ground.
+  // The domain only matters for Find L / Min. supports with ground; the installed
+  // count does not drive Min. supports with ground (the candidate count does).
+  if (isMinGround(i)) { const { numSupports: _n, ...r2 } = rest; return JSON.stringify({ ...r2, searchLmin, searchLmax }); }
   return JSON.stringify(isLengthGround(i) ? { ...rest, searchLmin, searchLmax } : rest);
 }
 

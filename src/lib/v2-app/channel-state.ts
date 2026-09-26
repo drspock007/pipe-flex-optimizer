@@ -11,27 +11,32 @@ export interface ChannelState<T> {
   /** True when data belongs to previous inputs and a new computation is running. */
   refreshing: boolean;
   error: string | null;
+  /** Progress of the latest request only (stale progress ignored). */
+  progress: unknown | null;
 }
 
 export type ChannelAction<T> =
   | { type: "request"; id: number }
   | { type: "success"; id: number; data: T }
   | { type: "failure"; id: number; error: string }
+  | { type: "progress"; id: number; progress: unknown }
   | { type: "reset" };
 
 export const initialChannel = <T,>(): ChannelState<T> =>
-  ({ latestId: 0, status: "idle", data: null, refreshing: false, error: null });
+  ({ latestId: 0, status: "idle", data: null, refreshing: false, error: null, progress: null });
 
 export function channelReducer<T>(s: ChannelState<T>, a: ChannelAction<T>): ChannelState<T> {
   switch (a.type) {
     case "request":
-      return { latestId: a.id, status: "loading", data: s.data, refreshing: s.data !== null, error: null };
+      return { latestId: a.id, status: "loading", data: s.data, refreshing: s.data !== null, error: null, progress: null };
+    case "progress":
+      return a.id === s.latestId && s.status === "loading" ? { ...s, progress: a.progress } : s;
     case "success":
       if (a.id !== s.latestId) return s; // stale response
-      return { ...s, status: "ready", data: a.data, refreshing: false, error: null };
+      return { ...s, status: "ready", data: a.data, refreshing: false, error: null, progress: null };
     case "failure":
       if (a.id !== s.latestId) return s;
-      return { ...s, status: "error", data: null, refreshing: false, error: a.error };
+      return { ...s, status: "error", data: null, refreshing: false, error: a.error, progress: null };
     case "reset":
       // -1 never matches a real request id: any response still in flight is rejected.
       return { ...initialChannel<T>(), latestId: -1 };

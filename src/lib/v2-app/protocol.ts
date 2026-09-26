@@ -7,7 +7,7 @@
 // functions executed by the worker (also usable synchronously in tests).
 
 import {
-  BiaxialInput, GroundLengthInput, GroundLengthResult, searchLengthGround, BiaxialResult, GroundHeightInput, GroundHeightResult, searchHeightGround, CurveSample, GeneralFixedResult, GeneralMinResult, HeightSearchInput, HeightSearchResult, LengthSearchInput, searchHeightFixedSupports,
+  BiaxialInput, GroundLengthInput, GroundLengthResult, searchLengthGround, GroundMinInput, GroundMinResult, searchMinSupportsGround, BiaxialResult, GroundHeightInput, GroundHeightResult, searchHeightGround, CurveSample, GeneralFixedResult, GeneralMinResult, HeightSearchInput, HeightSearchResult, LengthSearchInput, searchHeightFixedSupports,
   sampleCurve, searchLengthGeneral, solveGroundFixedLength, searchMinSupportsGeneral, solveBiaxialFixedLength,
 } from "@/lib/mechanics-v2";
 
@@ -16,7 +16,8 @@ export type SearchRequest =
   | { kind: "minSupports"; input: LengthSearchInput; maxSupports: number }
   | { kind: "findH"; input: HeightSearchInput; numSupports: number }
   | { kind: "findHGround"; input: GroundHeightInput; numSupports: number }
-  | { kind: "searchLengthGround"; input: GroundLengthInput; numSupports: number };
+  | { kind: "searchLengthGround"; input: GroundLengthInput; numSupports: number }
+  | { kind: "minSupportsGround"; input: GroundMinInput; maxSupports: number };
 export type SolveRequest = { kind: "solve"; input: BiaxialInput & { groundZ?: number } };
 export type EngineRequest = SearchRequest | SolveRequest;
 
@@ -25,19 +26,24 @@ export type SearchOutcome =
   | { kind: "minSupports"; result: GeneralMinResult }
   | { kind: "findH"; result: HeightSearchResult }
   | { kind: "findHGround"; result: GroundHeightResult }
-  | { kind: "searchLengthGround"; result: GroundLengthResult };
+  | { kind: "searchLengthGround"; result: GroundLengthResult }
+  | { kind: "minSupportsGround"; result: GroundMinResult };
 export interface SolveOutcome { kind: "solve"; result: BiaxialResult; samples: CurveSample[] | null }
 export type EngineOutcome = SearchOutcome | SolveOutcome;
 
 export interface WorkerRequestMsg { id: number; channel: "search" | "solve"; request: EngineRequest }
 export type WorkerResponseMsg =
   | { id: number; channel: "search" | "solve"; ok: true; outcome: EngineOutcome }
-  | { id: number; channel: "search" | "solve"; ok: false; error: string };
+  | { id: number; channel: "search" | "solve"; ok: false; error: string }
+  /** Intermediate progress (support count being examined); not a final response. */
+  | { id: number; channel: "search" | "solve"; progress: SearchProgress };
+export interface SearchProgress { n: number; maxSupports: number; evaluations: number }
 
 /** Display samples per member: enough resolution, bounded total size. */
 const perMember = (members: number) => Math.max(1, Math.ceil(240 / members));
 
-export function runEngine(req: EngineRequest): EngineOutcome {
+export function runEngine(req: EngineRequest, onProgress?: (p: SearchProgress) => void): EngineOutcome {
+  if (req.kind === "minSupportsGround") return { kind: req.kind, result: searchMinSupportsGround(req.input, req.maxSupports, { onProgress }) };
   if (req.kind === "searchLength") return { kind: req.kind, result: searchLengthGeneral(req.input, req.numSupports) };
   if (req.kind === "minSupports") return { kind: req.kind, result: searchMinSupportsGeneral(req.input, req.maxSupports) };
   if (req.kind === "findHGround") return { kind: req.kind, result: searchHeightGround(req.input, req.numSupports) };
