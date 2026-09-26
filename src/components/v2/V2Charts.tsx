@@ -77,7 +77,7 @@ const V2Charts = ({ solution, samples }: Props) => {
         {solution.ground && <p className="text-[11px] text-muted-foreground">Dashed grey: minimum pipe-axis elevation (ground). Dots: discrete numerical contact nodes (not installed supports). Shaded: estimated zones near the ground, a graphical grouping of these contacts only; outside them the pipe is above the ground at the computed nodes. Orange lines: installed supports.</p>}
       </TabsContent>
       <TabsContent value="y">{chart("y", "mm", deviation ? "Δy = y − hl·x/L" : "Absolute lateral y")}</TabsContent>
-      <p className="text-[11px] text-muted-foreground mt-1">Curves are sampled for display only; the maximum stress shown in the results is computed exactly on each element of the engine model{solution.ground ? " (with ground: on the discretized model, with mesh-convergence control)" : ""}.</p>
+      <p className="text-[11px] text-muted-foreground mt-1">Curves are sampled for display only; the maximum stress shown in the results is computed exactly on each element of the engine model{solution.ground?.method === "analytical-full-contact" ? " (analytical full-ground-contact solution: all fields are exactly zero)" : solution.ground ? " (with ground: on the discretized model, with mesh-convergence control)" : ""}.</p>
     </Tabs>
   );
 };
