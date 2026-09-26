@@ -25,3 +25,6 @@ export * from "./ground-height-types";
 export { searchHeightGround } from "./ground-height-search";
 export type { HeightEvaluator } from "./ground-height-search";
 export type { GroundHeightLimits } from "./ground-height-search";
+export * from "./ground-length-types";
+export { searchLengthGround } from "./ground-length-search";
+export type { GroundLengthLimits, LengthEvaluator } from "./ground-length-search";
