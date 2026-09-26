@@ -100,7 +100,17 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
   ];
   const g = s.ground;
   const ground: Row[] = [["Ground contact", g ? "enabled" : "disabled"]];
-  if (g) {
+  if (g && g.method === "analytical-full-contact") {
+    ground.push(
+      ["Minimum pipe-axis elevation", fmt(g.level, "mm", 1)],
+      ["Assumptions", "Rigid, horizontal, frictionless ground over the full length, vertical plane only"],
+      ["Distributed ground pressure p", fmt(g.distributedReaction ?? 0, "N/mm", 4)],
+      ...groundReactionRows(g, (v) => fmt(v, "N", 1)).map(([k, v, n]) => [k, `${v} (${n})`] as Row),
+      ...groundContactRows(g, s.input.hv, s.L, (mm) => fmt(mm / 1000, "m", 3), " - "),
+      ["Calculation method", groundMethodText(g, (mm) => fmt(mm, "mm", 3))],
+      ["Model limits", "Exact solution of the model for this flat case (no mesh, no nodal contacts)"],
+    );
+  } else if (g) {
     ground.push(
       ["Minimum pipe-axis elevation", fmt(g.level, "mm", 1)],
       ["Assumptions", "Rigid, horizontal, frictionless ground over the full length, vertical plane only"],

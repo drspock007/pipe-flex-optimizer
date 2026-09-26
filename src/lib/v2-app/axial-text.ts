@@ -71,6 +71,6 @@ export function axialRows(a: AxialReport, s: BiaxialSuccess, f: AxialFormat): [s
     ["Axial strain N/(EA) (domain indicator)", a.strain.toExponential(3)],
     ["Max transverse slope hypot(z', y') (dimensionless, domain indicator)", `${a.maxSlope.toFixed(4)} (angle approximation atan(slope) = ${Math.atan(a.maxSlope).toFixed(4)} rad)`],
     ["Axial compatibility residual |N - EA/(2L) int slopes^2| / N", a.N > 0 ? `${(a.compatibilityResidual / a.N).toExponential(1)} (tol. ${(a.compatibilityTolerance / a.N).toExponential(1)})` : "N = 0 (no slope)"],
-    ["Convergence", `mesh converged — ${a.elements} elements, ${a.refinement.length} levels; ${a.axialIterations} axial iterations on the final mesh`],
+    a.method === "analytical-full-contact" ? ["Calculation method", "analytical full-ground-contact solution (no mesh, N = 0 exactly)"] : ["Convergence", `mesh converged — ${a.elements} elements, ${a.refinement.length} levels; ${a.axialIterations} axial iterations on the final mesh`],
   ];
 }
