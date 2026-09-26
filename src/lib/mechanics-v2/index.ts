@@ -37,3 +37,6 @@ export { solveRestrained } from "./restrained-solve";
 export * from "./restrained-height-types";
 export { searchHeightRestrained, axialHeightBound, classifyRestrained } from "./restrained-height-search";
 export type { RestrainedEvaluator, RestrainedHeightLimits } from "./restrained-height-search";
+export * from "./restrained-length-types";
+export { searchLengthRestrained, axialLengthBound } from "./restrained-length-search";
+export type { RestrainedLengthLimits } from "./restrained-length-search";

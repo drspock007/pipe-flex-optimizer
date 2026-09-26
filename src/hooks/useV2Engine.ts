@@ -15,7 +15,7 @@
 
 import { useEffect, useReducer, useRef, useState } from "react";
 import { AppInputs } from "@/lib/v2-app/inputs";
-import { derive, Derived, isLengthGround, isMinGround, searchKey, solveKeyOf, toFixedInput, toHeightInput, toSearchInput, toLengthGroundInput, toRestrainedHeightInput } from "@/lib/v2-app/bridge";
+import { derive, Derived, isLengthGround, isMinGround, searchKey, solveKeyOf, toFixedInput, toHeightInput, toSearchInput, toLengthGroundInput, toRestrainedHeightInput, isLengthRestrained, toLengthRestrainedInput } from "@/lib/v2-app/bridge";
 import { EngineRequest, SearchOutcome, SolveOutcome, WorkerRequestMsg, WorkerResponseMsg } from "@/lib/v2-app/protocol";
 import { ChannelAction, ChannelState, channelReducer, initialChannel } from "@/lib/v2-app/channel-state";
 
@@ -112,6 +112,8 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
           : snap.groundEnabled
           ? { kind: "findHGround", input: { ...toHeightInput(snap, d), groundZ: snap.groundContactZ }, numSupports: snap.numSupports }
           : { kind: "findH", input: toHeightInput(snap, d), numSupports: snap.numSupports }
+        : isLengthRestrained(snap)
+        ? { kind: "searchLengthRestrained", input: toLengthRestrainedInput(snap, d), numSupports: snap.numSupports }
         : isLengthGround(snap)
         ? { kind: "searchLengthGround", input: toLengthGroundInput(snap, d), numSupports: snap.numSupports }
         : isMinGround(snap)

@@ -119,7 +119,7 @@ const HelpCalcModes = () => (
       The largest admissible h<sub>v</sub> found is not a demonstrated maximum. Limits: 600 solves or 25 s; beyond, the search is
       reported as incomplete.
     </p>
-    <h3 className="text-base font-semibold mt-4">9.10 Restrained axial mode (Fixed L and Find h)</h3>
+    <h3 className="text-base font-semibold mt-4">9.10 Restrained axial mode (Fixed L, Find h, Find L)</h3>
     <p className="text-sm text-muted-foreground leading-relaxed">
       &laquo; Axial end separation fixed; initially straight pipe, no prestress &raquo;: u(0) = u(L) = 0, clamped rotations, no friction,
       supports and ground vertical only; L stays the longitudinal reference distance (not the inclined chord). Euler&ndash;Bernoulli with a
@@ -131,7 +131,7 @@ const HelpCalcModes = () => (
       safeguarded regula falsi, so deflection, contacts and N are solved together. Mesh doubled until two successive comparisons agree.
       Verdict: combined normal stress max(|N/A &plusmn; c/I&middot;hypot(M<sub>v</sub>, M<sub>l</sub>)|) &le; &sigma;<sub>allow</sub>; the bending-only criterion is
       shown for information. Not a code check nor a von Mises stress (no pressure, no shear). N/(EA) and the maximum transverse slope are
-      shown as domain indicators without a universal threshold. Find L and Min. supports are not available in this mode.
+      shown as domain indicators without a universal threshold. Min. supports is not available in this mode.
     </p>
     <h3 className="text-base font-semibold mt-4">9.11 Find h with axial restraint</h3>
     <p className="text-sm text-muted-foreground leading-relaxed">
@@ -146,6 +146,19 @@ const HelpCalcModes = () => (
       converged, the combined criterion is met and the verdict is not uncertain (bending-only compliance never suffices). Ranges are estimated,
       coverage is not certified and the largest height found is not a demonstrated maximum. The initially represented h<sub>v</sub> is
       re-solved once more. One budget covers the whole search, final check included: 500 solves or 25 s; beyond, the search is incomplete.
+    </p>
+    <h3 className="text-base font-semibold mt-4">9.12 Find L with axial restraint</h3>
+    <p className="text-sm text-muted-foreground leading-relaxed">
+      h<sub>v</sub>, h<sub>l</sub>, section, material, q (total weight qL), installed supports (x<sub>i</sub> = iL/(n+1), level h<sub>v</sub>&middot;i/(n+1)) and the
+      optional ground are fixed; L is searched in the user domain [L<sub>min</sub>, L<sub>max</sub>], an exploration domain, not a mechanical bound. Each L is a new
+      initially straight pipe (no prestress, axial end separation blocked): configurations are compared, no pipe is stretched. The same compatibility
+      argument as 9.11 gives L &ge; L<sub>ax</sub> = hypot(h<sub>v</sub>, h<sub>l</sub>)&middot;&radic;(E/(2&sigma;<sub>allow</sub>)): a necessary condition, not a bending check.
+      The portion below L<sub>ax</sub> is excluded and shown separately from the requested and sampled domains; the whole domain is declared impossible only
+      when L<sub>ax</sub> exceeds L<sub>max</sub> beyond rounding (within rounding: undecidable). Sampling in ln L and classification follow 9.8 and 9.11
+      (combined criterion, uncertain verdict first). Ranges are estimated, coverage not certified; an admissible sample at a domain edge does not end the range.
+      The initially represented L is the lowest computed combined stress among verified samples (not a global optimum), re-solved once more.
+      Budget: 500 solves or 25 s, final check included; beyond, the search is incomplete. With the ground and many supports at h<sub>v</sub> = h<sub>l</sub> = 0,
+      mesh convergence can fail: such lengths stay unresolved, never non-admissible, and the search may run until its budget.
     </p>
   </section>
 );

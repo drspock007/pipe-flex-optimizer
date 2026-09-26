@@ -1,5 +1,6 @@
 // créé par Giovanni Malagnino, 2026-09-26 04:30 CEST (Europe/Rome, UTC+2)
 // Find L with ground (V2-7): search status, estimated ranges and represented L.
+// Modifié par Giovanni Malagnino, 2026-09-26 17:55 CEST: reused by Find L restrained (V2-11).
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,16 +23,18 @@ interface Props {
   selection: GLSelection | null; selectedL: number | null; onChange: (s: GLSelection) => void;
   /** Preferred verified L (default: lowest computed stress) and card title (V2-8 reuse). */
   best?: number | null; title?: string;
+  /** Method text and label of the preferred verified L (V2-11 restrained). */
+  limits?: string; bestLabel?: string;
 }
 
-const GroundLengthCard = ({ loading, refreshing, error, status, result, details, selection, selectedL, onChange, best: bestIn, title = "Length search with ground" }: Props) => {
+const GroundLengthCard = ({ loading, refreshing, error, status, result, details, selection, selectedL, onChange, best: bestIn, title = "Length search with ground", limits = GROUND_LENGTH_LIMITS, bestLabel }: Props) => {
   const fmt = useFmtLength();
   const { conv, parse, label } = useUnits();
   const [custom, setCustom] = useState<number>(selection?.custom ?? selectedL ?? 30000);
   const ranges = glRanges(result);
   const best = bestIn !== undefined ? bestIn : result && "lowestStress" in result ? result.lowestStress?.L ?? null : null;
   const k = selection?.rangeIndex ?? 0;
-  const opts = ranges[k] ? glOptions(ranges[k], best) : [];
+  const opts = ranges[k] ? glOptions(ranges[k], best, bestLabel) : [];
   const pick = (optionId: string, rangeIndex = k) => onChange({ rangeIndex, optionId, custom: selection?.custom ?? null });
 
   return (
@@ -46,17 +49,17 @@ const GroundLengthCard = ({ loading, refreshing, error, status, result, details,
             {details.map(([a, b], i) => (<div key={i} className="contents"><dt className="text-muted-foreground">{a}</dt><dd className="font-mono break-words">{b}</dd></div>))}
           </dl>
         )}
-        {result && <p className="text-[11px] text-muted-foreground">{GROUND_LENGTH_LIMITS}</p>}
+        {result && <p className="text-[11px] text-muted-foreground">{limits}</p>}
         {selectedL !== null && (
           <p className="text-xs">Represented L: <strong className="font-mono">{fmt(selectedL)}</strong>
-            <span className="text-muted-foreground"> — initially a verified admissible sample with the lowest computed stress (not a global optimum). hv, hl and supports are fixed.</span></p>
+            <span className="text-muted-foreground"> — initially {bestLabel ? `the ${bestLabel.toLowerCase()}, re-solved` : "a verified admissible sample with the lowest computed stress"} (not a global optimum). hv, hl and supports are fixed.</span></p>
         )}
         {ranges.length > 0 && (
           <div className="space-y-3">
             <div className="space-y-1.5" role="radiogroup" aria-label="Estimated admissible length ranges">
               <Label className="text-xs">Estimated admissible ranges (select one)</Label>
               {ranges.map((r, i) => (
-                <button key={i} type="button" role="radio" aria-checked={i === k} onClick={() => pick(glOptions(r, best)[0].id, i)}
+                <button key={i} type="button" role="radio" aria-checked={i === k} onClick={() => pick(glOptions(r, best, bestLabel)[0].id, i)}
                   className={`w-full text-left rounded-md border px-3 py-2 text-xs font-mono break-words ${i === k ? "border-primary bg-primary/10" : "border-border"}`}>
                   Estimated range {i + 1}: [{fmtInterval(r.lower.value, r.upper.value, fmt)}]
                   {(r.lower.domainEdge || r.upper.domainEdge) && <span className="block text-[10px] text-muted-foreground">{r.lower.domainEdge ? "lower" : ""}{r.lower.domainEdge && r.upper.domainEdge ? " & " : ""}{r.upper.domainEdge ? "upper" : ""} end {EDGE_TEXT}</span>}

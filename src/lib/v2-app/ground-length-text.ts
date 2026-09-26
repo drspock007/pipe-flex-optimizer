@@ -14,6 +14,7 @@ export function describeGroundLength(r: GroundLengthResult): StatusText {
   switch (r.status) {
     case "found": return { tone: "warn", title: `Estimated admissible L range${r.ranges.length > 1 ? "s" : ""} (${r.ranges.length}) with ground, ${plural(r.scope.numSupports)}, within the searched length domain — search coverage not certified`, detail: EXPLAIN };
     case "none-found": return { tone: "warn", title: "No admissible length found within the searched domain — search coverage not certified", detail: "This does not demonstrate that no admissible L exists, neither inside nor outside the searched domain." };
+    case "impossible": return { tone: "warn", title: "No admissible L in the searched domain: demonstrated by a necessary condition", detail: r.message };
     case "incomplete": return { tone: "warn", title: "Search interrupted (resource limit) — coverage not certified", detail: r.message };
     case "invalid-input": return { tone: "error", title: "Invalid input", detail: r.errors.join("; ") };
     case "geometry-incompatible": return { tone: "error", title: "Geometric incompatibility", detail: r.message };

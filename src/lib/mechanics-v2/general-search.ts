@@ -38,7 +38,7 @@ function infimum(mins: RegimeMin[]): GeneralInfimum {
 export function searchLengthGeneral(input: LengthSearchInput, numSupports: number): GeneralFixedResult {
   const errors = validateInput({ ...input, L: 1, numSupports });
   if (errors.length) return { status: "invalid-input", errors };
-  if (input.axialMode === "restrained") return { status: "not-implemented", message: 'axialMode "restrained" is available in Fixed L and Find h only: Find L and Min. supports are not available with it' };
+  if (input.axialMode === "restrained") return { status: "not-implemented", message: 'axialMode "restrained": this free-sliding path does not apply (Find L restrained uses searchLengthRestrained; Min. supports is not available)' };
   const scope = { numSupports };
   try {
     const Lq = loadLengthScale(input.E, input.I, input.q);

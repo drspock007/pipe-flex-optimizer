@@ -4,11 +4,12 @@
 // Modifié par Giovanni Malagnino, 2026-09-25 22:40 CEST: Find h with ground (V2-6).
 // Modifié par Giovanni Malagnino, 2026-09-26 04:30 CEST: Find L with ground (V2-7).
 // Modifié par Giovanni Malagnino, 2026-09-26 17:30 CEST: Find h restrained (V2-10).
+// Modifié par Giovanni Malagnino, 2026-09-26 17:55 CEST: Find L restrained (V2-11).
 // Typed messages between the UI and the V2 engine worker, and the pure
 // functions executed by the worker (also usable synchronously in tests).
 
 import {
-  BiaxialInput, RestrainedHeightInput, RestrainedHeightResult, searchHeightRestrained, GroundLengthInput, GroundLengthResult, searchLengthGround, GroundMinInput, GroundMinResult, searchMinSupportsGround, BiaxialResult, GroundHeightInput, GroundHeightResult, searchHeightGround, CurveSample, GeneralFixedResult, GeneralMinResult, HeightSearchInput, HeightSearchResult, LengthSearchInput, searchHeightFixedSupports,
+  BiaxialInput, RestrainedLengthInput, RestrainedLengthResult, searchLengthRestrained, RestrainedHeightInput, RestrainedHeightResult, searchHeightRestrained, GroundLengthInput, GroundLengthResult, searchLengthGround, GroundMinInput, GroundMinResult, searchMinSupportsGround, BiaxialResult, GroundHeightInput, GroundHeightResult, searchHeightGround, CurveSample, GeneralFixedResult, GeneralMinResult, HeightSearchInput, HeightSearchResult, LengthSearchInput, searchHeightFixedSupports,
   sampleCurve, searchLengthGeneral, solveGroundFixedLength, searchMinSupportsGeneral, solveBiaxialFixedLength,
 } from "@/lib/mechanics-v2";
 
@@ -19,6 +20,7 @@ export type SearchRequest =
   | { kind: "findHGround"; input: GroundHeightInput; numSupports: number }
   | { kind: "findHRestrained"; input: RestrainedHeightInput; numSupports: number }
   | { kind: "searchLengthGround"; input: GroundLengthInput; numSupports: number }
+  | { kind: "searchLengthRestrained"; input: RestrainedLengthInput; numSupports: number }
   | { kind: "minSupportsGround"; input: GroundMinInput; maxSupports: number };
 export type SolveRequest = { kind: "solve"; input: BiaxialInput & { groundZ?: number } };
 export type EngineRequest = SearchRequest | SolveRequest;
@@ -30,6 +32,7 @@ export type SearchOutcome =
   | { kind: "findHGround"; result: GroundHeightResult }
   | { kind: "findHRestrained"; result: RestrainedHeightResult }
   | { kind: "searchLengthGround"; result: GroundLengthResult }
+  | { kind: "searchLengthRestrained"; result: RestrainedLengthResult }
   | { kind: "minSupportsGround"; result: GroundMinResult };
 export interface SolveOutcome { kind: "solve"; result: BiaxialResult; samples: CurveSample[] | null }
 export type EngineOutcome = SearchOutcome | SolveOutcome;
@@ -51,6 +54,7 @@ export function runEngine(req: EngineRequest, onProgress?: (p: SearchProgress) =
   if (req.kind === "minSupports") return { kind: req.kind, result: searchMinSupportsGeneral(req.input, req.maxSupports) };
   if (req.kind === "findHRestrained") return { kind: req.kind, result: searchHeightRestrained(req.input, req.numSupports) };
   if (req.kind === "findHGround") return { kind: req.kind, result: searchHeightGround(req.input, req.numSupports) };
+  if (req.kind === "searchLengthRestrained") return { kind: req.kind, result: searchLengthRestrained(req.input, req.numSupports) };
   if (req.kind === "searchLengthGround") return { kind: req.kind, result: searchLengthGround(req.input, req.numSupports) };
   if (req.kind === "findH") return { kind: req.kind, result: searchHeightFixedSupports(req.input, req.numSupports) };
   const { groundZ, ...input } = req.input;
