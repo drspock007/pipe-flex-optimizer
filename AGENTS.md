@@ -1,0 +1,1 @@
+- Ground searches (Find h, Find L) share one adaptive sampler (mechanics-v2/ground-sampler.ts) and one solve classifier (ground-classify.ts); Find L samples ln L. Why: identical exploratory guarantees, one place to fix.
