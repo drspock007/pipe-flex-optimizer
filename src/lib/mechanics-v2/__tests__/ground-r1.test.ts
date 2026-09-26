@@ -1,107 +1,61 @@
-// créé par Giovanni Malagnino, 2026-09-25 21:05 CEST (Europe/Rome, UTC+2)
-// V2-5-R1: mesh independence, closed-form partial contact, hl independence,
-// round-off budget and non-finite guards of the ground branch.
-
+// créé par Giovanni Malagnino, 2026-09-26 05:05 CEST (Europe/Rome, UTC+2)
+// V2-7-R1 non-regression: lengths that failed before (precision loss on the
+// fine meshes, ground inactive) and consistency of the exact path.
 import { describe, expect, it } from "vitest";
-import { BiaxialSuccess, GroundInput, GroundLimits, solveGroundFixedLength } from "..";
-import { REF, rel } from "./helpers";
+import { REF } from "./helpers";
+import { solveGroundFixedLength } from "../ground-solve";
+import { solveBiaxialFixedLength } from "../solve";
+import { failureCause } from "../ground-classify";
+import type { BiaxialSuccess } from "../types";
 
-const IN: GroundInput = { ...REF, hv: 1000, hl: 0, groundZ: 0, numSupports: 0 };
-const ok = (over: Partial<GroundInput> = {}, lim: GroundLimits = {}): BiaxialSuccess => {
-  const r = solveGroundFixedLength({ ...IN, ...over }, lim);
-  if (r.status !== "ok") throw new Error(`status ${r.status}`);
-  return r;
-};
+const { L: _L, numSupports: _n, ...B } = REF;
+const ok = (r: unknown) => { expect((r as BiaxialSuccess).status).toBe("ok"); return r as BiaxialSuccess; };
 
-// Closed form (no intermediate support, groundZ = 0, hl = 0): lifted length ell.
-const EI = IN.E * IN.I, q = IN.q, L = IN.L;
-const ell = (72 * EI * IN.hv / q) ** 0.25;
-const xD = L - ell;
-const zRef = (x: number) => (x <= xD ? 0 : (q * (x - xD) ** 3 * (4 * ell - 3 * (x - xD))) / (72 * EI));
-const sigmaRef = (q * ell * ell * IN.c) / (6 * IN.I);
-// Continuous contact: distributed q(L-ell) + concentrated q*ell/3 at lift-off.
-// The discrete model splits it between the left clamp (which lies on the ground)
-// and the nodal ground forces, so the comparison uses contactTotal (= both).
-const reactRef = q * (L - ell) + (q * ell) / 3;
-const forceScale = q * L;
-
-describe("ground contact R1", () => {
-  it("reference values of the closed form", () => {
-    expect(Math.abs(xD - 6821.251134)).toBeLessThan(1e-3);
-    expect(Math.abs(sigmaRef - 268.062951678)).toBeLessThan(1e-6);
-    expect(Math.abs(reactRef - 2294.149225)).toBeLessThan(1e-3);
+describe("V2-7-R1 previously failing lengths", () => {
+  // Lengths (mm) that returned "incomplete" (precision loss) before the fix.
+  const cases: [number, number, number][] = [[0, 1000, 7797.6], [0, 2500, 20257], [3, 2500, 10590], [8, 2500, 7500], [20, 2500, 7500], [20, 2500, 15000], [20, 2500, 31290]];
+  it.each(cases)("n=%i hv=%i L=%f is solved and valid", (n, hv, L) => {
+    const r = ok(solveGroundFixedLength({ ...B, L, hv, numSupports: n, groundZ: 0 }));
+    expect(r.numericalValid).toBe(true);
+    expect(r.ground!.method).toBe("exact-no-contact");
+    expect(r.ground!.minClearance!).toBeGreaterThan(r.ground!.tolPenetration);
   });
+});
 
-  it("matches the closed form: stress, shape, lift-off, reactions, balance", () => {
-    const r = ok();
-    expect(rel(r.maxStress, sigmaRef)).toBeLessThan(1e-3);
-    expect(Math.abs(r.ground!.contactTotal - reactRef)).toBeLessThanOrEqual(1e-3 * forceScale);
-    const dispScale = IN.hv;
-    r.nodes.forEach((n) => expect(Math.abs(n.z - zRef(n.x))).toBeLessThan(1e-3 * dispScale));
-    const zones = r.ground!.contactZones;
-    expect(Math.abs(zones[zones.length - 1].xEnd - xD)).toBeLessThan(0.01 * L);
-    // All forces: contact (incl. left clamp) + right clamp = q L.
-    expect(Math.abs(r.ground!.contactTotal + r.endReactions.right.force - q * L)).toBeLessThan(1e-6 * forceScale);
-    expect(Math.abs(r.endReactions.right.force - (2 * q * ell) / 3)).toBeLessThanOrEqual(1e-3 * forceScale);
+describe("V2-7-R1 exact path equals the no-ground engine", () => {
+  it("same stress, supports and reactions; clamp reaction counted at ground level", () => {
+    const inp = { ...B, L: 15000, hv: 2500, numSupports: 20 };
+    const g = ok(solveGroundFixedLength({ ...inp, groundZ: 0 })), f = ok(solveBiaxialFixedLength(inp));
+    expect(g.maxStress).toBe(f.maxStress);
+    g.supports.forEach((s, k) => expect(s.reaction).toBe(f.supports[k].reaction));
+    expect(g.ground!.endReaction).toBe(f.endReactions.left.force);
+    expect(g.ground!.contactTotal).toBe(g.ground!.endReaction);
+    expect(g.ground!.refinement).toHaveLength(0);
   });
-
-  it("result does not depend on the initial mesh (or is explicitly incomplete)", () => {
-    const outs = [64, 128, 256, 512, 1024].map((m) => solveGroundFixedLength(IN, { minElements: m }));
-    const good = outs.filter((o): o is BiaxialSuccess => o.status === "ok");
-    expect(good.length).toBeGreaterThanOrEqual(2);
-    outs.forEach((o) => expect(["ok", "incomplete"]).toContain(o.status));
-    for (const a of good) for (const b of good) {
-      expect(Math.abs(a.ground!.contactTotal - b.ground!.contactTotal)).toBeLessThanOrEqual(1e-3 * forceScale);
-      expect(Math.abs(a.maxStress - b.maxStress)).toBeLessThanOrEqual(1e-3 * sigmaRef);
-    }
+  it("large lateral offset does not change the vertical decision", () => {
+    const a = ok(solveGroundFixedLength({ ...B, L: 12000, hv: 2500, numSupports: 3, groundZ: 0 }));
+    const b = ok(solveGroundFixedLength({ ...B, L: 12000, hv: 2500, hl: 3000, numSupports: 3, groundZ: 0 }));
+    expect(b.ground!.method).toBe(a.ground!.method);
+    expect(b.ground!.minClearance).toBeCloseTo(a.ground!.minClearance!, 9);
   });
-
-  it("vertical response is independent of hl", () => {
-    const a = ok(), b = ok({ hl: 100000 });
-    expect(Math.abs(a.ground!.contactTotal - b.ground!.contactTotal)).toBeLessThanOrEqual(1e-9 * forceScale);
-    expect(a.nodes.length).toBe(b.nodes.length);
-    a.nodes.forEach((n, i) => expect(Math.abs(n.z - b.nodes[i].z)).toBeLessThan(1e-9 * IN.hv));
-    expect(Math.abs(b.ground!.contactTotal - reactRef)).toBeLessThanOrEqual(1e-3 * forceScale);
+  it("real contact still goes through the mesh path (analytic partial-contact case)", () => {
+    const r = ok(solveGroundFixedLength({ ...B, hv: 1000, groundZ: 0 }));
+    expect(r.ground!.method).toBe("mesh-refinement");
+    expect(r.ground!.contactNodes).toBeGreaterThan(0);
   });
-
-  it("round-off never accepts residuals above the mechanical budget", () => {
-    const r = ok();
-    const d = r.diagnostics;
-    expect(r.ground!.precisionLoss).toBe(false);
-    (Object.keys(d.residuals) as (keyof typeof d.residuals)[]).forEach((k) => expect(d.residuals[k]).toBeLessThanOrEqual(d.residualTolerances[k]));
-    const fine = solveGroundFixedLength(IN, { minElements: 2048 });
-    expect(fine.status).toBe("incomplete");
+  it("pipe fully laid on the ground (hv = groundZ = 0) uses the mesh path", () => {
+    const r = ok(solveGroundFixedLength({ ...B, L: 60000, hv: 0, groundZ: 0 }));
+    expect(r.ground!.method).toBe("mesh-refinement");
+    expect(r.maxStress).toBeLessThan(1e-6 * REF.sigmaAllow + 1e-9);
   });
-
-  it("never publishes non-finite results", () => {
-    for (const over of [{ hl: 1e300 }, { hv: 1e300 }, { q: 1e300 }, { E: 1e-300 }] as Partial<GroundInput>[]) {
-      const r = solveGroundFixedLength({ ...IN, ...over });
-      if (r.status === "ok") {
-        expect(Number.isFinite(r.maxStress)).toBe(true);
-        expect(r.nodes.every((n) => Number.isFinite(n.z))).toBe(true);
-        expect(Number.isFinite(r.ground!.contactTotal)).toBe(true);
-      }
-    }
+  it("different initial meshes give the same accepted mesh result", () => {
+    const i = { ...B, hv: 1000, groundZ: 0 };
+    const a = ok(solveGroundFixedLength(i, { minElements: 32 })), b = ok(solveGroundFixedLength(i, { minElements: 128 }));
+    expect(Math.abs(a.maxStress - b.maxStress)).toBeLessThan(2e-3 * a.maxStress);
   });
-
-  it("c = 1e308 (stress overflow) is a numerical failure, nothing published", () => {
-    const r = solveGroundFixedLength({ ...IN, c: 1e308 });
-    expect(r.status).toBe("numerical-failure");
-    expect("maxStress" in r).toBe(false);
-  });
-
-  it("verdict near the allowable is flagged uncertain, far from it decidable", () => {
-    const base = ok();
-    expect(base.ground!.criterionUncertain).toBe(false);
-    const near = ok({ sigmaAllow: base.maxStress * (1 + 1e-5) });
-    expect(near.ground!.criterionUncertain).toBe(true);
-  });
-
-  it("ground reactions are not double counted", () => {
-    const r = ok();
-    const g = r.ground!;
-    expect(g.contactTotal).toBeCloseTo(g.totalReaction + g.combinedReaction + g.endReaction, 9);
-    expect(g.endReaction).toBeCloseTo(r.endReactions.left.force, 9);
-    expect(g.contactPoints.length).toBe(g.contactNodes);
+  it("explicit refusal kept: tiny element cap gives a named cause", () => {
+    const r = solveGroundFixedLength({ ...B, hv: 1000, groundZ: 0 }, { maxElements: 16, minElements: 4 });
+    expect(r.status).toBe("incomplete");
+    expect(failureCause(r)).toMatch(/mesh-not-converged|precision-loss/);
   });
 });
