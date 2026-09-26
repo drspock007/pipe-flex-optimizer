@@ -14,13 +14,16 @@ import { rootsInUnit } from "./roots";
 import { BiaxialSuccess, MemberResult } from "./types";
 import type { GroundInput } from "./ground-solve";
 
+/** minClearance = TRUE global minimum of z - groundZ over [0, L] (ends included,
+ *  exact member minima); ok = contact excluded: every position except an end
+ *  lying on the ground clears it by > tolAmb (mm), and such an end has a
+ *  strictly positive curvature margin. */
 export interface ExactClearance { minClearance: number; ok: boolean }
 
-/** Exact clearance of the no-ground solution; ok only when strictly > tolAmb (mm). */
 export function exactClearance(r: BiaxialSuccess, groundZ: number, tolAmb: number, tolDisp: number): ExactClearance {
   const onL = Math.abs(groundZ) <= tolDisp, onR = Math.abs(r.input.hv - groundZ) <= tolDisp;
   const last = r.members.length - 1;
-  let minC = Infinity, ok = true;
+  let minAll = Infinity, minCheck = Infinity, ok = true;
   r.members.forEach((mb: MemberResult, e) => {
     const [zi, ti, zj, tj] = mb.nodalDisplacements, l = mb.length;
     const Q = (mb.q * l ** 4) / (24 * mb.EI);
@@ -30,12 +33,14 @@ export function exactClearance(r: BiaxialSuccess, groundZ: number, tolAmb: numbe
     // Curvature margin at an end lying on the ground: z ~ g + k u^2 near it.
     if (skip0) ok = ok && c[2] > tolAmb;
     if (skip1) ok = ok && c[2] + 3 * c[3] + 6 * c[4] > tolAmb;
-    const cand = [...(skip0 ? [] : [0]), ...(skip1 ? [] : [1]), ...rootsInUnit([c[1], 2 * c[2], 3 * c[3], 4 * c[4]])]
-      .filter((u) => !(skip0 && u < 1e-6) && !(skip1 && u > 1 - 1e-6));
-    for (const u of cand) minC = Math.min(minC, z(u) - groundZ);
+    for (const u of [0, 1, ...rootsInUnit([c[1], 2 * c[2], 3 * c[3], 4 * c[4]])]) {
+      const g = z(u) - groundZ;
+      minAll = Math.min(minAll, g); // published value: nothing excluded
+      if (!(skip0 && u < 1e-6) && !(skip1 && u > 1 - 1e-6)) minCheck = Math.min(minCheck, g); // decision only
+    }
   });
-  if (!Number.isFinite(minC) && r.members.length > 0) minC = Infinity;
-  return { minClearance: minC, ok: ok && minC > tolAmb };
+  if (!Number.isFinite(minAll)) return { minClearance: NaN, ok: false };
+  return { minClearance: minAll, ok: ok && (minCheck > tolAmb || minCheck === Infinity) };
 }
 
 /** Exact ground-inactive solution, or null when contact cannot be excluded. */
@@ -46,7 +51,7 @@ export function tryExactNoContact(input: GroundInput, tolAmb: number, tolDisp: n
   const r = solveBiaxialFixedLength(input);
   if (r.status !== "ok" || !r.numericalValid) return null;
   const cl = exactClearance(r, groundZ, tolAmb, tolDisp);
-  if (!cl.ok) return null;
+  if (!cl.ok || !Number.isFinite(cl.minClearance)) return null;
   const onL = Math.abs(groundZ) <= tolDisp, onR = Math.abs(hv - groundZ) <= tolDisp;
   const endReaction = (onL ? r.endReactions.left.force : 0) + (onR ? r.endReactions.right.force : 0);
   const zones = [...(onL ? [{ xStart: 0, xEnd: 0 }] : []), ...(onR ? [{ xStart: L, xEnd: L }] : [])];

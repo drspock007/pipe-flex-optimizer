@@ -3,7 +3,7 @@
 
 import { jsPDF } from "jspdf";
 import autoTable, { UserOptions } from "jspdf-autotable";
-import { rowsOnLastPage } from "./pdf-measure";
+import { headAlone, rowsOnLastPage } from "./pdf-measure";
 import { V2Report } from "./report-types";
 import { UnitSystem } from "@/lib/unit-conversions";
 import { buildSections } from "./pdf-sections";
@@ -69,7 +69,12 @@ export const generateReportPdf = (
       rowPageBreak: "avoid",
     };
     // Never leave a single last row alone on the next page.
-    if (section.rows.length > 1 && rowsOnLastPage(opts) <= 1) {
+    // Never leave the title alone at the bottom (title + first real row reserved),
+    // nor a single last row alone on the next page.
+    if (section.rows.length > 0 && headAlone(opts)) {
+      doc.addPage();
+      opts.startY = TOP_MARGIN;
+    } else if (section.rows.length > 1 && rowsOnLastPage(opts) <= 1) {
       doc.addPage();
       opts.startY = TOP_MARGIN;
     }

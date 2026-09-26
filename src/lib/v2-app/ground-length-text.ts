@@ -4,7 +4,7 @@
 
 import { GroundLengthResult } from "@/lib/mechanics-v2";
 import type { StatusText } from "./status-text";
-import { fmtSmall, ZONE_LABEL, zoneLabel } from "./ground-height-text";
+import { fmtInterval, fmtSmall, ZONE_LABEL, zoneLabel } from "./ground-height-text";
 
 const plural = (n: number) => `${n} installed support${n === 1 ? "" : "s"}`;
 const EXPLAIN = "Each range bound is an individually verified admissible L. Points between verified samples are ESTIMATED (adaptive sampling in ln L with estimated slopes), not verified; narrower non-admissible pockets may exist.";
@@ -33,12 +33,12 @@ export function groundLengthRows(r: GroundLengthResult, fmt: (mm: number) => str
   rows.push(["Searched length domain (exploration, not a mechanical bound)", `[${fmt(r.domain.lower)} ; ${fmt(r.domain.upper)}]`]);
   r.ranges.forEach((g, i) => {
     const edges = [g.lower.domainEdge ? "lower" : "", g.upper.domainEdge ? "upper" : ""].filter(Boolean);
-    rows.push([`Estimated range ${i + 1} (verified end samples)`, `${fmt(g.lower.value)} ; ${fmt(g.upper.value)}${edges.length ? ` — ${edges.join(" & ")} end ${EDGE_TEXT}` : ""}`]);
+    rows.push([`Estimated range ${i + 1} (verified end samples)`, `${fmtInterval(g.lower.value, g.upper.value, fmt)}${edges.length ? ` — ${edges.join(" & ")} end ${EDGE_TEXT}` : ""}`]);
   });
   // Readability: at most MAX_ZONES listed per kind, the rest counted.
   for (const reason of [...new Set(r.zones.map((z) => z.reason))]) {
     const zs = r.zones.filter((z) => z.reason === reason);
-    zs.slice(0, MAX_ZONES).forEach((z) => rows.push([`Zone: ${zoneLabel(z)}`, `${fmt(z.from)} to ${fmt(z.to)}`]));
+    zs.slice(0, MAX_ZONES).forEach((z) => rows.push([`Zone: ${zoneLabel(z)}`, fmtInterval(z.from, z.to, fmt)]));
     if (zs.length > MAX_ZONES) rows.push([`Zone: ${ZONE_LABEL[reason]}`, `+ ${zs.length - MAX_ZONES} more between ${fmt(zs[MAX_ZONES].from)} and ${fmt(zs[zs.length - 1].to)}`]);
   }
   rows.push(["Domain limits reached by admissible samples", r.boundaryHits.length ? `${r.boundaryHits.join(" & ")} — ${EDGE_TEXT}` : "none"]);

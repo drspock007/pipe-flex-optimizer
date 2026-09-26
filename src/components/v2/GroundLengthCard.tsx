@@ -11,6 +11,7 @@ import { useUnits } from "@/contexts/UnitContext";
 import { GroundLengthResult } from "@/lib/mechanics-v2";
 import { GLSelection, glOptions, glRanges } from "@/lib/v2-app/ground-length-selection";
 import { EDGE_TEXT, GROUND_LENGTH_LIMITS } from "@/lib/v2-app/ground-length-text";
+import { fmtInterval } from "@/lib/v2-app/ground-height-text";
 import { StatusText } from "@/lib/v2-app/status-text";
 import { StatusBanner, Busy } from "./StatusBanner";
 import { useFmtLength } from "./LengthSelector";
@@ -57,7 +58,7 @@ const GroundLengthCard = ({ loading, refreshing, error, status, result, details,
               {ranges.map((r, i) => (
                 <button key={i} type="button" role="radio" aria-checked={i === k} onClick={() => pick(glOptions(r, best)[0].id, i)}
                   className={`w-full text-left rounded-md border px-3 py-2 text-xs font-mono break-words ${i === k ? "border-primary bg-primary/10" : "border-border"}`}>
-                  Estimated range {i + 1}: [{fmt(r.lower.value)} ; {fmt(r.upper.value)}]
+                  Estimated range {i + 1}: [{fmtInterval(r.lower.value, r.upper.value, fmt)}]
                   {(r.lower.domainEdge || r.upper.domainEdge) && <span className="block text-[10px] text-muted-foreground">{r.lower.domainEdge ? "lower" : ""}{r.lower.domainEdge && r.upper.domainEdge ? " & " : ""}{r.upper.domainEdge ? "upper" : ""} end {EDGE_TEXT}</span>}
                 </button>
               ))}

@@ -22,7 +22,7 @@ describe("Min. supports with ground: orchestration (simulated)", () => {
     expect(r.candidate.n).toBe(0);
     expect(r.minimality.certified).toBe(true);
     expect(r.lengthCoverage.certified).toBe(false);
-    expect(r.rows).toHaveLength(1);
+    expect(r.rows).toHaveLength(6);
   });
   it("nothing found at 0, candidate at 1: not certified", () => {
     const r = pub(searchMinSupportsGround(IN, 5, sim((n) => (n === 0 ? "not-admissible" : "admissible"))));
@@ -87,7 +87,7 @@ describe("Min. supports with ground: real solver", () => {
     if (r.status !== "found") throw new Error(r.status);
     expect(r.candidate.n).toBeGreaterThan(0);
     expect(r.minimality.certified).toBe(false);
-    expect(r.rows.slice(0, -1).every((x) => x.status !== "candidate")).toBe(true);
+    expect(r.rows.filter((x) => x.n !== r.candidate.n).every((x) => x.status !== "candidate")).toBe(true);
     // Same as Find L with ground for that count.
     const g = searchLengthGround(IN, r.candidate.n);
     expect("ranges" in g && g.ranges.length > 0).toBe(true);

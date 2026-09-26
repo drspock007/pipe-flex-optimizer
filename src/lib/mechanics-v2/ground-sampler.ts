@@ -49,8 +49,12 @@ export function runSampler(p: SamplerSpec) {
   const pending: [number, number][] = exhausted
     ? s.slice(0, -1).flatMap((a, i) => (needsSplit(s, i, sa, S, p.tol, p.minStep) ? [[a.hv, s[i + 1].hv] as [number, number]] : []))
     : [];
-  if (exhausted && s.length && s[s.length - 1].hv < p.hi) pending.push([s[s.length - 1].hv, p.hi]); // unexplored tail
-  const { zones, ranges } = assemble(s, sa, S, p.minStep, pending);
+  // Unexplored parts after an interruption: whole domain when nothing was
+  // evaluated, else the head/tail between the true bounds and the samples.
+  if (exhausted && !s.length) pending.push([p.lo, p.hi]);
+  if (exhausted && s.length && s[0].hv > p.lo) pending.unshift([p.lo, s[0].hv]);
+  if (exhausted && s.length && s[s.length - 1].hv < p.hi) pending.push([s[s.length - 1].hv, p.hi]);
+  const { zones, ranges } = assemble(s, sa, S, p.minStep, pending, [p.lo, p.hi]);
   return {
     samples: s, zones, ranges, exhausted, elapsedMs: now() - t0,
     uncertain: s.filter((x) => x.cls === "uncertain").length, failed: s.filter((x) => x.cls === "failed").length,

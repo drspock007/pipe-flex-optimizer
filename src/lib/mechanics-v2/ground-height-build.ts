@@ -49,7 +49,10 @@ export function needsSplit(s: HeightSample[], i: number, sa: number, S: number, 
 }
 
 /** Zones and ranges from the final sorted samples. */
-export function assemble(s: HeightSample[], sa: number, S: number, minStep: number, pending: [number, number][]) {
+/** dom = true domain bounds: domainEdge only when a range end IS a domain bound
+ *  (first/last sample are not domain bounds after an interruption). */
+export function assemble(s: HeightSample[], sa: number, S: number, minStep: number, pending: [number, number][], dom?: [number, number]) {
+  const isLo = (v: number) => (dom ? v === dom[0] : true), isHi = (v: number) => (dom ? v === dom[1] : true);
   const zones: UnresolvedZone[] = [];
   const flagged = new Set<number>(); // pair index i -> (i, i+1) not covered
   for (let i = 0; i + 1 < s.length; i++) {
@@ -94,8 +97,8 @@ export function assemble(s: HeightSample[], sa: number, S: number, minStep: numb
     let j = i;
     while (j + 1 < s.length && s[j + 1].cls === "admissible" && !flagged.has(j) && !pending.some(([a]) => a === s[j].hv)) j++;
     ranges.push({
-      lower: { value: s[i].hv, included: true, bracket: i > 0 ? s[i - 1].hv : null, domainEdge: i === 0 },
-      upper: { value: s[j].hv, included: true, bracket: j + 1 < s.length ? s[j + 1].hv : null, domainEdge: j === s.length - 1 },
+      lower: { value: s[i].hv, included: true, bracket: i > 0 ? s[i - 1].hv : null, domainEdge: i === 0 && isLo(s[i].hv) },
+      upper: { value: s[j].hv, included: true, bracket: j + 1 < s.length ? s[j + 1].hv : null, domainEdge: j === s.length - 1 && isHi(s[j].hv) },
     });
     i = j;
   }
