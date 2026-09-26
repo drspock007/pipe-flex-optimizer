@@ -56,6 +56,14 @@ describe("Min. supports with ground: orchestration (simulated)", () => {
     expect(r.diagnostics.interrupted.length + r.diagnostics.notExamined.length).toBeGreaterThan(0);
     expect(r.rows.map((x) => x.n)).toEqual([0, 1, 2, 3, 4, 5, 6]);
   });
+  it("reduced budget (free, after orchestrator extraction): one interrupted count, the rest not examined", () => {
+    const e0 = pub(searchMinSupportsGround(IN, 0, sim(() => "not-admissible"))).diagnostics.evaluations;
+    const r = pub(searchMinSupportsGround(IN, 5, { ...sim(() => "not-admissible"), maxEvaluations: 2 * e0 + 3 }));
+    expect(r.rows.map((x) => x.status)).toEqual(["none-found", "none-found", "interrupted", "not-examined", "not-examined", "not-examined"]);
+    expect(r.diagnostics.interrupted).toEqual([2]);
+    expect(r.diagnostics.notExamined).toEqual([3, 4, 5]);
+    expect(r.diagnostics.maxEvaluations).toBe(2 * e0 + 3);
+  });
   it("final check failed or uncertain: count rejected, search continues; checks are counted", () => {
     const base = sim((n) => (n <= 1 ? "admissible" : "admissible"));
     const r = pub(searchMinSupportsGround(IN, 4, { ...base, verify: (n) => s(n === 0 ? "uncertain" : n === 1 ? "failed" : "admissible") }));
