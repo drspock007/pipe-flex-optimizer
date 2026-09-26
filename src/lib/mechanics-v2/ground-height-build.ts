@@ -83,6 +83,7 @@ export function assemble(s: HeightSample[], sa: number, S: number, minStep: numb
   for (let k = zones.length - 1; k > 0; k--) {
     if (zones[k].reason === zones[k - 1].reason && zones[k].from <= zones[k - 1].to) {
       zones[k - 1].to = Math.max(zones[k - 1].to, zones[k].to);
+      if (zones[k].causes) zones[k - 1].causes = [...new Set([...(zones[k - 1].causes ?? []), ...zones[k].causes])];
       zones.splice(k, 1);
     }
   }
