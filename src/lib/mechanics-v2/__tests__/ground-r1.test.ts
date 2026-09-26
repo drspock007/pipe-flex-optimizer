@@ -18,7 +18,8 @@ describe("V2-7-R1 previously failing lengths", () => {
     const r = ok(solveGroundFixedLength({ ...B, L, hv, numSupports: n, groundZ: 0 }));
     expect(r.numericalValid).toBe(true);
     expect(r.ground!.method).toBe("exact-no-contact");
-    expect(r.ground!.minClearance!).toBeGreaterThan(r.ground!.tolPenetration);
+    // Ends lie on the ground (groundZ = 0): the true global minimum is 0 (V2-8-R1).
+    expect(Math.abs(r.ground!.minClearance!)).toBeLessThan(1e-6);
   });
 });
 
