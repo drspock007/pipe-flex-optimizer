@@ -9,10 +9,10 @@
 
 import type { GroundLengthResult } from "./ground-length-types";
 import type { LengthSample } from "./ground-length-types";
-import type { GroundMinCandidate, GroundMinDiagnostics, GroundMinResult, GroundMinRow } from "./ground-min-types";
+import type { MinAxialInfo, GroundMinCandidate, GroundMinDiagnostics, GroundMinResult, GroundMinRow } from "./ground-min-types";
 
 type Ranged = Extract<GroundLengthResult, { ranges: unknown }>;
-type Global = Extract<GroundMinResult, { message: string } | { errors: string[] }> & { status: "invalid-input" | "geometry-incompatible" | "not-implemented" | "impossible" | "undecidable" | "numerical-failure" };
+type Global = Exclude<GroundMinResult, { rows: unknown }>;
 
 /** Result of one count: length search, final-check outcome and its accounting. */
 export interface CountStep {
@@ -32,7 +32,7 @@ export interface OrchestratorArgs {
   domain: { lower: number; upper: number };
   step: (n: number, leftE: number, leftMs: number) => CountStep | Global;
   onProgress?: (p: { n: number; maxSupports: number; evaluations: number }) => void;
-  axial?: GroundMinResult extends infer R ? (R extends { axial?: infer A } ? A : never) : never;
+  axial?: MinAxialInfo;
 }
 
 export function orchestrateMinSupports(a: OrchestratorArgs): GroundMinResult {
@@ -45,7 +45,7 @@ export function orchestrateMinSupports(a: OrchestratorArgs): GroundMinResult {
     if (leftE <= 0 || leftMs <= 0) { stop = leftE <= 0 ? "evaluation-budget" : "time-budget"; break; }
     a.onProgress?.({ n, maxSupports, evaluations: used });
     const st = a.step(n, leftE, leftMs);
-    if (!("search" in st)) return st as GroundMinResult; // global outcome, independent of n
+    if (!("search" in st)) return st; // global outcome, independent of n
     const r = st.search;
     used += st.evaluations;
     const adm = r.samples.filter((s) => s.cls === "admissible").length;
