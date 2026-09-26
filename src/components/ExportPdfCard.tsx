@@ -18,6 +18,8 @@ interface Props {
   report: V2Report | null;
   /** Solve key of the current inputs; the report must belong to it. */
   currentKey: string | null;
+  /** Non-null while an input issue (e.g. unknown preset coating) must be resolved first. */
+  blockedReason?: string | null;
 }
 
 const MAX_LEN = 80;
