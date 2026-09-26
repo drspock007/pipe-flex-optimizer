@@ -41,9 +41,12 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
       : inputs.mode === "minSupports" && inputs.groundEnabled ? "Minimum installed supports search WITH ground contact (exploratory length searches)" : MODE_LABEL[inputs.mode]],
     ...(s.axial ? [] : [["Axial mode", "Free longitudinal sliding"] as Row]),
   ];
-  if (rep.searchStatus) results.push(["Search status", rep.searchStatus]);
-  rep.ranges.forEach((r, i) => results.push([inputs.mode === "findH" ? `Admissible hv range ${i + 1}${rep.searchNotes ? " (estimated)" : ""}` : `Admissible range ${i + 1}`, r]));
-  rep.searchNotes?.forEach((r) => results.push(r));
+  const searchRows: Row[] = [];
+  if (rep.searchStatus) searchRows.push(["Search status", rep.searchStatus]);
+  rep.ranges.forEach((r, i) => searchRows.push([inputs.mode === "findH" ? `Admissible hv range ${i + 1}${rep.searchNotes ? " (estimated)" : ""}` : `Admissible range ${i + 1}`, r]));
+  rep.searchNotes?.forEach((r) => searchRows.push(r));
+  // Restrained: represented value, governing combined stress and verdict come first (V2-11); search details follow.
+  if (!s.axial) results.push(...searchRows);
   if (inputs.mode === "findH") results.push(["Fixed length L", fmt(s.L / 1000, "m", 3)], ["Fixed lateral offset hl", fmt(inputs.hl, "mm")], ["Represented vertical offset hv", fmt(s.input.hv, "mm")]);
   results.push(
     ...(inputs.mode === "findH" ? [] : [["Represented length L", fmt(s.L / 1000, "m", 3)] as Row]),
@@ -57,6 +60,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
     ["Numerical validity", s.numericalValid ? "valid" : "NOT valid"],
     [s.axial ? "Physical validity (see domain indicators)" : "Physical validity (linear model)", "not assessed"],
   );
+  if (s.axial) results.push(...searchRows);
 
   const geometry: Row[] = [
     ["Outside diameter (Do)", fmt(inputs.Do, "mm")],
