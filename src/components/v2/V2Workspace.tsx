@@ -86,7 +86,7 @@ const V2Workspace = ({ inputs, exportBlocked = null }: { inputs: AppInputs; deri
   const searchStatus = search.data ? describeSearch(search.data) : null;
   const gh = heightMode && search.data?.kind === "findHGround" ? search.data.result : null;
   const rh = heightMode && search.data?.kind === "findHRestrained" ? search.data.result : null;
-  const ghRows = gh ? groundHeightRows(gh, fmtH) : rh ? restrainedHeightRows(rh, fmtH, fmtS) : [];
+  const ghRows = gh ? groundHeightRows(gh, fmtH) : rh ? restrainedHeightRows(rh, fmtH, fmtS, fmt) : [];
   const hLimits = gh ? GROUND_HEIGHT_LIMITS : rh ? RESTRAINED_HEIGHT_LIMITS : undefined;
   const glRows = glr ? groundLengthRows(glr, fmt, fmtS) : [];
   const gmRows = gmr ? groundMinRows(gmr, fmt, fmtS) : [];

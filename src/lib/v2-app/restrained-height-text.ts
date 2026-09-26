@@ -29,11 +29,11 @@ export function describeRestrainedHeight(r: RestrainedHeightResult): StatusText 
 
 const ORIGIN = { "axial-bound": "necessary axial bound", "ground-level": "ground level" } as const;
 
-export function restrainedHeightRows(r: RestrainedHeightResult, fmt: (mm: number) => string, fmtS: (mpa: number) => string): [string, string][] {
+export function restrainedHeightRows(r: RestrainedHeightResult, fmt: (mm: number) => string, fmtS: (mpa: number) => string, fmtL: (mm: number) => string = (mm) => `${(mm / 1000).toFixed(3)} m`): [string, string][] {
   if (!("meta" in r)) return [];
   const m = r.meta, rows: [string, string][] = [["Axial mode", `restrained, ${m.groundEnabled ? "with" : "without"} ground contact`]];
   if (!("ranges" in r)) return [...rows, ["Necessary bound radicand 2L^2 sA/E - hl^2", `${m.bound.radicand.toExponential(4)} mm^2 (tolerance ${m.bound.radicandTol.toExponential(2)} mm^2)`]];
-  rows.push(["Fixed length L / lateral offset hl", `${(r.scope.L / 1000).toFixed(3)} m / ${fmt(r.scope.hl)}`]);
+  rows.push(["Fixed length L / lateral offset hl", `${fmtL(r.scope.L)} / ${fmt(r.scope.hl)}`]);
   const bound: [string, string] = [`Hax = sqrt(2 L^2 sA / E - hl^2) (necessary: N/A >= E(hv^2+hl^2)/(2L^2); not a bending check)`, m.bound.Hax === null ? "none (radicand < 0)" : fmt(m.bound.Hax)];
   rows.push(...groundHeightRows(r, fmt, bound));
   if (m.domainOrigin) rows.splice(rows.findIndex((x) => x[0] === "Searched hv domain") + 1, 0, ["Domain bound origin", `lower: ${ORIGIN[m.domainOrigin.lower]}; upper: ${ORIGIN[m.domainOrigin.upper]}`]);
