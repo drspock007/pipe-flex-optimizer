@@ -39,22 +39,22 @@ describe("V2-7-R1 exact path equals the no-ground engine", () => {
     expect(b.ground!.minClearance).toBeCloseTo(a.ground!.minClearance!, 9);
   });
   it("real contact still goes through the mesh path (analytic partial-contact case)", () => {
-    const r = ok(solveGroundFixedLength({ ...B, hv: 1000, groundZ: 0 }));
+    const r = ok(solveGroundFixedLength({ ...B, L: 30000, numSupports: 0, hv: 1000, groundZ: 0 }));
     expect(r.ground!.method).toBe("mesh-refinement");
     expect(r.ground!.contactNodes).toBeGreaterThan(0);
   });
   it("pipe fully laid on the ground (hv = groundZ = 0) uses the mesh path", () => {
-    const r = ok(solveGroundFixedLength({ ...B, L: 60000, hv: 0, groundZ: 0 }));
+    const r = ok(solveGroundFixedLength({ ...B, L: 60000, numSupports: 0, hv: 0, groundZ: 0 }));
     expect(r.ground!.method).toBe("mesh-refinement");
     expect(r.maxStress).toBeLessThan(1e-6 * REF.sigmaAllow + 1e-9);
   });
   it("different initial meshes give the same accepted mesh result", () => {
-    const i = { ...B, hv: 1000, groundZ: 0 };
+    const i = { ...B, L: 30000, numSupports: 0, hv: 1000, groundZ: 0 };
     const a = ok(solveGroundFixedLength(i, { minElements: 32 })), b = ok(solveGroundFixedLength(i, { minElements: 128 }));
     expect(Math.abs(a.maxStress - b.maxStress)).toBeLessThan(2e-3 * a.maxStress);
   });
   it("explicit refusal kept: tiny element cap gives a named cause", () => {
-    const r = solveGroundFixedLength({ ...B, hv: 1000, groundZ: 0 }, { maxElements: 16, minElements: 4 });
+    const r = solveGroundFixedLength({ ...B, L: 30000, numSupports: 0, hv: 1000, groundZ: 0 }, { maxElements: 16, minElements: 4 });
     expect(r.status).toBe("incomplete");
     expect(failureCause(r)).toMatch(/mesh-not-converged|precision-loss/);
   });
