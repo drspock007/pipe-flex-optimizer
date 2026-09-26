@@ -3,6 +3,7 @@
 // Modifié par Giovanni Malagnino, 2026-09-25 17:40 CEST: Find h search channel (L relaunches it, hv only the solve).
 // Modifié par Giovanni Malagnino, 2026-09-25 22:40 CEST: Find h with ground (V2-6).
 // Modifié par Giovanni Malagnino, 2026-09-26 04:30 CEST: Find L with ground (V2-7).
+// Modifié par Giovanni Malagnino, 2026-09-26 05:35 CEST: cancellation on deactivation, stale worker events (V2-8-R1).
 // Modifié par Giovanni Malagnino, 2026-09-26 05:10 CEST: Min. supports with ground, worker cancellation, progress (V2-8).
 // Runs V2 searches and fixed-length solutions in a Web Worker.
 // Two channels: "search" (not re-run when only the represented length changes)
@@ -32,19 +33,23 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
   // One worker per channel: a new request terminates a busy worker of its channel,
   // so an obsolete search never has to consume its budget (V2-8 cancellation).
   const workers = useRef<Record<Channel, Worker | null>>({ search: null, solve: null });
-  const busy = useRef<Record<Channel, boolean>>({ search: false, solve: false });
+  /** Id of the request currently running in each channel's worker (0 = idle). */
+  const running = useRef<Record<Channel, number>>({ search: 0, solve: 0 });
   const nextId = useRef(0);
-  const pending = useRef<Record<Channel, number>>({ search: 0, solve: 0 });
   const ctx = useRef(new Map<number, Ctx>());
   const dispatchOf = (c: Channel) => (c === "search" ? dSearch : dSolve) as (a: ChannelAction<never>) => void;
 
   const spawn = (c: Channel): Worker | null => {
     if (typeof Worker === "undefined") return null;
     const w = new Worker(new URL("../lib/v2-app/engine.worker.ts", import.meta.url), { type: "module" });
+    // Events from a replaced (terminated) worker are ignored: they never reach
+    // the current request, even if the browser still delivers them.
+    const current = () => workers.current[c] === w;
     w.onmessage = (e: MessageEvent<WorkerResponseMsg>) => {
+      if (!current()) return;
       const m = e.data, d = dispatchOf(c);
       if ("progress" in m) { d({ type: "progress", id: m.id, progress: m.progress }); return; }
-      if (m.id === pending.current[c]) busy.current[c] = false;
+      if (m.id === running.current[c]) running.current[c] = 0;
       const x = ctx.current.get(m.id);
       ctx.current.delete(m.id);
       if (m.ok && x) d({ type: "success", id: m.id, data: { ...m.outcome, ...x } as never });
@@ -52,22 +57,34 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
     };
     w.onerror = (ev) => {
       ev.preventDefault();
-      busy.current[c] = false;
-      dispatchOf(c)({ type: "failure", id: pending.current[c], error: `Calculation worker failed${ev.message ? `: ${ev.message}` : ""}` });
+      const id = running.current[c];
+      if (!current() || id === 0) return; // stale worker or no request in flight
+      running.current[c] = 0;
+      ctx.current.delete(id);
+      dispatchOf(c)({ type: "failure", id, error: `Calculation worker failed${ev.message ? `: ${ev.message}` : ""}` });
     };
     workers.current[c] = w;
     return w;
   };
   useEffect(() => {
     spawn("search"); spawn("solve");
-    return () => { (["search", "solve"] as Channel[]).forEach((c) => { workers.current[c]?.terminate(); workers.current[c] = null; }); };
+    return () => { (["search", "solve"] as Channel[]).forEach((c) => { workers.current[c]?.terminate(); workers.current[c] = null; }); ctx.current.clear(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** Invalidate the channel now (terminating a busy worker) and return the id reserved for the next dispatch. */
+  /** Terminate the channel's busy worker (replaced by a fresh one) and drop the context of the cancelled request. */
+  const cancel = (c: Channel) => {
+    const id = running.current[c];
+    if (id === 0) return;
+    ctx.current.delete(id);
+    running.current[c] = 0;
+    workers.current[c]?.terminate();
+    workers.current[c] = null;
+    spawn(c);
+  };
+  /** Invalidate the channel now (cancelling a busy worker) and return the id reserved for the next dispatch. */
   const begin = (c: Channel) => {
     const id = ++nextId.current;
-    pending.current[c] = id;
-    if (busy.current[c] && workers.current[c]) { workers.current[c]!.terminate(); busy.current[c] = false; spawn(c); }
+    cancel(c);
     dispatchOf(c)({ type: "request", id });
     return id;
   };
@@ -75,7 +92,7 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
     const w = workers.current[c];
     if (!w) { dispatchOf(c)({ type: "failure", id, error: "Web Workers are not available in this browser" }); return; }
     ctx.current.set(id, context);
-    busy.current[c] = true;
+    running.current[c] = id;
     w.postMessage({ id, channel: c, request } satisfies WorkerRequestMsg);
   };
 
@@ -83,7 +100,7 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
   // Ground contact: available in every mode (V2-8).
   const searchActive = isSearchMode(inputs.mode) || inputs.mode === "findH";
   useEffect(() => {
-    if (!searchActive) { dSearch({ type: "reset" }); return; }
+    if (!searchActive) { cancel("search"); dSearch({ type: "reset" }); return; }
     const id = begin("search");
     const snap = inputs;
     const t = setTimeout(() => {
@@ -105,7 +122,7 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
 
   const solveKey = solveKeyOf(inputs, solveTarget);
   useEffect(() => {
-    if (!solveTarget || !solveKey) { dSolve({ type: "reset" }); return; }
+    if (!solveTarget || !solveKey) { cancel("solve"); dSolve({ type: "reset" }); return; }
     const id = begin("solve");
     const target = solveTarget, hv = target.hv_mm ?? inputs.h;
     // The stored inputs carry the represented hv so that reports show it.
