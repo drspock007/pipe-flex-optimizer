@@ -44,9 +44,9 @@ describe("V2-7-R1 exact path equals the no-ground engine", () => {
     expect(r.ground!.method).toBe("mesh-refinement");
     expect(r.ground!.contactNodes).toBeGreaterThan(0);
   });
-  it("pipe fully laid on the ground (hv = groundZ = 0) uses the mesh path", () => {
-    const r = ok(solveGroundFixedLength({ ...B, L: 60000, numSupports: 0, hv: 0, groundZ: 0 }));
-    expect(r.ground!.method).toBe("mesh-refinement");
+  it("pipe fully laid on the ground (hv = groundZ = 0) uses the analytical full-contact path (V2-11-R1)", () => {
+    const r = ok(solveGroundFixedLength({ ...B, L: 60000, numSupports: 0, hv: 0, hl: 0, groundZ: 0 }));
+    expect(r.ground!.method).toBe("analytical-full-contact");
     expect(r.maxStress).toBeLessThan(1e-6 * REF.sigmaAllow + 1e-9);
   });
   it("different initial meshes give the same accepted mesh result", () => {

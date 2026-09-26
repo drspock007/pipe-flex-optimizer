@@ -60,7 +60,7 @@ describe("ground contact (V2-5)", () => {
   });
 
   it("support at the ground level: no singularity, combined reaction reported", () => {
-    const r = ok({ hv: 0, numSupports: 3 });
+    const r = ok({ hv: 0, hl: 100, numSupports: 3 }); // hl != 0: mesh path (flat analytical branch not triggered)
     expect(r.supports.every((s) => s.sharedWithGround)).toBe(true);
     expect(r.ground!.combinedReaction).toBeGreaterThan(0);
     expect(r.supports.length).toBe(3); // installed supports, not contact points
