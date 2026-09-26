@@ -5,17 +5,21 @@
 // Modifié par Giovanni Malagnino, 2026-09-25 17:40 CEST: Find h (V2-4).
 // Modifié par Giovanni Malagnino, 2026-09-25 20:10 CEST: ground contact, Fixed L only (V2-5).
 // Modifié par Giovanni Malagnino, 2026-09-25 22:40 CEST: Find h with ground (V2-6).
+// Modifié par Giovanni Malagnino, 2026-09-26 04:30 CEST: Find L with ground (V2-7).
 
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search } from "lucide-react";
 import { useV2Engine, isSearchMode, SolveTarget } from "@/hooks/useV2Engine";
 import { AppInputs } from "@/lib/v2-app/inputs";
-import { Derived, groundBlocksSearch, solveKeyOf } from "@/lib/v2-app/bridge";
+import { Derived, groundBlocksSearch, isLengthGround, solveKeyOf } from "@/lib/v2-app/bridge";
 import { buildReport } from "@/lib/v2-app/report-build";
 import { initialChoice, lengthOptions, searchView } from "@/lib/v2-app/selection";
-import { describeSearch, StatusText } from "@/lib/v2-app/status-text";
-import { BiaxialResult } from "@/lib/mechanics-v2";
+import { describeSearch } from "@/lib/v2-app/status-text";
+import { solveText } from "@/lib/v2-app/solve-text";
+import GroundLengthCard from "./GroundLengthCard";
+import { glInitial, glSelected, groundLengthResult, GLSelection } from "@/lib/v2-app/ground-length-selection";
+import { groundLengthRows, GROUND_LENGTH_LIMITS } from "@/lib/v2-app/ground-length-text";
 import { StatusBanner, Busy } from "./StatusBanner";
 import LengthSelector, { Selection, rangeText, useFmtLength } from "./LengthSelector";
 import V2ResultsPanel from "./V2ResultsPanel";
@@ -25,23 +29,15 @@ import HeightSearchCard, { useFmtHeight } from "./HeightSearchCard";
 import { GROUND_HEIGHT_LIMITS, groundHeightRows } from "@/lib/v2-app/ground-height-text";
 import { HeightSelection, heightRangeText, heightRanges, initialHeight, selectedHeight } from "@/lib/v2-app/height-selection";
 
-const solveText = (r: BiaxialResult): StatusText | null => {
-  switch (r.status) {
-    case "ok": return null;
-    case "invalid-input": return { tone: "error", title: "Invalid input", detail: r.errors.join("; ") };
-    case "not-implemented": return { tone: "info", title: "Not implemented", detail: r.message };
-    case "geometry-incompatible": return { tone: "error", title: "Geometric incompatibility", detail: r.message };
-    case "incomplete": return { tone: "warn", title: "Calculation incomplete (no result published)", detail: r.message };
-    case "contact-not-converged": return { tone: "error", title: "Contact did not converge", detail: r.diagnostics.messages.join("; ") };
-    default: return { tone: "error", title: "Numerical failure", detail: r.message };
-  }
-};
-
 const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
   const { search, solve, setSolveTarget } = useV2Engine(inputs);
   const fmt = useFmtLength();
   const blocked = groundBlocksSearch(inputs);
-  const searchMode = isSearchMode(inputs.mode) && !blocked;
+  const lengthGround = isLengthGround(inputs);
+  const searchMode = isSearchMode(inputs.mode) && !blocked && !lengthGround;
+  const glr = lengthGround ? groundLengthResult(search.data) : null;
+  const [glSel, setGlSel] = useState<GLSelection | null>(null);
+  const glL = glSelected(glr, glSel);
   const view = searchMode && search.data ? searchView(search.data) : null;
   const [selection, setSelection] = useState<Selection | null>(null);
   const heightMode = inputs.mode === "findH" && !blocked;
@@ -54,6 +50,7 @@ const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
     const c = view ? initialChoice(view) : null;
     setSelection(c ? { rangeIndex: c.rangeIndex, optionId: c.option.id, customL: null } : null);
     setHSel(initialHeight(heightRanges(search.data)));
+    setGlSel(glInitial(groundLengthResult(search.data)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.data]);
 
@@ -65,30 +62,37 @@ const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
       if (search.status !== "ready" || selectedH === null) return null;
       return { L_mm: inputs.L * 1000, numSupports: inputs.numSupports, hv_mm: selectedH };
     }
+    if (lengthGround) return search.status === "ready" && glL !== null ? { L_mm: glL, numSupports: inputs.numSupports } : null;
     if (inputs.mode === "fixedLength") return { L_mm: inputs.L * 1000, numSupports: inputs.numSupports };
     if (search.status !== "ready" || !view || view.numSupports === null || selectedL === null) return null;
     return { L_mm: selectedL, numSupports: view.numSupports };
-  }, [blocked, inputs.mode, inputs.L, inputs.numSupports, search.status, view?.numSupports, selectedL, selectedH]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [blocked, inputs.mode, inputs.L, inputs.numSupports, search.status, view?.numSupports, selectedL, selectedH, lengthGround, glL]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => setSolveTarget(target), [target?.L_mm, target?.numSupports, target?.hv_mm]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sol = solve.data?.result.status === "ok" ? solve.data.result : null;
   const searchStatus = search.data ? describeSearch(search.data) : null;
   const gh = heightMode && search.data?.kind === "findHGround" ? search.data.result : null;
   const ghRows = gh ? groundHeightRows(gh, fmtH) : [];
-  const rangeExists = !(searchMode || heightMode) || !search.data ? null
+  const mpa = (v: number) => `${v.toFixed(2)} MPa`;
+  const glRows = glr ? groundLengthRows(glr, fmt, mpa) : [];
+  const rangeExists = glr ? ("ranges" in glr && glr.ranges.length > 0 ? true : "undecidable" as const) : !(searchMode || heightMode) || !search.data ? null
     : gh ? (hRanges.length > 0 ? true : gh.status === "impossible" ? false : "undecidable" as const)
     : search.data.kind !== "minSupports" && search.data.result.status === "undecidable" ? "undecidable" as const
     : heightMode ? hRanges.length > 0 : (view?.ranges.length ?? 0) > 0;
-  const report = buildReport(inputs, target, searchMode || heightMode, search, solve, {
+  const report = buildReport(inputs, target, searchMode || heightMode || lengthGround, search, solve, {
     searchStatus: searchStatus?.title ?? null,
-    ranges: heightMode ? hRanges.map((r) => heightRangeText(r, fmtH)) : view?.ranges.map((r) => rangeText(r, fmt)) ?? [],
-    searchNotes: gh ? [...ghRows, ["Search method and limits", GROUND_HEIGHT_LIMITS]] : undefined,
+    ranges: glr ? [] : heightMode ? hRanges.map((r) => heightRangeText(r, fmtH)) : view?.ranges.map((r) => rangeText(r, fmt)) ?? [],
+    searchNotes: gh ? [...ghRows, ["Search method and limits", GROUND_HEIGHT_LIMITS]] : glr ? [...glRows, ["Search method and limits", GROUND_LENGTH_LIMITS]] : undefined,
   });
   const stale = solve.data !== null && solve.data.key !== solveKeyOf(inputs, target);
 
   return (
     <div className="space-y-4">
-      {blocked && <StatusBanner s={{ tone: "warn", title: "Ground contact is available in Fixed L and Find h only", detail: "No length search is run while ground contact is enabled. Switch to Fixed L or Find h, or disable ground contact." }} />}
+      {blocked && <StatusBanner s={{ tone: "warn", title: "Ground contact is not available in Min. supports", detail: "No support-count search is run while ground contact is enabled. Switch to Fixed L, Find L range or Find h, or disable ground contact." }} />}
+      {lengthGround && (
+        <GroundLengthCard loading={search.status === "loading"} refreshing={search.refreshing} error={search.status === "error" ? search.error : null}
+          status={searchStatus} result={glr} details={glRows} selection={glSel} selectedL={glL} onChange={setGlSel} />
+      )}
       {heightMode && (
         <HeightSearchCard loading={search.status === "loading"} refreshing={search.refreshing} error={search.status === "error" ? search.error : null}
           status={searchStatus} details={ghRows} limits={gh ? GROUND_HEIGHT_LIMITS : undefined} ranges={hRanges} selection={hSel} selectedH={selectedH} onChange={setHSel} />
@@ -116,7 +120,7 @@ const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
           <Card><CardContent className="pt-4"><V2Charts solution={sol} samples={solve.data.samples} /></CardContent></Card>
           <div className="mt-4">
             <V2ResultsPanel s={sol} mode={inputs.mode} rangeExists={rangeExists} infimum={view?.infimum ?? null}
-              atBound={searchMode ? ["lower", "upper", "point"].includes(selection?.optionId ?? "") : heightMode && ["lower", "upper", "point"].includes(hSel?.optionId ?? "")} />
+              atBound={lengthGround ? false : searchMode ? ["lower", "upper", "point"].includes(selection?.optionId ?? "") : heightMode && ["lower", "upper", "point"].includes(hSel?.optionId ?? "")} />
           </div>
         </div>
       )}
