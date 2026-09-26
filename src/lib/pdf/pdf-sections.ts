@@ -105,7 +105,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
     ground.push(
       ["Minimum pipe-axis elevation", fmt(g.level, "mm", 1)],
       ["Assumptions", "Rigid, horizontal, frictionless ground over the full length, vertical plane only"],
-      ["Distributed ground pressure p", `${c(g.distributedReaction ?? 0, "N/mm").toFixed(4)} ${u("N/mm")}`],
+      ["Linear ground reaction p", `${c(g.distributedReaction ?? 0, "N/mm").toFixed(4)} ${u("N/mm")}`],
       ...groundReactionRows(g, (v) => fmt(v, "N", 1)).map(([k, v, n]) => [k, `${v} (${n})`] as Row),
       ...groundContactRows(g, s.input.hv, s.L, (mm) => fmt(mm / 1000, "m", 3), " - "),
       ["Calculation method", groundMethodText(g, (mm) => fmt(mm, "mm", 3))],
