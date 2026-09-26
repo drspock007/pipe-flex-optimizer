@@ -64,7 +64,9 @@ export function searchMinSupportsGround(input: GroundMinInput, maxSupports: numb
     }
   }
   const last = rows.length ? rows[rows.length - 1].n : -1;
-  if (!candidate && stop !== "ceiling-reached") for (let n = last + 1; n <= maxSupports; n++)
+  // Every count above the last examined one is listed, whatever the stop cause
+  // (candidate found = normal stop; budget = interruption, kept in stopCause).
+  for (let n = last + 1; n <= maxSupports; n++)
     rows.push({ n, status: "not-examined", evaluations: 0, admissible: 0, uncertain: 0, failed: 0, finalChecks: 0, checkNotes: [], search: null });
 
   const sum = (k: "admissible" | "uncertain" | "failed") => rows.reduce((a, x) => a + x[k], 0);

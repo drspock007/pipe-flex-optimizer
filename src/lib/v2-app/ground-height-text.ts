@@ -43,6 +43,18 @@ export function fmtSmall(mm: number, fmt: (mm: number) => string): string {
   return Number.isFinite(k) && k > 0 ? `${(mm * k).toPrecision(3)} ${unit}` : fmt(mm);
 }
 
+/** Interval "a ; b": when both bounds round to the same text although distinct,
+ *  more digits are shown and the width is appended (never a false single point). */
+export function fmtInterval(a: number, b: number, fmt: (mm: number) => string): string {
+  const A = fmt(a), B = fmt(b);
+  if (A !== B || a === b) return `${A} ; ${B}`;
+  const ref = fmt(1e6), k = parseFloat(ref) / 1e6, unit = ref.slice(ref.indexOf(" ") + 1);
+  if (!(Number.isFinite(k) && k > 0)) return `${A} ; ${B}`;
+  let p = 6;
+  while (p < 15 && (a * k).toPrecision(p) === (b * k).toPrecision(p)) p++;
+  return `${(a * k).toPrecision(p)} ; ${(b * k).toPrecision(p)} ${unit} (width ${fmtSmall(Math.abs(b - a), fmt)})`;
+}
+
 export function groundHeightRows(r: GroundHeightResult, fmt: (mm: number) => string): [string, string][] {
   if (!("ranges" in r)) return [];
   const d = r.diagnostics, c = r.coverage, rows: [string, string][] = [];
@@ -51,8 +63,8 @@ export function groundHeightRows(r: GroundHeightResult, fmt: (mm: number) => str
   rows.push(["Uncertain / failed evaluations", `${c.uncertainEvaluations} / ${c.failedEvaluations}`]);
   rows.push(["Searched hv domain", r.domain ? `[${fmt(r.domain.lower)} ; ${fmt(r.domain.upper)}]` : "empty"]);
   rows.push(["Hcap = sA L^2/(4 E c) (necessary, not sufficient)", fmt(d.Hcap)]);
-  r.ranges.forEach((g, i) => rows.push([`Estimated range ${i + 1} (verified end samples)`, `${fmt(g.lower.value)} ; ${fmt(g.upper.value)}`]));
-  r.zones.forEach((z) => rows.push([`Zone: ${zoneLabel(z)}`, `${fmt(z.from)} to ${fmt(z.to)}`]));
+  r.ranges.forEach((g, i) => rows.push([`Estimated range ${i + 1} (verified end samples)`, fmtInterval(g.lower.value, g.upper.value, fmt)]));
+  r.zones.forEach((z) => rows.push([`Zone: ${zoneLabel(z)}`, fmtInterval(z.from, z.to, fmt)]));
   rows.push(["Largest verified admissible hv found", r.largestFound === null ? "none" : `${fmt(r.largestFound)} (not a demonstrated global maximum)`]);
   rows.push(["Sampling resolution", `min step ${fmt(d.minStep)}, boundary tol ${fmtSmall(d.boundaryTol, fmt)}, ${d.evaluations} solves, ${(d.elapsedMs / 1000).toFixed(1)} s`]);
   return rows;

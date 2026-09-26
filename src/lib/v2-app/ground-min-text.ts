@@ -11,7 +11,7 @@ export const ROW_LABEL: Record<GroundMinRowStatus, string> = {
   "none-found": "no admissible point found",
   failed: "failure (all evaluations failed or uncertain)",
   interrupted: "search interrupted",
-  "not-examined": "not examined (budget)",
+  "not-examined": "not examined (search stopped before this count)",
 };
 
 export const NOT_CERTIFIED_TITLE = "Smallest support count with a verified solution found — minimum not certified";

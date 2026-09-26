@@ -57,7 +57,7 @@ const GroundLengthCard = ({ loading, refreshing, error, status, result, details,
               {ranges.map((r, i) => (
                 <button key={i} type="button" role="radio" aria-checked={i === k} onClick={() => pick(glOptions(r, best)[0].id, i)}
                   className={`w-full text-left rounded-md border px-3 py-2 text-xs font-mono break-words ${i === k ? "border-primary bg-primary/10" : "border-border"}`}>
-                  Estimated range {i + 1}: [{fmt(r.lower.value)} ; {fmt(r.upper.value)}]
+                  Estimated range {i + 1}: [{fmtInterval(r.lower.value, r.upper.value, fmt)}]
                   {(r.lower.domainEdge || r.upper.domainEdge) && <span className="block text-[10px] text-muted-foreground">{r.lower.domainEdge ? "lower" : ""}{r.lower.domainEdge && r.upper.domainEdge ? " & " : ""}{r.upper.domainEdge ? "upper" : ""} end {EDGE_TEXT}</span>}
                 </button>
               ))}
