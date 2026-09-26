@@ -51,7 +51,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
     ...(yieldNote(s, d.yieldStrength) ? [["Yield strength note", yieldNote(s, d.yieldStrength)!] as Row] : []),
     ["Position of the maximum", fmt(s.critical.x / 1000, "m", 3)],
     ["Moments at max (vertical / lateral)", formatMomentPair(s.critical.Mv, s.critical.Ml, system)],
-    [s.axial ? "Combined normal stress criterion at represented length (governs)" : inputs.mode === "findH" ? "Bending criterion at represented hv" : "Bending criterion at represented length", verdictText(s).uncertain ? "UNCERTAIN (mesh precision)" : verdictText(s).met ? "met" : "NOT met"],
+    [`${s.axial ? "Combined normal stress" : "Bending"} criterion at represented ${inputs.mode === "findH" ? "hv" : "length"}${s.axial ? " (governs)" : ""}`, verdictText(s).uncertain ? "UNCERTAIN (mesh precision)" : verdictText(s).met ? "met" : "NOT met"],
     ...(verdictText(s).detail ? [["Verdict detail", verdictText(s).detail!] as Row] : []),
     ["Numerical validity", s.numericalValid ? "valid" : "NOT valid"],
     [s.axial ? "Physical validity (see domain indicators)" : "Physical validity (linear model)", "not assessed"],
