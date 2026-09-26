@@ -44,12 +44,12 @@ const V2ResultsPanel = ({ s, rangeExists, infimum, atBound, mode, yieldStrength 
         <CardTitle className="flex items-center gap-2 text-sm"><Gauge className="h-4 w-4 text-primary" /> Results at the represented length</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className={`rounded-md border px-3 py-2 text-sm font-semibold ${verdict.met ? "border-primary/50 bg-primary/10" : "border-destructive/50 bg-destructive/10 text-destructive"}`}>
-          {verdict.label} {verdict.met ? "met" : "not met"} {mode === "findH" ? `at hv = ${conv(s.input.hv, "mm").toFixed(1)} ${label("mm")}` : `at L = ${m(s.L)}`}
+        <div className={`rounded-md border px-3 py-2 text-sm font-semibold ${verdict.tone === "uncertain" ? "border-destructive/50 bg-muted" : verdict.tone === "met" ? "border-primary/50 bg-primary/10" : "border-destructive/50 bg-destructive/10 text-destructive"}`}>
+          {verdict.title} {mode === "findH" ? `at hv = ${conv(s.input.hv, "mm").toFixed(1)} ${label("mm")}` : `at L = ${m(s.L)}`}
         </div>
         {verdict.uncertain && (
           <p className="rounded-md border border-destructive/50 px-3 py-2 text-[11px]">
-            Verdict uncertain: the last mesh refinements change it, or the stress lies within the convergence threshold of the allowable. Compliance is not certain.
+            {verdict.detail} The last mesh refinements change the verdict, or the stress lies within the convergence threshold of the allowable. Compliance is not certain.
           </p>
         )}
         {yieldNote(s, yieldStrength) && (
@@ -84,7 +84,7 @@ const V2ResultsPanel = ({ s, rangeExists, infimum, atBound, mode, yieldStrength 
             <p className="mt-1 text-[11px] text-muted-foreground">{COMBINED_NOTE}</p>
           </div>
         )}
-        {s.ground && <GroundRows g={s.ground} />}
+        {s.ground && <GroundRows g={s.ground} hv={s.input.hv} L={s.L} />}
         <SupportsTable supports={s.supports} />
         <details className="text-[11px] text-muted-foreground">
           <summary className="cursor-pointer">Diagnostics</summary>

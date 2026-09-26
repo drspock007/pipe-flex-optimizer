@@ -18,6 +18,7 @@ import PresetsCard from "@/components/presets/PresetsCard";
 import AnalysisCard from "@/components/v2/AnalysisCard";
 import V2Workspace from "@/components/v2/V2Workspace";
 import { AppInputs, DEFAULT_INPUTS, normalizeAppInputs } from "@/lib/v2-app/inputs";
+import UnknownCoatingAlert, { UNKNOWN_COATING_TEXT } from "@/components/v2/UnknownCoatingAlert";
 import { derive } from "@/lib/v2-app/bridge";
 
 
@@ -26,7 +27,10 @@ const Index = () => {
   // Normalized so that a state kept from an older input shape (hot reload) is always complete.
   const inputs = useMemo(() => normalizeAppInputs(rawInputs as unknown as Record<string, unknown>), [rawInputs]);
 
+  // Unknown coating key of the last loaded preset: blocks the export until resolved.
+  const [unknownCoating, setUnknownCoating] = useState<string | null>(null);
   const update = (field: string, value: string | number | boolean) => {
+    if (field === "coatingType") setUnknownCoating(null);
     setInputs((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -67,6 +71,7 @@ const Index = () => {
               />
               <AnalysisCard inputs={inputs} onChange={update} />
               <MaterialCard grade={inputs.grade} E={inputs.E} customYield={inputs.customYield} onChange={update} />
+              {unknownCoating !== null && <UnknownCoatingAlert coatingKey={unknownCoating} onConfirmNone={() => update("coatingType", "none")} />}
               <CoatingCard
                 coatingType={inputs.coatingType as any}
                 coatingThickness={inputs.coatingThickness}
@@ -88,13 +93,13 @@ const Index = () => {
             </div>
 
             <div className="lg:col-span-2">
-              <V2Workspace inputs={inputs} derived={results} />
+              <V2Workspace inputs={inputs} derived={results} exportBlocked={unknownCoating !== null ? UNKNOWN_COATING_TEXT : null} />
             </div>
           </div>
 
           <PresetsCard
             inputs={inputs}
-            onLoad={setInputs}
+            onLoad={(v, unknown) => { setInputs(v); setUnknownCoating(unknown); }}
           />
         </main>
 
