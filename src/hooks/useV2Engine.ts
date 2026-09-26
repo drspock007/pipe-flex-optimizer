@@ -5,6 +5,7 @@
 // Modifié par Giovanni Malagnino, 2026-09-26 04:30 CEST: Find L with ground (V2-7).
 // Modifié par Giovanni Malagnino, 2026-09-26 05:35 CEST: cancellation on deactivation, stale worker events (V2-8-R1).
 // Modifié par Giovanni Malagnino, 2026-09-26 05:10 CEST: Min. supports with ground, worker cancellation, progress (V2-8).
+// Modifié par Giovanni Malagnino, 2026-09-26 17:30 CEST: Find h restrained (V2-10).
 // Runs V2 searches and fixed-length solutions in a Web Worker.
 // Two channels: "search" (not re-run when only the represented length changes)
 // and "solve". A request id is allocated as soon as the relevant inputs change,
@@ -14,7 +15,7 @@
 
 import { useEffect, useReducer, useRef, useState } from "react";
 import { AppInputs } from "@/lib/v2-app/inputs";
-import { derive, Derived, isLengthGround, isMinGround, searchKey, solveKeyOf, toFixedInput, toHeightInput, toSearchInput, toLengthGroundInput } from "@/lib/v2-app/bridge";
+import { derive, Derived, isLengthGround, isMinGround, searchKey, solveKeyOf, toFixedInput, toHeightInput, toSearchInput, toLengthGroundInput, toRestrainedHeightInput } from "@/lib/v2-app/bridge";
 import { EngineRequest, SearchOutcome, SolveOutcome, WorkerRequestMsg, WorkerResponseMsg } from "@/lib/v2-app/protocol";
 import { ChannelAction, ChannelState, channelReducer, initialChannel } from "@/lib/v2-app/channel-state";
 
@@ -106,7 +107,9 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
     const t = setTimeout(() => {
       const d = derive(snap), input = toSearchInput(snap, d);
       send("search", id, snap.mode === "findH"
-        ? snap.groundEnabled
+        ? snap.axialMode === "restrained"
+          ? { kind: "findHRestrained", input: toRestrainedHeightInput(snap, d), numSupports: snap.numSupports }
+          : snap.groundEnabled
           ? { kind: "findHGround", input: { ...toHeightInput(snap, d), groundZ: snap.groundContactZ }, numSupports: snap.numSupports }
           : { kind: "findH", input: toHeightInput(snap, d), numSupports: snap.numSupports }
         : isLengthGround(snap)

@@ -34,3 +34,6 @@ export type { GroundMinLimits } from "./ground-min-search";
 export * from "./restrained-types";
 export { sampleRestrained } from "./restrained-fields";
 export { solveRestrained } from "./restrained-solve";
+export * from "./restrained-height-types";
+export { searchHeightRestrained, axialHeightBound, classifyRestrained } from "./restrained-height-search";
+export type { RestrainedEvaluator, RestrainedHeightLimits } from "./restrained-height-search";

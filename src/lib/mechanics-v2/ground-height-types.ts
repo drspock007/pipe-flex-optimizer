@@ -59,7 +59,7 @@ export interface GroundHeightDiagnostics {
 }
 
 interface Common {
-  scope: { numSupports: number; L: number; hl: number; groundZ: number };
+  scope: { numSupports: number; L: number; hl: number; groundZ: number | null };
   /** Searched domain (mm); null when empty (groundZ > Hcap). */
   domain: { lower: number; upper: number } | null;
   ranges: GroundHeightRange[];

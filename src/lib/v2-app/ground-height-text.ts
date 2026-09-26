@@ -55,14 +55,15 @@ export function fmtInterval(a: number, b: number, fmt: (mm: number) => string): 
   return `${(a * k).toPrecision(p)} ; ${(b * k).toPrecision(p)} ${unit} (width ${fmtSmall(Math.abs(b - a), fmt)})`;
 }
 
-export function groundHeightRows(r: GroundHeightResult, fmt: (mm: number) => string): [string, string][] {
+/** boundRow replaces the free-mode Hcap row (restrained Find h uses its own axial bound). */
+export function groundHeightRows(r: GroundHeightResult, fmt: (mm: number) => string, boundRow?: [string, string]): [string, string][] {
   if (!("ranges" in r)) return [];
   const d = r.diagnostics, c = r.coverage, rows: [string, string][] = [];
   rows.push(["Algorithm completion", c.completion === "normal" ? "finished normally" : "interrupted by resource limit"]);
   rows.push(["Search coverage", "NOT certified (exploratory sampling)"]);
   rows.push(["Uncertain / failed evaluations", `${c.uncertainEvaluations} / ${c.failedEvaluations}`]);
   rows.push(["Searched hv domain", r.domain ? `[${fmt(r.domain.lower)} ; ${fmt(r.domain.upper)}]` : "empty"]);
-  rows.push(["Hcap = sA L^2/(4 E c) (necessary, not sufficient)", fmt(d.Hcap)]);
+  rows.push(boundRow ?? ["Hcap = sA L^2/(4 E c) (necessary, not sufficient)", fmt(d.Hcap)]);
   r.ranges.forEach((g, i) => rows.push([`Estimated range ${i + 1} (verified end samples)`, fmtInterval(g.lower.value, g.upper.value, fmt)]));
   r.zones.forEach((z) => rows.push([`Zone: ${zoneLabel(z)}`, fmtInterval(z.from, z.to, fmt)]));
   rows.push(["Largest verified admissible hv found", r.largestFound === null ? "none" : `${fmt(r.largestFound)} (not a demonstrated global maximum)`]);

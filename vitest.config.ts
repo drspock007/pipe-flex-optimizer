@@ -9,6 +9,8 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    // Engine searches run several seconds; parallel files compete for CPU.
+    testTimeout: 60000,
   },
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },

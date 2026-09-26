@@ -7,6 +7,7 @@
 // Modifié par Giovanni Malagnino, 2026-09-25 22:40 CEST: Find h with ground (V2-6).
 // Modifié par Giovanni Malagnino, 2026-09-26 04:30 CEST: Find L with ground (V2-7).
 // Modifié par Giovanni Malagnino, 2026-09-26 05:10 CEST: Min. supports with ground (V2-8).
+// Modifié par Giovanni Malagnino, 2026-09-26 17:30 CEST: Find h restrained (V2-10).
 
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,7 +33,8 @@ import V2Charts from "./V2Charts";
 import ExportPdfCard from "@/components/ExportPdfCard";
 import HeightSearchCard, { useFmtHeight } from "./HeightSearchCard";
 import { GROUND_HEIGHT_LIMITS, groundHeightRows } from "@/lib/v2-app/ground-height-text";
-import { HeightSelection, heightRangeText, heightRanges, initialHeight, selectedHeight } from "@/lib/v2-app/height-selection";
+import { checkedHeight, HeightSelection, heightRangeText, heightRanges, initialHeight, selectedHeight } from "@/lib/v2-app/height-selection";
+import { RESTRAINED_HEIGHT_LIMITS, restrainedHeightRows } from "@/lib/v2-app/restrained-height-text";
 
 const V2Workspace = ({ inputs, exportBlocked = null }: { inputs: AppInputs; derived?: Derived; exportBlocked?: string | null }) => {
   const { search, solve, setSolveTarget } = useV2Engine(inputs);
@@ -59,7 +61,7 @@ const V2Workspace = ({ inputs, exportBlocked = null }: { inputs: AppInputs; deri
   useEffect(() => {
     const c = view ? initialChoice(view) : null;
     setSelection(c ? { rangeIndex: c.rangeIndex, optionId: c.option.id, customL: null } : null);
-    setHSel(initialHeight(heightRanges(search.data)));
+    setHSel(initialHeight(heightRanges(search.data), checkedHeight(search.data)));
     setGlSel(glInitial(groundLengthResult(search.data), glBest(search.data)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.data]);
@@ -83,17 +85,19 @@ const V2Workspace = ({ inputs, exportBlocked = null }: { inputs: AppInputs; deri
   const sol = solve.data?.result.status === "ok" ? solve.data.result : null;
   const searchStatus = search.data ? describeSearch(search.data) : null;
   const gh = heightMode && search.data?.kind === "findHGround" ? search.data.result : null;
-  const ghRows = gh ? groundHeightRows(gh, fmtH) : [];
+  const rh = heightMode && search.data?.kind === "findHRestrained" ? search.data.result : null;
+  const ghRows = gh ? groundHeightRows(gh, fmtH) : rh ? restrainedHeightRows(rh, fmtH, fmtS, fmt) : [];
+  const hLimits = gh ? GROUND_HEIGHT_LIMITS : rh ? RESTRAINED_HEIGHT_LIMITS : undefined;
   const glRows = glr ? groundLengthRows(glr, fmt, fmtS) : [];
   const gmRows = gmr ? groundMinRows(gmr, fmt, fmtS) : [];
   const rangeExists = minGround ? (search.data ? (gmr?.status === "found" ? true : "undecidable" as const) : null) : glr ? ("ranges" in glr && glr.ranges.length > 0 ? true : "undecidable" as const) : !(searchMode || heightMode) || !search.data ? null
-    : gh ? (hRanges.length > 0 ? true : gh.status === "impossible" ? false : "undecidable" as const)
-    : search.data.kind !== "minSupports" && search.data.result.status === "undecidable" ? "undecidable" as const
+    : gh || rh ? (hRanges.length > 0 ? true : (gh ?? rh)!.status === "impossible" ? false : "undecidable" as const)
+    : search.data.kind !== "minSupports" && search.data.kind !== "findHRestrained" && search.data.result.status === "undecidable" ? "undecidable" as const
     : heightMode ? hRanges.length > 0 : (view?.ranges.length ?? 0) > 0;
   const report = buildReport(inputs, target, searchMode || heightMode || lengthGround, search, solve, {
     searchStatus: searchStatus?.title ?? null,
     ranges: glr ? [] : heightMode ? hRanges.map((r) => heightRangeText(r, fmtH)) : view?.ranges.map((r) => rangeText(r, fmt)) ?? [],
-    searchNotes: gh ? [...ghRows, ["Search method and limits", GROUND_HEIGHT_LIMITS]] : gmr ? [...gmRows, ["Support-count search method and limits", GROUND_MIN_LIMITS], ...glRows.map(([a, b]) => [`Candidate length search: ${a}`, b] as [string, string]), ["Length search method and limits", GROUND_LENGTH_LIMITS]] : glr ? [...glRows, ["Search method and limits", GROUND_LENGTH_LIMITS]] : undefined,
+    searchNotes: gh || rh ? [...ghRows, ["Search method and limits", hLimits!]] : gmr ? [...gmRows, ["Support-count search method and limits", GROUND_MIN_LIMITS], ...glRows.map(([a, b]) => [`Candidate length search: ${a}`, b] as [string, string]), ["Length search method and limits", GROUND_LENGTH_LIMITS]] : glr ? [...glRows, ["Search method and limits", GROUND_LENGTH_LIMITS]] : undefined,
   });
   const stale = solve.data !== null && solve.data.key !== solveKeyOf(inputs, target);
 
@@ -108,7 +112,7 @@ const V2Workspace = ({ inputs, exportBlocked = null }: { inputs: AppInputs; deri
       )}
       {heightMode && (
         <HeightSearchCard loading={search.status === "loading"} refreshing={search.refreshing} error={search.status === "error" ? search.error : null}
-          status={searchStatus} details={ghRows} limits={gh ? GROUND_HEIGHT_LIMITS : undefined} ranges={hRanges} selection={hSel} selectedH={selectedH} onChange={setHSel} />
+          status={searchStatus} details={ghRows} limits={hLimits} ranges={hRanges} selection={hSel} selectedH={selectedH} onChange={setHSel} />
       )}
       {searchMode && (
         <Card>

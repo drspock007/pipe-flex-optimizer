@@ -10,7 +10,7 @@ import { Settings2 } from "lucide-react";
 import { AppInputs } from "@/lib/v2-app/inputs";
 import { MAX_SUPPORTS } from "@/lib/mechanics-v2";
 import GroundControls from "./GroundControls";
-import { RESTRAINED_EXPLANATION, RESTRAINED_SEARCH_UNAVAILABLE } from "@/lib/v2-app/axial-text";
+import { RESTRAINED_EXPLANATION, RESTRAINED_FINDH_TEXT, RESTRAINED_SEARCH_UNAVAILABLE } from "@/lib/v2-app/axial-text";
 
 interface Props {
   inputs: AppInputs;
@@ -66,13 +66,13 @@ const AnalysisCard = ({ inputs, onChange }: Props) => (
           <SelectTrigger id="axialMode" className="h-8 text-sm"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="free">Free sliding</SelectItem>
-            <SelectItem value="restrained">Restrained (Fixed L only)</SelectItem>
+            <SelectItem value="restrained">Restrained (Fixed L, Find h)</SelectItem>
           </SelectContent>
         </Select>
       </div>
       {inputs.axialMode === "restrained" && (
-        <p className={`col-span-2 text-[11px] ${inputs.mode === "fixedLength" ? "text-muted-foreground" : "text-destructive"}`}>
-          {inputs.mode === "fixedLength" ? `${RESTRAINED_EXPLANATION}. Coupled axial tension N; combined normal stress governs the verdict.` : RESTRAINED_SEARCH_UNAVAILABLE}
+        <p className={`col-span-2 text-[11px] ${inputs.mode === "fixedLength" || inputs.mode === "findH" ? "text-muted-foreground" : "text-destructive"}`}>
+          {inputs.mode === "fixedLength" ? `${RESTRAINED_EXPLANATION}. Coupled axial tension N; combined normal stress governs the verdict.` : inputs.mode === "findH" ? `${RESTRAINED_EXPLANATION}. ${RESTRAINED_FINDH_TEXT}` : RESTRAINED_SEARCH_UNAVAILABLE}
         </p>
       )}
       <GroundControls inputs={inputs} onChange={onChange} />
