@@ -18,7 +18,7 @@ const GroundRows = ({ g }: { g: GroundReport }) => {
     ["Numerical contact points (not installed supports)", String(g.contactNodes)],
     ["Max residual penetration", `${conv(g.maxPenetration, "mm").toExponential(2)} ${label("mm")} (tol. ${conv(g.tolPenetration, "mm").toExponential(1)})`],
     ["Calculation method", groundMethodText(g, (mm) => `${conv(mm, "mm").toFixed(3)} ${label("mm")}`)],
-    ["Bending criterion vs mesh precision", g.criterionUncertain ? "UNCERTAIN — verdict not decidable at the convergence precision" : "decidable"],
+    ["Governing stress criterion vs mesh precision", g.criterionUncertain ? "UNCERTAIN — verdict not decidable at the convergence precision" : "decidable"],
   ];
   return (
     <div className="rounded-md border border-border/60 p-2">
