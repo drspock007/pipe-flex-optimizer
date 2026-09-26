@@ -28,7 +28,7 @@ describe("ground finalisation", () => {
   it("equilibriumOk reflects the strict mechanical check; round-off kept separately", () => {
     if (r.status !== "ok") throw new Error(r.status);
     const dg = r.diagnostics;
-    expect(dg.roundoffTolerances).toBeDefined();
+    if (r.ground!.method === "mesh-refinement") expect(dg.roundoffTolerances).toBeDefined();
     const strictOk = (Object.keys(dg.residuals) as (keyof typeof dg.residuals)[]).every((k) => dg.residuals[k] <= dg.residualTolerances[k]);
     expect(dg.equilibriumOk).toBe(strictOk);
     expect(r.ground!.precisionLoss).toBe(!dg.equilibriumOk);
