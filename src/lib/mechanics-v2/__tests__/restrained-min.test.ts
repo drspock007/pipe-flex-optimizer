@@ -60,6 +60,17 @@ describe("Min. supports restrained: orchestration (simulated)", () => {
     expect(r.rows.map((x) => x.n)).toEqual([0, 1, 2, 3, 4, 5, 6]);
     expect(r.diagnostics.interrupted.length + r.diagnostics.notExamined.length).toBeGreaterThan(0);
   });
+  it("reduced budget: partial rows kept, exactly one interrupted count, the rest not examined", () => {
+    const e0 = pub(searchMinSupportsRestrained(IN, 0, sim(() => "not-admissible"))).diagnostics.evaluations;
+    const r = pub(searchMinSupportsRestrained(IN, 6, { ...sim(() => "not-admissible"), maxEvaluations: 2 * e0 + 3 }));
+    expect(r.status).toBe("incomplete");
+    expect(r.rows.map((x) => x.status)).toEqual(["none-found", "none-found", "interrupted", "not-examined", "not-examined", "not-examined", "not-examined"]);
+    expect(r.rows[0].search && "samples" in r.rows[0].search ? r.rows[0].search.samples.length : -1).toBe(e0);
+    expect(r.diagnostics.interrupted).toEqual([2]);
+    expect(r.diagnostics.notExamined).toEqual([3, 4, 5, 6]);
+    expect(r.diagnostics.examined).toEqual([0, 1]);
+    expect(r.diagnostics.stopCause).toBe("evaluation-budget");
+  });
   it("n-independent outcomes are decided once, before any count", () => {
     let calls = 0;
     const count = { evaluate: () => () => { calls++; return s("admissible"); } };
