@@ -10,7 +10,7 @@ import { formatMomentPair } from "@/lib/unit-conversions";
 import SupportsTable from "./SupportsTable";
 import GroundRows from "./GroundRows";
 import { AppMode } from "@/lib/v2-app/inputs";
-import { axialRows, COMBINED_NOTE, verdictText } from "@/lib/v2-app/axial-text";
+import { axialRows, COMBINED_NOTE, summaryStressRows, verdictText, yieldNote } from "@/lib/v2-app/axial-text";
 
 interface Props {
   s: BiaxialSuccess;
@@ -19,6 +19,8 @@ interface Props {
   infimum: GeneralInfimum | null;
   atBound: boolean;
   mode: AppMode;
+  /** Specified yield strength (MPa), for the factual post-yield note only. */
+  yieldStrength?: number;
 }
 
 const Row = ({ k, v, strong }: { k: string; v: string; strong?: boolean }) => (
@@ -28,7 +30,7 @@ const Row = ({ k, v, strong }: { k: string; v: string; strong?: boolean }) => (
   </div>
 );
 
-const V2ResultsPanel = ({ s, rangeExists, infimum, atBound, mode }: Props) => {
+const V2ResultsPanel = ({ s, rangeExists, infimum, atBound, mode, yieldStrength }: Props) => {
   const { conv, label, system } = useUnits();
   const m = (mm: number) => `${conv(mm / 1000, "m").toFixed(3)} ${label("m")}`;
   const mpa = (v: number) => `${conv(v, "MPa").toFixed(2)} ${label("MPa")}`;
@@ -50,6 +52,9 @@ const V2ResultsPanel = ({ s, rangeExists, infimum, atBound, mode }: Props) => {
             Verdict uncertain: the last mesh refinements change it, or the stress lies within the convergence threshold of the allowable. Compliance is not certain.
           </p>
         )}
+        {yieldNote(s, yieldStrength) && (
+          <p className="rounded-md border border-destructive/50 px-3 py-2 text-[11px]">{yieldNote(s, yieldStrength)}</p>
+        )}
         {atBound && !s.bendingCriterionMet && (
           <p className="text-[11px] text-muted-foreground">
             Numerical rounding at the range bound: engine stress exceeds the allowable by {excess.toExponential(2)} MPa
@@ -60,8 +65,7 @@ const V2ResultsPanel = ({ s, rangeExists, infimum, atBound, mode }: Props) => {
           {rangeExists !== null && <Row k="Admissible range exists" v={rangeExists === "undecidable" ? "undecidable" : rangeExists ? "yes" : "no"} />}
           {mode === "findH" && <Row k="Represented vertical offset hv" v={`${conv(s.input.hv, "mm").toFixed(1)} ${label("mm")}`} strong />}
           <Row k={mode === "findH" ? "Fixed length L" : mode === "fixedLength" ? "Length L" : "Represented length L"} v={m(s.L)} strong={mode !== "findH"} />
-          <Row k="Max resultant bending stress" v={mpa(s.maxStress)} strong />
-          <Row k="Allowable stress" v={mpa(s.sigmaAllow)} />
+          {summaryStressRows(s, mpa).map(([k, v, st]) => <Row key={k} k={k} v={v} strong={st} />)}
           <Row k="Position of the maximum" v={m(s.critical.x)} />
           <Row k="Moments at max (vertical / lateral)" v={formatMomentPair(s.critical.Mv, s.critical.Ml, system)} />
           <Row k="Installed supports / active contacts" v={`${s.supports.length} / ${active}`} />

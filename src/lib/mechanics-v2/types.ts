@@ -136,9 +136,11 @@ export interface FieldValues {
   z: number;
   slopeZ: number;
   Mv: number;
+  /** dMv/dx. Restrained mode: the transverse force perpendicular to x is Vv - N*slopeZ. */
   Vv: number;
   y: number;
   slopeY: number;
   Ml: number;
+  /** dMl/dx (same convention as Vv). */
   Vl: number;
 }

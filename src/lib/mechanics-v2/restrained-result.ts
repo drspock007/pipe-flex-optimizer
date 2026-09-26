@@ -10,9 +10,8 @@
 import { BiaxialInput, BiaxialSuccess, EquilibriumSet, MemberResult, SupportResult } from "./types";
 import { fibreAngles } from "./biaxial";
 import { checkEquilibrium, equilibriumTolerances, normalizeResiduals } from "./equilibrium";
-import { memberMinZ } from "./ground-mesh";
 import { endActionsN } from "./restrained-element";
-import { fieldMaxima } from "./restrained-maxima";
+import { fieldMaxima, hermiteMin } from "./restrained-maxima";
 import { RMesh } from "./restrained-state";
 import { AxialOutcome } from "./restrained-axial";
 import { ContactZone } from "./ground-types";
@@ -76,8 +75,9 @@ export function buildRLevel(input: BiaxialInput, m: RMesh, ax: AxialOutcome, for
     if (last && m.x[i] - last.xEnd <= 3 * h * (1 + 1e-9)) last.xEnd = m.x[i]; else zones.push({ xStart: m.x[i], xEnd: m.x[i] });
   }
   const endReaction = (m.endOnGround[0] ? vert.res[0] : 0) + (m.endOnGround[1] ? vert.res[nd - 2] : 0);
+  // Penetration on the Hermite cubic actually used (displacements, compatibility, charts).
   let pen = 0;
-  if (m.groundZ !== null) for (const e of els) pen = Math.max(pen, m.groundZ - memberMinZ(e.dz[0], e.dz[1], e.dz[2], e.dz[3], e.l, q, EI));
+  if (m.groundZ !== null) for (const e of els) pen = Math.max(pen, m.groundZ - hermiteMin(e.l, e.dz));
 
   const supports: SupportResult[] = m.supportNode.map((i, k) => {
     const lv = (m.hv * m.x[i]) / L, z = vert.d[2 * i];

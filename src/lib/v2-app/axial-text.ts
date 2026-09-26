@@ -12,6 +12,29 @@ export const RESTRAINED_MODEL_TEXT =
 export const COMBINED_NOTE =
   "Combined normal stress = N/A +/- c/I hypot(Mv, Ml). Not a code check, not a von Mises stress (no pressure, no shear).";
 
+export const YIELD_EXCEEDED_TEXT = "Elastic prediction exceeds the specified yield strength; post-yield response is not modeled.";
+
+/** Governing stress of the result: combined in restrained mode, bending otherwise. */
+export const governingStress = (s: BiaxialSuccess) => (s.axial ? s.axial.combinedMax : s.maxStress);
+
+/** Factual note only (never changes the criterion); null when not applicable. */
+export const yieldNote = (s: BiaxialSuccess, yieldStrength?: number) =>
+  yieldStrength !== undefined && yieldStrength > 0 && governingStress(s) > yieldStrength ? YIELD_EXCEEDED_TEXT : null;
+
+/** Main summary stress rows, governing value first (screen and PDF). */
+export function summaryStressRows(s: BiaxialSuccess, stress: (mpa: number) => string): [string, string, boolean][] {
+  const a = s.axial;
+  if (!a) return [["Max resultant bending stress", stress(s.maxStress), true], ["Allowable stress", stress(s.sigmaAllow), false]];
+  const v = verdictText(s);
+  return [
+    ["Max combined normal stress (governs)", stress(a.combinedMax), true],
+    ["Allowable stress", stress(s.sigmaAllow), false],
+    ["Combined criterion", v.uncertain ? "UNCERTAIN (mesh precision)" : v.met ? "met" : "NOT met", true],
+    ["Max resultant bending stress (component)", stress(a.bendingMax), false],
+    ["Axial stress N/A (component)", stress(a.sigmaAxial), false],
+  ];
+}
+
 export interface AxialFormat { force: (n: number) => string; stress: (mpa: number) => string; length: (mm: number) => string }
 
 /** Main verdict: combined criterion in restrained mode, bending criterion otherwise. */
@@ -34,7 +57,7 @@ export function axialRows(a: AxialReport, s: BiaxialSuccess, f: AxialFormat): [s
     ["Longitudinal end reactions", `${f.force(-a.longitudinalReaction)} at x = 0 / ${f.force(a.longitudinalReaction)} at x = L (along x)`],
     ["Lateral end reactions left / right", `${f.force(a.lateral.endReactions.left.force)} / ${f.force(a.lateral.endReactions.right.force)}`],
     ["Axial strain N/(EA) (domain indicator)", a.strain.toExponential(3)],
-    ["Max transverse slope hypot(z', y') (domain indicator)", `${a.maxSlope.toFixed(4)} rad`],
+    ["Max transverse slope hypot(z', y') (dimensionless, domain indicator)", `${a.maxSlope.toFixed(4)} (angle approximation atan(slope) = ${Math.atan(a.maxSlope).toFixed(4)} rad)`],
     ["Axial compatibility residual |N - EA/(2L) int slopes^2| / N", a.N > 0 ? `${(a.compatibilityResidual / a.N).toExponential(1)} (tol. ${(a.compatibilityTolerance / a.N).toExponential(1)})` : "N = 0 (no slope)"],
     ["Convergence", `mesh converged — ${a.elements} elements, ${a.refinement.length} levels; ${a.axialIterations} axial iterations on the final mesh`],
   ];

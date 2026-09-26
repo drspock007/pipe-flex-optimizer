@@ -14,6 +14,7 @@ import { Search } from "lucide-react";
 import { useUnits } from "@/contexts/UnitContext";
 import { useV2Engine, isSearchMode, SolveTarget } from "@/hooks/useV2Engine";
 import { AppInputs } from "@/lib/v2-app/inputs";
+import { getYieldStrength } from "@/lib/calculations";
 import { Derived, isLengthGround, isMinGround, solveKeyOf } from "@/lib/v2-app/bridge";
 import { buildReport } from "@/lib/v2-app/report-build";
 import { initialChoice, lengthOptions, searchView } from "@/lib/v2-app/selection";
@@ -131,7 +132,7 @@ const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
         <div className={solve.refreshing || stale ? "opacity-60" : ""}>
           <Card><CardContent className="pt-4"><V2Charts solution={sol} samples={solve.data.samples} /></CardContent></Card>
           <div className="mt-4">
-            <V2ResultsPanel s={sol} mode={inputs.mode} rangeExists={rangeExists} infimum={view?.infimum ?? null}
+            <V2ResultsPanel s={sol} mode={inputs.mode} yieldStrength={getYieldStrength(inputs.grade, inputs.customYield)} rangeExists={rangeExists} infimum={view?.infimum ?? null}
               atBound={lengthGround ? false : searchMode ? ["lower", "upper", "point"].includes(selection?.optionId ?? "") : heightMode && ["lower", "upper", "point"].includes(hSel?.optionId ?? "")} />
           </div>
         </div>

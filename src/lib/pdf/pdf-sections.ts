@@ -2,7 +2,7 @@
 // Modifié par Giovanni Malagnino, 2026-09-25 20:10 CEST: ground contact rows, Find h labels (V2-5).
 // Builds structured report rows (label / value) from V2 inputs and results.
 
-import { axialRows, COMBINED_NOTE, RESTRAINED_MODEL_TEXT, verdictText } from "@/lib/v2-app/axial-text";
+import { axialRows, COMBINED_NOTE, RESTRAINED_MODEL_TEXT, summaryStressRows, verdictText, yieldNote } from "@/lib/v2-app/axial-text";
 import { groundMethodText, groundReactionRows, STRESS_CONVERGENCE_TEXT } from "@/lib/v2-app/ground-labels";
 import { formatMomentPair, UnitSystem, UnitType, toDisplay, unitLabel } from "@/lib/unit-conversions";
 import { COATING_LABELS, CoatingType, effectiveCoating } from "@/lib/coating-presets";
@@ -46,8 +46,8 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
   results.push(
     ...(inputs.mode === "findH" ? [] : [["Represented length L", fmt(s.L / 1000, "m", 3)] as Row]),
     ["Installed supports / active contacts", `${s.supports.length} / ${s.supports.filter((x) => x.active).length}`],
-    ["Max resultant bending stress", fmt(s.maxStress, "MPa", 2)],
-    ["Allowable stress", fmt(s.sigmaAllow, "MPa", 2)],
+    ...summaryStressRows(s, (v) => fmt(v, "MPa", 2)).map(([k, v]) => [k, v] as Row),
+    ...(yieldNote(s, d.yieldStrength) ? [["Yield strength note", yieldNote(s, d.yieldStrength)!] as Row] : []),
     ["Position of the maximum", fmt(s.critical.x / 1000, "m", 3)],
     ["Moments at max (vertical / lateral)", formatMomentPair(s.critical.Mv, s.critical.Ml, system)],
     [s.axial ? "Combined normal stress criterion at represented length (governs)" : inputs.mode === "findH" ? "Bending criterion at represented hv" : "Bending criterion at represented length", verdictText(s).uncertain ? "UNCERTAIN (mesh precision)" : verdictText(s).met ? "met" : "NOT met"],

@@ -1,11 +1,14 @@
 // créé par Giovanni Malagnino, 2026-09-24 03:27 CEST (Europe/Rome, UTC+2)
 // Modifié par Giovanni malagnino, 2026-09-24 03:33 CEST (Europe/Rome, UTC+2)
+// Modifié par Giovanni Malagnino, 2026-09-26 15:20 CEST: routing by result type (V2-9-R1).
 // Field evaluation and chart sampling. Sampling is for display only and is
-// never used to compute design maxima.
+// never used to compute design maxima. Restrained results (r.axial present)
+// are routed to the restrained evaluator (Hermite + N-dependent moments).
 
 import { BiaxialSuccess, FieldValues } from "./types";
 import { evaluateMember } from "./beam-member";
 import { lateralAt } from "./lateral";
+import { restrainedPoint, sampleRestrained } from "./restrained-fields";
 
 /** Evaluate all fields at x in [0, L]. side selects the member at a node (shear jumps). */
 export function evaluateAt(r: BiaxialSuccess, x: number, side: "left" | "right" = "right"): FieldValues {
@@ -20,6 +23,10 @@ export function evaluateAt(r: BiaxialSuccess, x: number, side: "left" | "right" 
   const m = ms[k];
   // x is validated, so xi lies in [0, l] up to round-off; no extrapolation occurs.
   const xi = x - m.xStart;
+  if (r.axial) {
+    const { Mres: _a, sigma: _b, sigmaCombined: _c, ...f } = restrainedPoint(r, k, Math.min(1, Math.max(0, xi / m.length)));
+    return { ...f, x };
+  }
   const v = evaluateMember(m, xi);
   const lat = lateralAt(x, r.L, r.input.hl, m.EI);
   return { x, z: v.z, slopeZ: v.slope, Mv: v.Mv, Vv: v.Vv, y: lat.y, slopeY: lat.slope, Ml: lat.Ml, Vl: lat.Vl };
@@ -39,6 +46,7 @@ export function sampleCurve(r: BiaxialSuccess, perMember = 20): CurveSample[] {
   if (!Number.isInteger(perMember) || perMember < 1) {
     throw new RangeError(`sampleCurve: perMember must be an integer >= 1, got ${perMember}`);
   }
+  if (r.axial) return sampleRestrained(r, perMember);
   const out: CurveSample[] = [];
   const { I, c, hl, hv } = r.input;
   r.members.forEach((m, e) => {
