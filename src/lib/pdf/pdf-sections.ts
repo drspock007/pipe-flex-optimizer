@@ -2,7 +2,7 @@
 // Modifié par Giovanni Malagnino, 2026-09-25 20:10 CEST: ground contact rows, Find h labels (V2-5).
 // Builds structured report rows (label / value) from V2 inputs and results.
 
-import { groundReactionRows, STRESS_CONVERGENCE_TEXT } from "@/lib/v2-app/ground-labels";
+import { groundMethodText, groundReactionRows, STRESS_CONVERGENCE_TEXT } from "@/lib/v2-app/ground-labels";
 import { formatMomentPair, UnitSystem, UnitType, toDisplay, unitLabel } from "@/lib/unit-conversions";
 import { COATING_LABELS, CoatingType, effectiveCoating } from "@/lib/coating-presets";
 import { findNpsByOd } from "@/lib/pipe-presets";
@@ -98,7 +98,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
       ["Discrete contact nodes", String(g.contactNodes)],
       ["Estimated zones near the ground (graphical grouping)", g.contactZones.length ? g.contactZones.map((z) => `${fmt(z.xStart / 1000, "m", 3)} - ${fmt(z.xEnd / 1000, "m", 3)}`).join("; ") : "none"],
       ["Max residual penetration", `${c(g.maxPenetration, "mm").toExponential(2)} ${u("mm")}`],
-      ["Convergence", `${g.converged ? "converged" : "NOT converged"} (${g.elements} elements, ${g.refinement.length} levels)${g.precisionLoss ? ", precision loss" : ""}`],
+      ["Calculation method", groundMethodText(g, (mm) => fmt(mm, "mm", 3))],
       ["Bending criterion vs mesh precision", g.criterionUncertain ? "UNCERTAIN - not decidable at the convergence precision" : "decidable"],
       ["Maximum stress", "Computed on the discretized model with mesh-convergence control"],
       ["Stress convergence", STRESS_CONVERGENCE_TEXT],

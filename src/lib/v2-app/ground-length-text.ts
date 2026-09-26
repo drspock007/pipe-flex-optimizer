@@ -38,7 +38,7 @@ export function groundLengthRows(r: GroundLengthResult, fmt: (mm: number) => str
   // Readability: at most MAX_ZONES listed per kind, the rest counted.
   for (const reason of [...new Set(r.zones.map((z) => z.reason))]) {
     const zs = r.zones.filter((z) => z.reason === reason);
-    zs.slice(0, MAX_ZONES).forEach((z) => rows.push([`Zone: ${ZONE_LABEL[reason]}`, `${fmt(z.from)} to ${fmt(z.to)}`]));
+    zs.slice(0, MAX_ZONES).forEach((z) => rows.push([`Zone: ${zoneLabel(z)}`, `${fmt(z.from)} to ${fmt(z.to)}`]));
     if (zs.length > MAX_ZONES) rows.push([`Zone: ${ZONE_LABEL[reason]}`, `+ ${zs.length - MAX_ZONES} more between ${fmt(zs[MAX_ZONES].from)} and ${fmt(zs[zs.length - 1].to)}`]);
   }
   rows.push(["Domain limits reached by admissible samples", r.boundaryHits.length ? `${r.boundaryHits.join(" & ")} — ${EDGE_TEXT}` : "none"]);
