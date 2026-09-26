@@ -3,7 +3,7 @@
 // Builds structured report rows (label / value) from V2 inputs and results.
 
 import { axialRows, COMBINED_NOTE, RESTRAINED_MODEL_TEXT, summaryStressRows, verdictText, yieldNote } from "@/lib/v2-app/axial-text";
-import { groundMethodText, groundReactionRows, STRESS_CONVERGENCE_TEXT } from "@/lib/v2-app/ground-labels";
+import { groundContactRows, groundMethodText, groundReactionRows, STRESS_CONVERGENCE_TEXT } from "@/lib/v2-app/ground-labels";
 import { formatMomentPair, UnitSystem, UnitType, toDisplay, unitLabel } from "@/lib/unit-conversions";
 import { COATING_LABELS, CoatingType, effectiveCoating } from "@/lib/coating-presets";
 import { findNpsByOd } from "@/lib/pipe-presets";
@@ -51,6 +51,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
     ["Position of the maximum", fmt(s.critical.x / 1000, "m", 3)],
     ["Moments at max (vertical / lateral)", formatMomentPair(s.critical.Mv, s.critical.Ml, system)],
     [s.axial ? "Combined normal stress criterion at represented length (governs)" : inputs.mode === "findH" ? "Bending criterion at represented hv" : "Bending criterion at represented length", verdictText(s).uncertain ? "UNCERTAIN (mesh precision)" : verdictText(s).met ? "met" : "NOT met"],
+    ...(verdictText(s).detail ? [["Verdict detail", verdictText(s).detail!] as Row] : []),
     ["Numerical validity", s.numericalValid ? "valid" : "NOT valid"],
     [s.axial ? "Physical validity (see domain indicators)" : "Physical validity (linear model)", "not assessed"],
   );
@@ -99,7 +100,7 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
       ["Assumptions", "Rigid, horizontal, frictionless ground over the full length, vertical plane only"],
       ...groundReactionRows(g, (v) => fmt(v, "N", 1)).map(([k, v, n]) => [k, `${v} (${n})`] as Row),
       ["Discrete contact nodes", String(g.contactNodes)],
-      ["Estimated zones near the ground (graphical grouping)", g.contactZones.length ? g.contactZones.map((z) => `${fmt(z.xStart / 1000, "m", 3)} - ${fmt(z.xEnd / 1000, "m", 3)}`).join("; ") : "none"],
+      ...groundContactRows(g, s.input.hv, s.L, (mm) => fmt(mm / 1000, "m", 3), " - "),
       ["Max residual penetration", `${c(g.maxPenetration, "mm").toExponential(2)} ${u("mm")}`],
       ["Calculation method", groundMethodText(g, (mm) => fmt(mm, "mm", 3))],
       [s.axial ? "Combined criterion vs mesh precision" : "Bending criterion vs mesh precision", g.criterionUncertain ? "UNCERTAIN - not decidable at the convergence precision" : "decidable"],

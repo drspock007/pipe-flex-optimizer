@@ -4,12 +4,12 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PresetManager } from "./PresetManager";
-import { AppInputs, normalizeAppInputs } from "@/lib/v2-app/inputs";
+import { AppInputs, normalizeAppInputs, unknownCoatingOf } from "@/lib/v2-app/inputs";
 
 interface Props {
   inputs: AppInputs;
   /** Receives complete inputs: legacy presets get explicit defaults (hl = 0, free axial mode). */
-  onLoad: (values: AppInputs) => void;
+  onLoad: (values: AppInputs, unknownCoating: string | null) => void;
 }
 
 const PresetsCard = ({ inputs, onLoad }: Props) => (
@@ -26,7 +26,7 @@ const PresetsCard = ({ inputs, onLoad }: Props) => (
       <PresetManager
         mode="lowering"
         getCurrentValues={() => ({ ...inputs })}
-        onLoad={(values) => onLoad(normalizeAppInputs(values as Record<string, unknown>, inputs))}
+        onLoad={(values) => onLoad(normalizeAppInputs(values as Record<string, unknown>, inputs), unknownCoatingOf(values as Record<string, unknown>))}
       />
     </CardContent>
   </Card>

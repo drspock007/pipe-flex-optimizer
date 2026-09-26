@@ -37,12 +37,20 @@ export function summaryStressRows(s: BiaxialSuccess, stress: (mpa: number) => st
 
 export interface AxialFormat { force: (n: number) => string; stress: (mpa: number) => string; length: (mm: number) => string }
 
-/** Main verdict: combined criterion in restrained mode, bending criterion otherwise. */
-export function verdictText(s: BiaxialSuccess): { met: boolean; uncertain: boolean; label: string } {
+/** Main verdict: combined criterion in restrained mode, bending criterion otherwise.
+ *  Priority (screen, badges, PDF): uncertain first, else met / not met. */
+export function verdictText(s: BiaxialSuccess): { met: boolean; uncertain: boolean; label: string; title: string; detail: string | null; tone: "uncertain" | "met" | "notMet" } {
   const a = s.axial;
   const uncertain = a ? a.criterionUncertain : !!s.ground?.criterionUncertain;
   const met = a ? a.combinedCriterionMet : s.bendingCriterionMet;
-  return { met, uncertain, label: a ? "Combined normal stress criterion" : "Bending criterion" };
+  const label = a ? "Combined normal stress criterion" : "Bending criterion";
+  const side = governingStress(s) > s.sigmaAllow ? "above" : "below";
+  return {
+    met, uncertain, label,
+    title: uncertain ? "Verdict uncertain (mesh precision)" : `${label} ${met ? "met" : "not met"}`,
+    detail: uncertain ? `Computed stress is ${side} the allowable, but the verdict is uncertain at the retained mesh precision.` : null,
+    tone: uncertain ? "uncertain" : met ? "met" : "notMet",
+  };
 }
 
 export function axialRows(a: AxialReport, s: BiaxialSuccess, f: AxialFormat): [string, string][] {

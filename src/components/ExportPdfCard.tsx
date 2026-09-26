@@ -18,6 +18,8 @@ interface Props {
   report: V2Report | null;
   /** Solve key of the current inputs; the report must belong to it. */
   currentKey: string | null;
+  /** Non-null while an input issue (e.g. unknown preset coating) must be resolved first. */
+  blockedReason?: string | null;
 }
 
 const MAX_LEN = 80;
@@ -33,13 +35,13 @@ const FieldHint = ({ text }: { text: string }) => (
   </Tooltip>
 );
 
-const ExportPdfCard = ({ report, currentKey }: Props) => {
+const ExportPdfCard = ({ report, currentKey, blockedReason = null }: Props) => {
   const { system } = useUnits();
   const [preparedBy, setPreparedBy] = useState("");
   const [projectName, setProjectName] = useState("");
 
   const isCurrent = !!report && report.key === currentKey;
-  const disabled = !preparedBy.trim() || !projectName.trim() || !isCurrent;
+  const disabled = !preparedBy.trim() || !projectName.trim() || !isCurrent || blockedReason !== null;
 
   const handleExport = () => {
     // Re-check at trigger time: never export a result that no longer matches the inputs.
@@ -103,13 +105,16 @@ const ExportPdfCard = ({ report, currentKey }: Props) => {
             </span>
           </TooltipTrigger>
           <TooltipContent className="max-w-[260px] text-xs">
-            {!isCurrent
+            {blockedReason !== null
+              ? blockedReason
+              : !isCurrent
               ? "Export is available only for a current, successful calculation."
               : disabled
               ? "Fill in both the preparer name and the project name to enable the export."
               : "Download a structured PDF report of inputs, section properties and FEM results."}
           </TooltipContent>
         </Tooltip>
+        {blockedReason !== null && <p className="text-[11px] text-destructive">{blockedReason}</p>}
       </CardContent>
     </Card>
   );

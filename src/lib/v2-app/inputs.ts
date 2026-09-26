@@ -83,3 +83,8 @@ export function normalizeAppInputs(values: Record<string, unknown>, base: AppInp
   out.searchLmax = num(values.searchLmax, L0 * 4);
   return out;
 }
+
+/** Coating key of a stored preset that is not recognized (null when absent or known).
+ *  normalizeAppInputs falls back to "none"; the UI must make that explicit. */
+export const unknownCoatingOf = (values: Record<string, unknown>): string | null =>
+  typeof values.coatingType === "string" && !(values.coatingType in COATING_LABELS) ? values.coatingType : null;

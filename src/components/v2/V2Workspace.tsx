@@ -34,7 +34,7 @@ import HeightSearchCard, { useFmtHeight } from "./HeightSearchCard";
 import { GROUND_HEIGHT_LIMITS, groundHeightRows } from "@/lib/v2-app/ground-height-text";
 import { HeightSelection, heightRangeText, heightRanges, initialHeight, selectedHeight } from "@/lib/v2-app/height-selection";
 
-const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
+const V2Workspace = ({ inputs, exportBlocked = null }: { inputs: AppInputs; derived?: Derived; exportBlocked?: string | null }) => {
   const { search, solve, setSolveTarget } = useV2Engine(inputs);
   const fmt = useFmtLength();
   const blocked = false;
@@ -137,7 +137,7 @@ const V2Workspace = ({ inputs }: { inputs: AppInputs; derived?: Derived }) => {
           </div>
         </div>
       )}
-      <ExportPdfCard report={report} currentKey={solveKeyOf(inputs, target)} />
+      <ExportPdfCard report={report} currentKey={solveKeyOf(inputs, target)} blockedReason={exportBlocked} />
     </div>
   );
 };

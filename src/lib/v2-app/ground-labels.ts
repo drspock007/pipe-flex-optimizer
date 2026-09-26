@@ -43,3 +43,21 @@ export function groundMethodText(g: GroundReport, fmtMm: (mm: number) => string)
     return `exact member solution without ground contact (no mesh): minimum clearance ${g.minClearance === undefined || !Number.isFinite(g.minClearance) ? "n/a" : fmtMm(g.minClearance)} verified on every member`;
   return `mesh ${g.converged ? "converged" : "NOT converged"} — ${g.elements} elements, ${g.refinement.length} refinement levels${g.precisionLoss ? ", precision loss" : ""}`;
 }
+
+/** Contact geometry rows: estimated zones and isolated points come from the
+ *  computed contact nodes only; clamped ends imposed at the ground level are
+ *  listed separately (never shown as a zero-length contact zone). */
+export function groundContactRows(g: GroundReport, hv: number, L: number, fmtX: (mm: number) => string, dash = "–"): [string, string][] {
+  const tol = Math.max(g.tolPenetration, 1e-9 * Math.max(1, Math.abs(hv)));
+  const left = Math.abs(g.level) <= tol, right = Math.abs(g.level - hv) <= tol;
+  const isEnd = (x: number) => (left && x <= 1e-9 * L) || (right && x >= L * (1 - 1e-9));
+  const zones = g.contactZones.filter((z) => z.xEnd > z.xStart);
+  const points = g.contactZones.filter((z) => z.xEnd === z.xStart && !(isEnd(z.xStart) && !g.contactPoints.includes(z.xStart)));
+  const ends = [left ? "left end (x = 0)" : "", right ? "right end (x = L)" : ""].filter(Boolean);
+  const none = "No interior ground-contact nodes";
+  return [
+    ["Estimated contact zones (graphical grouping of computed contacts)", g.contactNodes === 0 ? none : zones.length ? zones.map((z) => `${fmtX(z.xStart)} ${dash} ${fmtX(z.xEnd)}`).join("; ") : "none"],
+    ["Isolated contact points", g.contactNodes === 0 ? none : points.length ? points.map((z) => fmtX(z.xStart)).join("; ") : "none"],
+    ["Clamped ends imposed at ground level", ends.length ? ends.join(", ") : "none"],
+  ];
+}
