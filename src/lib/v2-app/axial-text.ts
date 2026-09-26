@@ -35,7 +35,7 @@ export function axialRows(a: AxialReport, s: BiaxialSuccess, f: AxialFormat): [s
     ["Lateral end reactions left / right", `${f.force(a.lateral.endReactions.left.force)} / ${f.force(a.lateral.endReactions.right.force)}`],
     ["Axial strain N/(EA) (domain indicator)", a.strain.toExponential(3)],
     ["Max transverse slope hypot(z', y') (domain indicator)", `${a.maxSlope.toFixed(4)} rad`],
-    ["Axial compatibility residual", `${f.force(a.compatibilityResidual)} (tol. ${f.force(a.compatibilityTolerance)})`],
+    ["Axial compatibility residual |N - EA/(2L) int slopes^2| / N", a.N > 0 ? `${(a.compatibilityResidual / a.N).toExponential(1)} (tol. ${(a.compatibilityTolerance / a.N).toExponential(1)})` : "N = 0 (no slope)"],
     ["Convergence", `mesh converged — ${a.elements} elements, ${a.refinement.length} levels; ${a.axialIterations} axial iterations on the final mesh`],
   ];
 }
