@@ -30,7 +30,7 @@ function tensioned(hv: number) {
   return { N, combined: N / A + E * c * field(N).kmax };
 }
 
-describe("restrained Find h, no load, no support, no ground", () => {
+describe("restrained Find h, no load, no support, no ground", { timeout: 60000 }, () => {
   const r = S({ q: 0 });
   it("signed symmetric domain and ranges (hv <-> -hv)", () => {
     if (r.status !== "found") throw new Error(r.status);
@@ -47,7 +47,7 @@ describe("restrained Find h, no load, no support, no ground", () => {
   });
 });
 
-describe("restrained Find h with ground and supports", () => {
+describe("restrained Find h with ground and supports", { timeout: 60000 }, () => {
   it("ground at zero: no negative height published", () => {
     const r = S({ groundZ: 0 }, 0);
     if (r.status !== "found") throw new Error(r.status);

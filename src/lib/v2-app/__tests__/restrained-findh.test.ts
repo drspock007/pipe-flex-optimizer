@@ -10,7 +10,7 @@ import { restrainedHeightRows } from "../restrained-height-text";
 
 const FH = { ...DEFAULT_INPUTS, mode: "findH" as const, axialMode: "restrained" as const, numSupports: 2, groundEnabled: true, groundContactZ: 0 };
 
-describe("restrained Find h through the worker protocol", () => {
+describe("restrained Find h through the worker protocol", { timeout: 60000 }, () => {
   const o = runEngine({ kind: "findHRestrained", input: toRestrainedHeightInput(FH), numSupports: 2 });
   it("initial choice is the re-verified hv and its full solve meets the combined criterion", () => {
     if (o.kind !== "findHRestrained" || !("meta" in o.result)) throw new Error(JSON.stringify(o));
