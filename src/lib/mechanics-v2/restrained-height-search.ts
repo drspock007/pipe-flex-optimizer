@@ -76,7 +76,7 @@ export function searchHeightRestrained(input: RestrainedHeightInput, numSupports
     return { status: "undecidable", meta, message: "hl^2 equals 2 L^2 sigmaAllow / E within rounding: the necessary bound neither excludes nor admits hv = 0" };
   }
   const Hax = bound.Hax;
-  const lo = gz === undefined ? -Hax : Math.max(gz, -Hax), hi = Hax, W = hi - lo;
+  const lo = (gz === undefined ? -Hax : Math.max(gz, -Hax)) || 0, hi = Hax, W = hi - lo; // "|| 0": no -0 bound
   if (W < 0) return empty("ground-above-bound");
   meta.domainOrigin = { lower: gz !== undefined && gz > -Hax ? "ground-level" : "axial-bound", upper: "axial-bound" };
 
