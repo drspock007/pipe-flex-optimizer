@@ -9,8 +9,6 @@ import type { EndReaction } from "./types";
 /** Resource limits and mesh sequence (elements over the whole length). */
 export const RESTRAINED_MIN_ELEMENTS = 32;
 export const RESTRAINED_MAX_ELEMENTS = 1024;
-/** Samples per element for the maxima search (then golden-section refinement of each local maximum). */
-export const RESTRAINED_MAX_SAMPLES = 32;
 
 export interface RestrainedLevel {
   elements: number;
@@ -34,7 +32,7 @@ export interface AxialReport {
   /** Last refinements change the combined verdict or it lies within the convergence threshold. */
   criterionUncertain: boolean;
   strain: number; // N/(EA), dimensionless (domain indicator, no universal threshold)
-  maxSlope: number; // max hypot(z', y') over the discrete field (domain indicator)
+  maxSlope: number; // max hypot(z', y'), dimensionless slope, exact on the discrete field (domain indicator)
   compatibilityResidual: number; // |N - EA/(2L) int (z'^2 + y'^2)| (N)
   compatibilityTolerance: number; // N
   axialIterations: number;

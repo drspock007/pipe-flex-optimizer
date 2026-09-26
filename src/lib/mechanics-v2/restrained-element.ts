@@ -65,3 +65,9 @@ export function hermiteAt(l: number, de: ArrayLike<number>, u: number): { w: num
 }
 
 export const poly = (c: ArrayLike<number>, u: number) => ((c[3] * u + c[2]) * u + c[1]) * u + c[0];
+
+/** Ascending coefficients in u of the Hermite cubic w(u) (identical to hermiteAt). */
+export function hermiteCoeffs(l: number, de: ArrayLike<number>): number[] {
+  const [wi, ti, wj, tj] = [de[0], de[1], de[2], de[3]];
+  return [wi, l * ti, -3 * wi - 2 * l * ti + 3 * wj - l * tj, 2 * wi + l * ti - 2 * wj + l * tj];
+}
