@@ -5,8 +5,8 @@
 import { AxialReport, BiaxialSuccess } from "@/lib/mechanics-v2";
 
 export const RESTRAINED_EXPLANATION = "Axial end separation fixed; initially straight pipe, no prestress";
-export const RESTRAINED_SEARCH_UNAVAILABLE =
-  "Restrained axial mode is available in Fixed L, Find h and Find L range: Min. supports is not available with it. Select Free sliding or another mode.";
+export const RESTRAINED_MIN_TEXT =
+  "Min. supports with axial restraint: restrained Find L for n = 0, 1, … on the searched domain under one global budget; the first count whose length passes an independent complete restrained re-solve (combined criterion, not uncertain) is retained. Only n = 0 is certified minimal.";
 export const RESTRAINED_FINDL_TEXT =
   "Find L with axial restraint: each L is a new initially straight pipe solved with the complete restrained solver (N and contacts recomputed, q fixed); the combined normal stress governs.";
 export const RESTRAINED_FINDH_TEXT =

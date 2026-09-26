@@ -16,7 +16,7 @@ const GroundControls = ({ inputs, onChange }: Props) => {
   const { conv, parse, label } = useUnits();
   const findL = inputs.mode === "searchLength" || inputs.mode === "minSupports";
   // Domain: Find L / Min. supports with ground, and Find L restrained even without ground (V2-11).
-  const showDomain = (inputs.groundEnabled && findL) || (inputs.mode === "searchLength" && inputs.axialMode === "restrained");
+  const showDomain = (inputs.groundEnabled && findL) || (findL && inputs.axialMode === "restrained");
   const badDomain = !(inputs.searchLmin > 0 && inputs.searchLmin < inputs.searchLmax && Number.isFinite(inputs.searchLmax));
   return (
     <div className="col-span-2 space-y-2 rounded-md border border-border/60 p-2">
