@@ -11,6 +11,7 @@ import { useUnits } from "@/contexts/UnitContext";
 import { GroundLengthResult } from "@/lib/mechanics-v2";
 import { GLSelection, glOptions, glRanges } from "@/lib/v2-app/ground-length-selection";
 import { EDGE_TEXT, GROUND_LENGTH_LIMITS } from "@/lib/v2-app/ground-length-text";
+import { fmtInterval } from "@/lib/v2-app/ground-height-text";
 import { StatusText } from "@/lib/v2-app/status-text";
 import { StatusBanner, Busy } from "./StatusBanner";
 import { useFmtLength } from "./LengthSelector";
