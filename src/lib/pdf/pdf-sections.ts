@@ -35,7 +35,8 @@ export const buildSections = (inputs: AppInputs, d: Derived, rep: V2Report, syst
   const coat = effectiveCoating(inputs.coatingType as CoatingType, inputs.coatingThickness, inputs.coatingDensity, findNpsByOd(inputs.Do));
 
   const results: Row[] = [
-    ["Calculation mode", inputs.mode === "searchLength" && inputs.groundEnabled ? "Length range search WITH ground contact (exploratory, fixed hv and hl)"
+    ["Calculation mode", inputs.mode === "searchLength" && s.axial ? `Length range search WITH axial restraint (exploratory, fixed hv and hl, ${inputs.groundEnabled ? "with" : "without"} ground contact)`
+      : inputs.mode === "searchLength" && inputs.groundEnabled ? "Length range search WITH ground contact (exploratory, fixed hv and hl)"
       : inputs.mode === "findH" && s.axial ? `Find h WITH axial restraint (exploratory, fixed L and hl, ${inputs.groundEnabled ? "with" : "without"} ground contact)`
       : inputs.mode === "minSupports" && inputs.groundEnabled ? "Minimum installed supports search WITH ground contact (exploratory length searches)" : MODE_LABEL[inputs.mode]],
     ...(s.axial ? [] : [["Axial mode", "Free longitudinal sliding"] as Row]),

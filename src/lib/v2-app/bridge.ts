@@ -9,7 +9,7 @@
 
 import { calcSectionProperties, getYieldStrength, SectionProperties } from "@/lib/calculations";
 import { findNpsByOd } from "@/lib/pipe-presets";
-import { BiaxialInput, RestrainedHeightInput, GroundLengthInput, HeightSearchInput, LengthSearchInput } from "@/lib/mechanics-v2";
+import { BiaxialInput, RestrainedHeightInput, RestrainedLengthInput, GroundLengthInput, HeightSearchInput, LengthSearchInput } from "@/lib/mechanics-v2";
 import { AppInputs } from "./inputs";
 
 export const M_TO_MM = 1000;
@@ -64,11 +64,22 @@ export function toRestrainedHeightInput(i: AppInputs, d: Derived = derive(i)): R
 /** Ground contact is available in every mode since V2-8 (kept for callers). */
 export const groundBlocksSearch = (_i: AppInputs) => false;
 export const isMinGround = (i: AppInputs) => i.groundEnabled && i.mode === "minSupports";
-export const isLengthGround = (i: AppInputs) => i.groundEnabled && i.mode === "searchLength";
+/** Find L with ground, free sliding (V2-7). */
+export const isLengthGround = (i: AppInputs) => i.groundEnabled && i.mode === "searchLength" && i.axialMode !== "restrained";
+/** Find L restrained, with or without ground (V2-11). */
+export const isLengthRestrained = (i: AppInputs) => i.mode === "searchLength" && i.axialMode === "restrained";
+/** Exploratory Find L on a user domain [Lmin, Lmax] (ground and/or restrained). */
+export const isLengthExplore = (i: AppInputs) => isLengthGround(i) || isLengthRestrained(i);
 
 /** Find L with ground input: domain m -> mm. */
 export function toLengthGroundInput(i: AppInputs, d: Derived = derive(i)): GroundLengthInput {
   return { ...toSearchInput(i, d), groundZ: i.groundContactZ, Lmin: i.searchLmin * M_TO_MM, Lmax: i.searchLmax * M_TO_MM };
+}
+
+/** Find L restrained input: domain m -> mm; groundZ only when the ground is enabled. */
+export function toLengthRestrainedInput(i: AppInputs, d: Derived = derive(i)): RestrainedLengthInput {
+  const base = { ...toSearchInput(i, d), axialMode: "restrained" as const, Lmin: i.searchLmin * M_TO_MM, Lmax: i.searchLmax * M_TO_MM };
+  return i.groundEnabled ? { ...base, groundZ: i.groundContactZ } : base;
 }
 
 export function searchKey(i: AppInputs): string {
@@ -77,7 +88,7 @@ export function searchKey(i: AppInputs): string {
   // The domain only matters for Find L / Min. supports with ground; the installed
   // count does not drive Min. supports with ground (the candidate count does).
   if (isMinGround(i)) { const { numSupports: _n, ...r2 } = rest; return JSON.stringify({ ...r2, searchLmin, searchLmax }); }
-  return JSON.stringify(isLengthGround(i) ? { ...rest, searchLmin, searchLmax } : rest);
+  return JSON.stringify(isLengthExplore(i) ? { ...rest, searchLmin, searchLmax } : rest);
 }
 
 /** Key of a fixed-length solve request: physical inputs + represented L, supports and hv. */

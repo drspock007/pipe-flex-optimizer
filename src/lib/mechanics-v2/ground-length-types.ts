@@ -8,10 +8,11 @@
 
 import type { LengthSearchInput } from "./length-search-types";
 import type { Coverage, SampleClass, UnresolvedZone } from "./ground-height-types";
+import type { GroundFailureCause } from "./ground-types";
 
 export type GroundLengthInput = LengthSearchInput & { groundZ: number; Lmin: number; Lmax: number };
 
-export interface LengthSample { L: number; cls: SampleClass; maxStress: number | null; status: string }
+export interface LengthSample { L: number; cls: SampleClass; maxStress: number | null; status: string; cause?: GroundFailureCause }
 
 /** Bound = verified admissible sample; bracket = neighbouring sample outside
  *  (null at a domain edge); domainEdge = "admissible at search boundary". */
@@ -26,7 +27,8 @@ export interface GroundLengthDiagnostics {
 }
 
 interface Common {
-  scope: { numSupports: number; hv: number; hl: number; groundZ: number };
+  /** groundZ null: restrained Find L without ground (V2-11). */
+  scope: { numSupports: number; hv: number; hl: number; groundZ: number | null };
   domain: { lower: number; upper: number };
   ranges: GroundLengthRange[];
   zones: UnresolvedZone[]; // from / to in mm
@@ -46,6 +48,9 @@ export type GroundLengthResult =
   /** No admissible L found within the searched domain; absence NOT demonstrated. */
   | (Common & { status: "none-found" })
   | (Common & { status: "incomplete"; message: string })
+  /** Restrained only (V2-11): the whole requested domain is excluded by an
+   *  independent necessary condition (no sample evaluated). */
+  | (Common & { status: "impossible"; message: string })
   | { status: "invalid-input"; errors: string[] }
   | { status: "geometry-incompatible"; message: string }
   | { status: "not-implemented"; message: string };

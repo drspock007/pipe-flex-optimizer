@@ -59,7 +59,7 @@ export function computeRegime(input: RegimeInput): RegimeResult {
   const errors = validate(input);
   if (errors.length) return { status: "invalid-input", errors };
   if (input.axialMode === "restrained") {
-    return { status: "not-implemented", message: 'axialMode "restrained" is available in Fixed L and Find h only: Find L and Min. supports are not available with it' };
+    return { status: "not-implemented", message: 'axialMode "restrained": this free-sliding path does not apply (Find L restrained uses searchLengthRestrained; Min. supports is not available)' };
   }
   try {
     const Lq = loadLengthScale(input.E, input.I, input.q);

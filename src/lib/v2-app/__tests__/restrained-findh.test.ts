@@ -37,7 +37,7 @@ describe("restrained Find h through the worker protocol", { timeout: 60000 }, ()
   it("without ground, no groundZ is passed", () => {
     expect("groundZ" in toRestrainedHeightInput({ ...FH, groundEnabled: false })).toBe(false);
   });
-  it("Find L and Min. supports stay unavailable in restrained", () => {
+  it("free Find L / Min. supports paths refuse restrained (Find L restrained has its own path)", () => {
     const i = toSearchInput({ ...FH, mode: "searchLength" });
     const a = runEngine({ kind: "searchLength", input: i, numSupports: 2 });
     const b = runEngine({ kind: "minSupports", input: i, maxSupports: 3 });

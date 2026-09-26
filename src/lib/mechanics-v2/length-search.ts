@@ -116,7 +116,7 @@ function precheck(input: LengthSearchInput, n: number) {
   if (n !== 0 && n !== 1) errors.push("numSupports must be 0 or 1 for this analytical search");
   if (errors.length) return { status: "invalid-input" as const, errors };
   if (input.axialMode === "restrained") {
-    return { status: "not-implemented" as const, message: 'axialMode "restrained" is available in Fixed L and Find h only: Find L and Min. supports are not available with it' };
+    return { status: "not-implemented" as const, message: 'axialMode "restrained": this free-sliding path does not apply (Find L restrained uses searchLengthRestrained; Min. supports is not available)' };
   }
   return null;
 }
