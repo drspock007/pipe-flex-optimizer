@@ -1,5 +1,6 @@
 import { useId,useState } from 'react';
 import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { useUnits } from '@/contexts/UnitContext';
 import PipeSizeSelect from '@/components/geometry/PipeSizeSelect';
@@ -83,6 +84,12 @@ export function ServiceInputs({input:i,onChange}:{input:ServiceInput;onChange:(i
     <section className="rounded-lg border bg-card p-4 space-y-3"><h2 className="font-semibold">Custom criterion</h2>
       <label className="block text-xs">Threshold format<select aria-label="Threshold format" className={selectClass} value={thresholdMode} onChange={e=>setThresholdMode(e.target.value)}><option value="percent">Percentage of yield</option><option value="factor">Safety factor</option></select></label>
       <Field title={thresholdMode==='percent'?'Allowable (% of yield)':'Safety factor (at least 1)'} value={thresholdMode==='percent'?i.allowablePercent:100/i.allowablePercent} onChange={v=>update('allowablePercent',thresholdMode==='percent'?v:100/v)}/>
+      {thresholdMode==='percent'&&<div className="space-y-2 pt-1">
+        <Slider aria-label="Allowable percentage of yield" value={[Number.isFinite(i.allowablePercent)?Math.min(100,Math.max(10,i.allowablePercent)):10]}
+          min={10} max={100} step={1} onValueChange={v=>update('allowablePercent',v[0])}/>
+        <div className="flex justify-between text-xs text-muted-foreground"><span>10%</span><span>100%</span></div>
+        {!Number.isFinite(i.allowablePercent)&&<p className="text-xs text-muted-foreground">Move the slider or enter a value to choose your threshold.</p>}
+      </div>}
       {Number.isFinite(i.allowablePercent)&&<p className="text-xs">{i.allowablePercent.toFixed(2)}% · factor {(100/i.allowablePercent).toFixed(3)} · allowable {display(i.yield*i.allowablePercent/100,'MPa',system).toFixed(2)} {label('MPa',system)}</p>}
       <p className="text-xs text-muted-foreground">Conservative Von Mises beam bound, including transverse shear. Choose a threshold; none is assumed safe by default.</p>
     </section>
