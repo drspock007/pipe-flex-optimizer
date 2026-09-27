@@ -7,6 +7,7 @@ import WallThicknessSelect from '@/components/geometry/WallThicknessSelect';
 import { PIPE_SIZES,WALL_THICKNESS_BY_NPS,findNpsByOd,findScheduleByWt } from '@/lib/pipe-presets';
 import SteelGradeSelect from '@/components/SteelGradeSelect';
 import CoatingCard from '@/components/CoatingCard';
+import { FLUIDS, effectiveFluidDensity, gasProperties, type FluidType } from '@/lib/in-service/fluid';
 import { GRADES } from '@/lib/calculations';
 import { display,internal,label,type ServiceUnit } from '@/lib/in-service/display';
 import { type ServiceInput,type Mode,type Direction } from '@/lib/in-service/types';
@@ -19,6 +20,7 @@ export function Field({title,value,onChange,unit='scalar'}:{title:string;value:n
 }
 const selectClass='w-full rounded-md border border-input bg-background p-2 text-sm';
 export function ServiceInputs({input:i,onChange}:{input:ServiceInput;onChange:(i:ServiceInput)=>void}) {
+  const gas=gasProperties(i),fluidType=i.fluidType??'custom';
   const {system}=useUnits();const [nps,setNps]=useState(findNpsByOd(i.od)),[schedule,setSchedule]=useState(findScheduleByWt(findNpsByOd(i.od),i.thickness));
   const [thresholdMode,setThresholdMode]=useState('percent');
   const [customGrade,setCustomGrade]=useState(false);
@@ -38,8 +40,19 @@ export function ServiceInputs({input:i,onChange}:{input:ServiceInput;onChange:(i
       <p className="text-xs text-muted-foreground">Steel only. Enter properties applicable at the operating temperature; no automatic material derating.</p>
     </section>
     <section className="rounded-lg border bg-card p-4 space-y-3"><h2 className="font-semibold">Operating conditions & weight</h2>
-      <div className="grid grid-cols-2 gap-3">{f('pressure','Internal gauge pressure','pressure')}{f('temperature','Operating temperature','C')}{f('steelDensity','Steel density','kg/m3')}{f('fluidDensity','Fluid density at operating P/T','kg/m3')}</div>
-      <p className="text-xs text-muted-foreground">Constant pressure and temperature; zero external pressure. Coating contributes weight only.</p>
+      <div className="grid grid-cols-2 gap-3">{f('pressure','Internal gauge pressure','pressure')}{f('temperature','Operating temperature','C')}{f('steelDensity','Steel density','kg/m3')}</div>
+      <label className="block text-xs">Fluid<select aria-label="Fluid" className={selectClass} value={fluidType} onChange={e=>{const type=e.target.value as FluidType;onChange({...i,fluidType:type,gasMolarMass:FLUIDS[type].molarMass,gasZ:1});}}>{Object.entries(FLUIDS).map(([key,fluid])=><option key={key} value={key}>{fluid.label}</option>)}</select></label>
+      {fluidType==='custom'?f('fluidDensity','Fluid density at operating P/T','kg/m3'):<>
+        <div className="grid grid-cols-2 gap-3">
+          <Field title="Molar mass (g/mol)" value={gas.molarMass} onChange={v=>update('gasMolarMass',v)}/>
+          <Field title="Compressibility factor Z" value={gas.z} onChange={v=>update('gasZ',v)}/>
+          <Field title="Atmospheric pressure" value={gas.atmosphere} unit="pressure" onChange={v=>update('atmosphericPressure',v)}/>
+        </div>
+        <p className="text-sm font-medium" aria-live="polite">Calculated density: {Number.isFinite(effectiveFluidDensity(i))?display(effectiveFluidDensity(i),'kg/m3',system).toFixed(3):'—'} {label('kg/m3',system)}</p>
+        <p className="text-xs text-muted-foreground">Absolute pressure = gauge pressure + atmospheric pressure. Density uses ρ = Pabs M / (Z R T), with T in kelvin. Z = 1 assumes an ideal gas; real-gas Z is not calculated automatically. Enter Z for the selected gas at the operating pressure and temperature, or use a known custom density.</p>
+        {fluidType==='naturalGas'&&<p className="text-xs text-muted-foreground">Natural gas composition varies. The initial molar mass assumes pure methane (16.04246 g/mol); replace it with the value for your gas.</p>}
+      </>}
+      <p className="text-xs text-muted-foreground">Constant pressure and temperature; zero external gauge pressure. Coating contributes weight only.</p>
     </section>
     <CoatingCard coatingType={i.coatingType??'custom'} coatingThickness={i.coatingThickness} coatingDensity={i.coatingDensity} Do={i.od} nps={nps} onChange={(field,value)=>onChange({...i,[field]:value})}/>
     <section className="rounded-lg border bg-card p-4 space-y-3"><h2 className="font-semibold">Excavation & movement</h2>

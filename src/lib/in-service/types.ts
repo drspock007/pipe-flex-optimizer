@@ -1,3 +1,4 @@
+import { effectiveFluidDensity, validateFluid, type FluidType } from './fluid';
 import { effectiveCoating, COATING_LABELS, type CoatingType } from '../coating-presets';
 import { findNpsByOd } from '../pipe-presets';
 export const MODEL_VERSION = 'in-service-steel-1';
@@ -9,6 +10,7 @@ export interface ServiceInput {
   od: number; thickness: number; E: number; yield: number; nu: number; alpha: number;
   steelDensity: number; fluidDensity: number; coatingThickness: number; coatingDensity: number;
   coatingType?: CoatingType;
+  fluidType?: FluidType; gasMolarMass?: number; gasZ?: number; atmosphericPressure?: number;
   pressure: number; temperature: number; halfLength: number;
   direction: Direction; angle: number; displacement: number;
   allowablePercent: number; scenarios: Scenario[];
@@ -16,7 +18,7 @@ export interface ServiceInput {
 }
 export const DEFAULT_SERVICE: ServiceInput = {
   od: 168.3, thickness: 7.11, E: 207000, yield: 359, nu: 0.3, alpha: 12e-6,
-  steelDensity: 7850, fluidDensity: 40, coatingType: 'none', coatingThickness: 0, coatingDensity: 950,
+  steelDensity: 7850, fluidDensity: 40, fluidType: 'custom', coatingType: 'none', coatingThickness: 0, coatingDensity: 950,
   pressure: 2, temperature: 20, halfLength: 10000, direction: 'vertical', angle: 90,
   displacement: 200, allowablePercent: NaN, mode: 'direct',
   minHalfLength: 1000, maxHalfLength: 50000, maxDisplacement: 500,
@@ -47,13 +49,13 @@ export interface ServiceReport {
   boundReached: boolean; message: string; elapsedMs: number;
 }
 export function validate(i: ServiceInput): string[] {
-  const errors: string[] = [];
+  const errors: string[] = validateFluid(i);
   if (i.coatingType!==undefined && !Object.prototype.hasOwnProperty.call(COATING_LABELS,i.coatingType)) errors.push('Unknown coating type.');
-  const nums = Object.entries(i).filter(([k]) => !['scenarios', 'mode', 'direction', 'coatingType'].includes(k));
+  const nums = Object.entries(i).filter(([k]) => !['scenarios', 'mode', 'direction', 'coatingType', 'fluidType', 'fluidDensity', 'gasMolarMass', 'gasZ', 'atmosphericPressure'].includes(k));
   if (nums.some(([,v]) => typeof v !== 'number' || !Number.isFinite(v))) errors.push('Enter finite values, including an explicit custom allowable percentage.');
   if (!(i.od > 0 && i.thickness > 0 && 2*i.thickness < i.od)) errors.push('Require 0 < 2t < outside diameter.');
   if (!(i.E > 0 && i.yield > 0 && i.nu >= 0 && i.nu < 0.5 && i.alpha >= 0)) errors.push('Invalid elastic steel properties.');
-  if ([i.pressure, i.steelDensity, i.fluidDensity, i.coatingThickness, i.coatingDensity, i.displacement, i.maxDisplacement].some(x => x < 0)) errors.push('Pressure, densities, thickness and displacement amplitudes must be nonnegative.');
+  if ([i.pressure, i.steelDensity, i.coatingThickness, i.coatingDensity, i.displacement, i.maxDisplacement].some(x => x < 0)) errors.push('Pressure, densities, thickness and displacement amplitudes must be nonnegative.');
   if (!(i.halfLength > 0 && i.minHalfLength > 0 && i.maxHalfLength > i.minHalfLength)) errors.push('Require positive length and increasing search bounds.');
   if (i.mode==='displacement' && !(i.maxDisplacement>0)) errors.push('Displacement search requires a positive upper amplitude bound.');
   if (!(i.allowablePercent > 0 && i.allowablePercent <= 100)) errors.push('Elastic custom threshold must be above 0 and at most 100% of yield.');
@@ -70,7 +72,7 @@ export function section(i: ServiceInput): Section {
   const ro=i.od/2, ri=ro-i.thickness, A=Math.PI*(ro-ri)*(ro+ri), Ai=Math.PI*ri*ri;
   const I=A*(ro*ro+ri*ri)/4, a=i.pressure*Ai/A, b=a*ro*ro;
   const coat=serviceCoating(i), coatA=Math.PI*coat.thickness*(i.od+coat.thickness);
-  const q=(A*i.steelDensity+Ai*i.fluidDensity+coatA*coat.density)*9.80665e-9;
+  const q=(A*i.steelDensity+Ai*effectiveFluidDensity(i)+coatA*coat.density)*9.80665e-9;
   return {ro,ri,A,Ai,I,EI:i.E*I,EA:i.E*A,q,a,b};
 }
 export function initialForces(i: ServiceInput,s: Scenario, p=section(i)) {

@@ -1,3 +1,4 @@
+import { FLUIDS, effectiveFluidDensity, gasProperties } from './fluid';
 import { jsPDF } from 'jspdf';
 import autoTable, { type UserOptions } from 'jspdf-autotable';
 import { planTable } from '../pdf/pdf-measure';
@@ -39,7 +40,8 @@ export function createServicePdf(r:ServiceReport,system:UnitSystem):jsPDF {
     ['Calculation',i.mode],['Steel OD / analysis thickness',`${f(i.od,'mm')} / ${f(i.thickness,'mm')}`],
     ['E / yield at operating temperature',`${f(i.E,'MPa')} / ${f(i.yield,'MPa')}`],['Poisson ratio / thermal expansion',`${i.nu} / ${f(i.alpha,'alpha')}`],
     ['Pressure / temperature (constant)',`${f(i.pressure,'pressure')} / ${f(i.temperature,'C')}`],
-    ['Steel / fluid density',`${f(i.steelDensity,'kg/m3')} / ${f(i.fluidDensity,'kg/m3')}`],
+    ['Steel / fluid density',`${f(i.steelDensity,'kg/m3')} / ${f(effectiveFluidDensity(i),'kg/m3')}`],
+    ['Fluid model',FLUIDS[i.fluidType??'custom'].label+(i.fluidType&&i.fluidType!=='custom'?`; M=${gasProperties(i).molarMass} g/mol; Z=${gasProperties(i).z}; Patm=${f(gasProperties(i).atmosphere,'pressure')}`:'; user-entered density.')],
     ['Coating / effective thickness / density',`${COATING_LABELS[i.coatingType??'custom']} / ${f(coat.thickness,'mm')} / ${f(coat.density,'kg/m3')}`],['Distributed weight',f(p.q,'N/mm')],
     ['Specified half / full length',`${f(i.halfLength/1000,'m')} / ${f(i.halfLength/500,'m')}`],
     ['Target direction / angle / amplitude',`${i.direction} / ${i.angle} deg / ${f(i.displacement,'mm')}`],
@@ -53,6 +55,7 @@ export function createServicePdf(r:ServiceReport,system:UnitSystem):jsPDF {
     ['Search coverage','25 initial samples, at most 49 evaluations + candidate recheck, 60 s budget; exploratory, no global optimum proof.'],
     ['Reference frameworks','Custom only. CSA Z662:2023 pending documentary validation. ASME and European checks unavailable.'],
   ]);
+  if(i.fluidType&&i.fluidType!=='custom')text('Gas density: rho=Pabs M/(Z R T). Z=1 assumes ideal gas; no automatic real-gas EOS. Natural gas preset assumes methane; specify mixture molar mass and operating Z.');
   table('Initial-state scenarios',['Scenario','Reference temperature','Extra axial force'],i.scenarios.map(s=>[s.name,f(s.referenceTemperature,'C'),f(s.extraAxial,'N')]));
   if(r.result){
     text(`Displayed calculation: each side ${f(r.result.halfLength/1000,'m')}; total ${f(r.result.halfLength/500,'m')}; amplitude ${f(r.result.displacement,'mm')}.`);

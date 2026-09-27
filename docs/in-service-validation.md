@@ -5,7 +5,7 @@ Branch: `codex/in-service-pipe-deflection`, based on `a303288` from
 
 ## Automated evidence
 
-- Full Vitest suite: **344 passing tests across 41 files** (317 baseline + 27 new).
+- Full Vitest suite: **350 passing tests across 43 files** (317 baseline + 33 new).
 - TypeScript: application and Node/Vite configuration pass.
 - Production build: passes; existing large-chunk and outdated Browserslist notices remain.
 - New/modified module lint: passes. Whole-repository lint remains at the baseline
@@ -61,3 +61,5 @@ PEHD remain outside this delivery. See `in-service-model.md` for equations, nume
 scope guards, sign conventions and source references.
 
 Input parity update: shared steel-grade selector and coating card; kPa/psi pressure roundtrip and preset/custom coating weight regression checks pass. Both six-page reports were regenerated and visually inspected after the input table change.
+
+Fluid selector update: dry-air and hydrogen reference densities, absolute-pressure/temperature scaling, M and Z effects, custom/legacy behavior, invalid inputs, mechanical weight equivalence and SI/imperial conversions pass. A rendered React interaction test verifies gas selection, live density recalculation and return to custom entry. Four-page gas-model PDFs and six-page custom-density PDFs were checked in both unit systems.
