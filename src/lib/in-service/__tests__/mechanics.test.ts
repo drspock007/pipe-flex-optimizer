@@ -57,8 +57,9 @@ describe('in-service reference mechanics',()=>{
     const i=input({pressure:0,displacement:20,halfLength:5000});i.scenarios.push({id:'bad',name:'Compression',referenceTemperature:20,extraAxial:-1e9});
     const r=solveCase(i);expect(r.status).toBe('unstable');expect(r.scenarios).toHaveLength(2);
   });
-  it('requires an explicit threshold and rejects impossible/overflow sections',()=>{
-    expect(validate(DEFAULT_SERVICE).length).toBeGreaterThan(0);
+  it('accepts the default threshold, rejects missing thresholds and impossible/overflow sections',()=>{
+    expect(validate(DEFAULT_SERVICE)).toEqual([]);
+    expect(validate({...DEFAULT_SERVICE,allowablePercent:NaN}).length).toBeGreaterThan(0);
     expect(runService(input({thickness:100})).result).toBeUndefined();
     expect(solveScenario(input({E:1e308}),input().scenarios[0]).status).toBe('numerical-failure');
   });

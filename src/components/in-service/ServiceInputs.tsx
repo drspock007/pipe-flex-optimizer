@@ -91,7 +91,7 @@ export function ServiceInputs({input:i,onChange}:{input:ServiceInput;onChange:(i
         {!Number.isFinite(i.allowablePercent)&&<p className="text-xs text-muted-foreground">Move the slider or enter a value to choose your threshold.</p>}
       </div>}
       {Number.isFinite(i.allowablePercent)&&<p className="text-xs">{i.allowablePercent.toFixed(2)}% · factor {(100/i.allowablePercent).toFixed(3)} · allowable {display(i.yield*i.allowablePercent/100,'MPa',system).toFixed(2)} {label('MPa',system)}</p>}
-      <p className="text-xs text-muted-foreground">Conservative Von Mises beam bound, including transverse shear. Choose a threshold; none is assumed safe by default.</p>
+      <p className="text-xs text-muted-foreground">Conservative Von Mises beam bound, including transverse shear. Default threshold: 50% of yield (safety factor 2), editable for your assessment.</p>
     </section>
     <section className="rounded-lg border bg-card p-4 space-y-3"><h2 className="font-semibold">Initial-state scenarios</h2>
       <p className="text-xs text-muted-foreground">Extra axial force: tension positive, compression negative. Excludes the pressure and thermal contributions already modeled. Zero is an explicit assumption.</p>

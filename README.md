@@ -61,8 +61,7 @@ Les PDF sont écrits dans `output/pdf/` (non versionné).
 The dedicated module is available at `/in-service` (navigation: **In-service
  deflection**) on `codex/in-service-pipe-deflection`. It supports direct calculation,
 exploratory length/displacement searches, multiple initial-state hypotheses and
-SI/imperial PDF reports. An explicit custom allowable percentage or safety factor
-is required before calculation. No normative compliance verdict is implemented.
+SI/imperial PDF reports. The custom allowable defaults to 50% of yield (safety factor 2) and remains editable. No normative compliance verdict is implemented.
 
 Read [the model and conventions](docs/in-service-model.md) and
 [validation evidence](docs/in-service-validation.md). Steel only, temporary movement;

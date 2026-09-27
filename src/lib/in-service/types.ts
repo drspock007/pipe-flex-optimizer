@@ -22,7 +22,7 @@ export const DEFAULT_SERVICE: ServiceInput = {
   od: 168.3, thickness: 7.11, E: 207000, yield: 359, nu: 0.3, alpha: 12e-6,
   steelDensity: 7850, fluidDensity: 40, fluidType: 'custom', coatingType: 'none', coatingThickness: 0, coatingDensity: 950,
   pressure: 2, temperature: 20, halfLength: 10000, direction: 'vertical', angle: 90,
-  displacement: 200, allowablePercent: NaN, mode: 'direct',
+  displacement: 200, allowablePercent: 50, mode: 'direct',
   minHalfLength: 1000, maxHalfLength: 50000, maxDisplacement: 500,
   scenarios: [{ id: 'base', name: 'Initial-state hypothesis 1', referenceTemperature: 20, extraAxial: 0 }],
 };
