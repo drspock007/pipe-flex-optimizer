@@ -54,12 +54,15 @@ const Index = () => {
             Pipe Lowering Analysis &amp; Stress Calculator
           </h1>
 
-          <div className="rounded-lg border bg-muted/50 px-4 py-3 text-xs text-muted-foreground leading-relaxed">
+          <div className="rounded-lg border bg-muted/50 px-4 py-3 text-xs text-muted-foreground leading-relaxed space-y-2">
             <p>
-              This calculation applies, for example, to a <strong>trench lowering-in with sidebooms</strong>.
-              The vertical offset <strong>h<sub>v</sub></strong> represents the trench depth plus the pipe lifting height from ground level (positive when the right end is higher); <strong>h<sub>l</sub></strong> is an optional lateral (horizontal) offset of the right end.
-              The length <strong>L</strong> is the distance from the last sideboom to the point where the pipe contacts the trench bottom.
-              Additional sideboom(s) may be positioned in between if intermediate support(s) are required.
+              Analyze <strong>pipe lowering into a trench with sidebooms</strong> using four modes: <strong>Fixed L</strong> checks a specified length, <strong>Find L range</strong> searches admissible lengths, <strong>Min. supports</strong> searches the smallest support count, and <strong>Find h</strong> searches admissible vertical end offsets.
+            </p>
+            <p>
+              <strong>L</strong> is the span along the x-axis between the fixed ends; <strong>h<sub>v</sub></strong> and <strong>h<sub>l</sub></strong> are the vertical and lateral offsets of the right end, with h<sub>v</sub> positive upwards. Add up to <strong>20 equally spaced vertical supports</strong> that carry load only when in contact, and optionally enable <strong>rigid, horizontal, frictionless ground contact</strong> at the specified minimum pipe-axis elevation.
+            </p>
+            <p>
+              All four modes support <strong>free axial sliding</strong> (bending stress) or <strong>axial restraint</strong> (coupled axial tension and bending; combined normal stress governs), with or without ground contact. Searches with ground or axial restraint are <strong>exploratory</strong>: coverage is not certified, and a support count above zero is not certified minimal. Review numerical validity and model limits alongside the stress verdict; physical validity is not assessed. Results and PDF reports are available in <strong>SI or imperial units</strong>.
             </p>
           </div>
           <PipeSchematicSVG />
