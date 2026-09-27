@@ -1,14 +1,16 @@
+import { validateSupports, type SupportLayout, type SupportContact } from './supports';
 import { effectiveFluidDensity, validateFluid, type FluidType } from './fluid';
 import { effectiveCoating, COATING_LABELS, type CoatingType } from '../coating-presets';
 import { findNpsByOd } from '../pipe-presets';
-export const MODEL_VERSION = 'in-service-steel-1';
+export const MODEL_VERSION = 'in-service-steel-2';
 export type Direction = 'vertical' | 'horizontal' | 'combined';
-export type Mode = 'direct' | 'length' | 'displacement';
+export type Mode = 'direct' | 'length' | 'displacement' | 'supports';
 export interface Scenario { id: string; name: string; referenceTemperature: number; extraAxial: number }
 /** All lengths mm; forces N; stress and E MPa; temperatures C. */
 export interface ServiceInput {
   od: number; thickness: number; E: number; yield: number; nu: number; alpha: number;
   steelDensity: number; fluidDensity: number; coatingThickness: number; coatingDensity: number;
+  supports?: SupportLayout; maxSupports?: number;
   coatingType?: CoatingType;
   fluidType?: FluidType; gasMolarMass?: number; gasZ?: number; atmosphericPressure?: number;
   pressure: number; temperature: number; halfLength: number;
@@ -28,6 +30,7 @@ export interface Section { ro: number; ri: number; A: number; Ai: number; I: num
 export type Status = 'pass' | 'fail' | 'unstable' | 'out-of-domain' | 'numerical-failure' | 'uncertain' | 'invalid';
 export interface ShapePoint { x: number; z: number; y: number }
 export interface Stage {
+  supports?: SupportContact[]; contactIterations?: number;
   phase: 'initial' | 'excavation' | 'displacement' | 'return' | 'restoration'; fraction: number;
   vm: number; normalVm: number; x: number; shearX: number; element: [number, number];
   N: number; wall: number; midZ: number; midY: number; forceZ: number; forceY: number;
@@ -35,13 +38,13 @@ export interface Stage {
   leftMz: number; rightMz: number; leftMy: number; rightMy: number;
   maxSlope: number; residual: number; shape: ShapePoint[];
 }
-export interface Refinement { elements: number; increments: number; vm: number; maxForce: number; sag: number; change: number }
+export interface Refinement { supportReactions?:number[]; supportGaps?:number[]; contactEventsResolved?:boolean; elements: number; increments: number; vm: number; maxForce: number; sag: number; change: number }
 export interface ScenarioResult {
   scenario: Scenario; status: Status; message: string; N0: number; wall0: number; criticalLoad: number;
   worst?: Stage; excavated?: Stage; target?: Stage; stages: Stage[]; refinement: Refinement[];
   stressUncertainty: number; utilization?: number;
 }
-export interface CaseResult { halfLength: number; displacement: number; status: Status; scenarios: ScenarioResult[]; governing?: string }
+export interface CaseResult { halfLength: number; displacement: number; status: Status; scenarios: ScenarioResult[]; supportPositions?:number[]; governing?: string }
 export interface SearchSample { value: number; status: Status; maxUtilization: number | null }
 export interface ServiceReport {
   version: string; createdAt: string; input: ServiceInput; errors: string[];
@@ -49,9 +52,9 @@ export interface ServiceReport {
   boundReached: boolean; message: string; elapsedMs: number;
 }
 export function validate(i: ServiceInput): string[] {
-  const errors: string[] = validateFluid(i);
+  const errors: string[] = [...validateFluid(i),...validateSupports(i)];
   if (i.coatingType!==undefined && !Object.prototype.hasOwnProperty.call(COATING_LABELS,i.coatingType)) errors.push('Unknown coating type.');
-  const nums = Object.entries(i).filter(([k]) => !['scenarios', 'mode', 'direction', 'coatingType', 'fluidType', 'fluidDensity', 'gasMolarMass', 'gasZ', 'atmosphericPressure'].includes(k));
+  const nums = Object.entries(i).filter(([k]) => !['scenarios', 'mode', 'direction', 'coatingType', 'fluidType', 'fluidDensity', 'gasMolarMass', 'gasZ', 'atmosphericPressure', 'supports', 'maxSupports'].includes(k));
   if (nums.some(([,v]) => typeof v !== 'number' || !Number.isFinite(v))) errors.push('Enter finite values, including an explicit custom allowable percentage.');
   if (!(i.od > 0 && i.thickness > 0 && 2*i.thickness < i.od)) errors.push('Require 0 < 2t < outside diameter.');
   if (!(i.E > 0 && i.yield > 0 && i.nu >= 0 && i.nu < 0.5 && i.alpha >= 0)) errors.push('Invalid elastic steel properties.');
@@ -59,7 +62,7 @@ export function validate(i: ServiceInput): string[] {
   if (!(i.halfLength > 0 && i.minHalfLength > 0 && i.maxHalfLength > i.minHalfLength)) errors.push('Require positive length and increasing search bounds.');
   if (i.mode==='displacement' && !(i.maxDisplacement>0)) errors.push('Displacement search requires a positive upper amplitude bound.');
   if (!(i.allowablePercent > 0 && i.allowablePercent <= 100)) errors.push('Elastic custom threshold must be above 0 and at most 100% of yield.');
-  if (!['direct','length','displacement'].includes(i.mode) || !['vertical','horizontal','combined'].includes(i.direction)) errors.push('Unknown calculation mode or direction.');
+  if (!['direct','length','displacement','supports'].includes(i.mode) || !['vertical','horizontal','combined'].includes(i.direction)) errors.push('Unknown calculation mode or direction.');
   if (!i.scenarios.length || i.scenarios.length > 12) errors.push('Provide 1 to 12 scenarios.');
   if (new Set(i.scenarios.map(s => s.id)).size !== i.scenarios.length) errors.push('Scenario identifiers must be unique.');
   if (i.scenarios.some(s => !s.name.trim() || !Number.isFinite(s.referenceTemperature) || !Number.isFinite(s.extraAxial))) errors.push('Each scenario needs a name, reference temperature and finite extra axial force.');

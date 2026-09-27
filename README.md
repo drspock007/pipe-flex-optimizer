@@ -78,3 +78,17 @@ bun run scripts/check-service-report.ts
 
 Reference PDFs and the full calculation snapshot are generated under `output/pdf/`
 (ignored). The previous lowering module and its numerical budgets are unchanged.
+
+### Temporary supports (in-service model 2)
+
+Choose **Temporary supports**: none, equidistant pairs (2–20), or custom positions.
+Supports act upward only and allow lift-off and free horizontal/axial sliding.
+**Find support count** checks 0, 2, 4… with a single global budget. Custom positions
+scale with total length during length searches. The middle is reserved for the actuator.
+Use **Displayed intervention stage** to inspect contact, reaction and gap through
+the path; the PDF includes that selection, support maxima and path diagnostics.
+Support capacity and local bearing are not verified; lateral instability remains checked.
+
+Reproduce the 40 m excavation / 150 mm lift support-search example and both PDFs:
+`./node_modules/.bin/vite-node scripts/check-service-support-report.ts` (or
+`bun run scripts/check-service-support-report.ts`).

@@ -1,4 +1,4 @@
-# Temporary in-service steel pipe deflection (model 1)
+# Temporary in-service steel pipe deflection (model 2)
 
 This separate module does not change mechanics-v2. Units in its public request and
 solver are mm, N, MPa, degrees C, kg/m3. Full excavated length D = 2 * halfLength.
@@ -60,7 +60,7 @@ ovalization, defects, weld concentration, fatigue or soil failure assessment.
 ## Loading path and verification
 
 Initially soil balances weight. Release it uniformly: 0..100% unsupported weight.
-After the free sag state, engage the central actuator at its current coordinates.
+After the excavated state (free sag without supports), engage the central actuator at its current coordinates.
 Ramp controlled components to the target measured from the original straight axis.
 Vertical mode leaves lateral displacement free; horizontal mode leaves vertical
 free; combined mode controls both. The reverse path is identical in this elastic,
@@ -90,3 +90,52 @@ Custom density remains the default and is preserved for legacy inputs. The gas s
 `rho = (p_gauge + p_atmosphere) * 1e6 * (M / 1000) / (Z R (T_C + 273.15))`, with internal pressures MPa, M in g/mol, R=8.31446261815324 J/(mol K), result kg/m3.
 Atmospheric pressure defaults to 0.101325 MPa and is editable; it is used for gas density only, while wall-force mechanics continue to use gauge pressure. Molar mass defaults: dry air 28.97, hydrogen 2.01588, natural gas 16.04246 (explicit pure-methane approximation, not a universal gas composition). M and Z are editable. Z defaults to 1: ideal gas, not an automatic real-gas equation of state or phase check. Users must supply mixture M and operating Z, or a known custom density, when this approximation is unsuitable. Invalid absolute temperature, nonpositive parameters and nonfinite derived density block calculation. Inactive gas fields do not invalidate custom-density mode.
 Sources: [NASA equation of state](https://www1.grc.nasa.gov/beginners-guide-to-aeronautics/equation-of-state/), [NIST hydrogen](https://webbook.nist.gov/cgi/cbook.cgi?Name=H2), [NIST natural gas composition example](https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=910034). Gas composition dependence is explicit; no reference-property solver is claimed.
+
+## Temporary unilateral supports (model 2)
+
+Inputs add an optional `supports` layout (`none`, `equidistant` with even count
+2..20, or `custom` with 1..20 fractions x/D) and `maxSupports` (even 0..20,
+default 10). Missing layout means no supports. Endpoints, duplicates and the
+central actuator position are excluded. Custom positions can be asymmetric;
+length searches preserve x/D. Count search tests 0,2,... in order and recomputes
+the first passing candidate for every scenario within ONE existing 60 s budget.
+It claims the smallest verified count in this family only; unresolved smaller
+counts are explicitly retained. Support strength is not an acceptance criterion.
+
+Each support is a fixed horizontal frictionless point obstacle at z=0 (pipe axis
+reference, no additional radius offset). Gap z>=0, upward reaction R>=0, R*z=0.
+It does not restrain y, axial sliding, or rotations. The contact surface is assumed
+wide enough for lateral motion; local contact stress, capacity and settlement
+are excluded. The full-span initial Euler screen remains necessary because the
+lateral plane is free during excavation. No postbuckling or actuator stabilization
+is introduced.
+
+Use the existing 16/32/64/128 base grids plus exact support nodes. Nonuniform
+Hermite element lengths are used in assembly, compatibility integration, force
+and stress recovery. Spacing below 1e-9*max(1,D) mm is unresolved, never snapped
+to another physical support. For each trial effective force, an active-set vertical
+solve removes the most tensile constraint or admits the deepest penetration.
+Warm start from previous solves; detect repeated active sets or 200-iteration
+limit and report numerical failure. Require gap tolerance 1e-8*max(1 mm, imposed
+vertical displacement magnitude, nodal vertical displacement magnitudes) and force
+tolerance 1e-8*max(1 N, qD, vertical nodal residual magnitudes). Small negative
+reactions within tolerance are reported as zero. Gap and reaction near zero are
+labelled contact limit, without insisting on a unique active-set membership.
+These tolerances do not relax the existing equilibrium or axial tolerances.
+
+The initial soil reaction uniformly balances weight. Supports are in place before
+release: uniform weight transfer to the pipe/support system, central actuation,
+reverse elastic path with recontact, then uniform soil restoration. Support locations
+never move. This is not a moving excavation front. With fixed obstacles, no friction,
+and the retained positive-stiffness branch, return retraces the converged outgoing
+states (including contact events), then the excavation states. No hysteresis or
+impact dynamics is modeled.
+
+Bisect sampled intervals whose non-limit contact states differ until interval
+width <=1/(64*base increments). Stop at depth 8; an unresolved event prevents a
+pass. This localizes observed changes, not a proof that unsampled events cannot
+exist. Global mesh/path refinement remains required twice at <=0.5%; add per-support
+reaction and gap envelopes, plus reactions/gaps at common path samples, with the existing 1 N and 0.01 mm absolute floors.
+Stages carry support positions, reactions, gaps, contact state and iteration count;
+reports expose selected stage, path diagnostics and maxima. Support reaction
+maxima are loads for separate support design, not a capacity approval.

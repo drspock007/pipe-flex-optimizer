@@ -45,4 +45,22 @@ describe('service exploratory searches',()=>{
     const r=runService({...input(),mode:'length'});
     expect(r.budgetExhausted).toBe(true);expect(r.candidate).toBeUndefined();expect(r.samples[0].status).toBe('numerical-failure');
   });
+  it('searches support pairs in order, retains unresolved counts and rechecks all scenarios',()=>{
+    const spy=vi.spyOn(solver,'solveCase').mockImplementation(i=>{
+      const count=i.supports?.kind==='equidistant'?i.supports.count:0;
+      return {halfLength:i.halfLength,displacement:i.displacement,scenarios:[],status:count===0?'uncertain':count===2?'fail':'pass'};
+    });
+    const r=runService({...input(),mode:'supports',maxSupports:8});
+    expect(r.samples.map(s=>s.value)).toEqual([0,2,4]);expect(r.candidate).toBe(4);
+    expect(r.message).toContain('minimality is not established');
+    expect(spy.mock.calls.map(([i])=>i.supports.kind==='equidistant'?i.supports.count:0)).toEqual([0,2,4,4]);
+  });
+  it('rejects a failed support recheck and preserves one global support-search budget',()=>{
+    const spy=vi.spyOn(solver,'solveCase').mockReturnValueOnce({halfLength:10000,displacement:100,status:'pass',scenarios:[]}).mockReturnValue({halfLength:10000,displacement:100,status:'numerical-failure',scenarios:[]});
+    expect(runService({...input(),mode:'supports'}).candidate).toBeUndefined();spy.mockRestore();
+    vi.spyOn(performance,'now').mockReturnValueOnce(0).mockReturnValue(61000);
+    const r=runService({...input(),mode:'supports'});
+    expect(r.samples).toHaveLength(1);expect(r.budgetExhausted).toBe(true);expect(r.candidate).toBeUndefined();
+  });
+
 });

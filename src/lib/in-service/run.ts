@@ -8,6 +8,27 @@ export function runService(input:ServiceInput,onProgress?:(message:string)=>void
   const check=()=>{if(performance.now()-start>SEARCH_MS) {r.budgetExhausted=true;throw new Error('Calculation time budget exhausted; unresolved result.');}};
   if(input.mode==='direct') {
     r.result=solveCase(input,check);r.message='Direct calculation. Custom elastic beam criterion only.';
+  } else if(input.mode==='supports') {
+    let firstCase:CaseResult|undefined;
+    for(let count=0;count<=(input.maxSupports??10)&&!r.budgetExhausted;count+=2) {
+      onProgress?.(`Checking ${count} equidistant supports across all scenarios`);
+      const candidateInput:ServiceInput={...input,mode:'direct',supports:count?{kind:'equidistant',count}:{kind:'none'}};
+      const c=solveCase(candidateInput,check);firstCase??=c;
+      const usages=c.scenarios.flatMap(s=>s.utilization===undefined?[]:[s.utilization]).filter(Number.isFinite);
+      r.samples.push({value:count,status:c.status,maxUtilization:usages.length?Math.max(...usages):null});
+      if(c.status==='pass'&&!r.budgetExhausted) {
+        onProgress?.('Rechecking support candidate across all scenarios');
+        r.result=solveCase(candidateInput,check);
+        if(r.result.status==='pass'&&!r.budgetExhausted)r.candidate=count;
+        break;
+      }
+    }
+    r.result??=firstCase;
+    r.boundReached=r.candidate===(input.maxSupports??10);
+    const unresolved=r.samples.some(s=>s.value<(r.candidate??Infinity)&&!['pass','fail'].includes(s.status));
+    r.message=r.candidate===undefined?'No support count verified within the tested family.':`Smallest verified count in the tested equidistant family: ${r.candidate} supports. Not a general optimum.`;
+    if(unresolved)r.message+=' Lower counts include unresolved or out-of-scope cases; minimality is not established.';
+    if(r.budgetExhausted)r.message+=' Global time budget exhausted; incomplete coverage.';
   } else {
     const isLength=input.mode==='length',lo=isLength?input.minHalfLength:0,hi=isLength?input.maxHalfLength:input.maxDisplacement;
     const values=Array.from({length:25},(_,k)=>isLength?lo*Math.pow(hi/lo,k/24):lo+(hi-lo)*k/24);

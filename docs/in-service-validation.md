@@ -5,7 +5,7 @@ Branch: `codex/in-service-pipe-deflection`, based on `a303288` from
 
 ## Automated evidence
 
-- Full Vitest suite: **350 passing tests across 43 files** (317 baseline + 33 new).
+- Full Vitest suite: **362 passing tests across 45 files** (317 baseline + 45 new).
 - TypeScript: application and Node/Vite configuration pass.
 - Production build: passes; existing large-chunk and outdated Browserslist notices remain.
 - New/modified module lint: passes. Whole-repository lint remains at the baseline
@@ -63,3 +63,30 @@ scope guards, sign conventions and source references.
 Input parity update: shared steel-grade selector and coating card; kPa/psi pressure roundtrip and preset/custom coating weight regression checks pass. Both six-page reports were regenerated and visually inspected after the input table change.
 
 Fluid selector update: dry-air and hydrogen reference densities, absolute-pressure/temperature scaling, M and Z effects, custom/legacy behavior, invalid inputs, mechanical weight equivalence and SI/imperial conversions pass. A rendered React interaction test verifies gas selection, live density recalculation and return to custom entry. Four-page gas-model PDFs and six-page custom-density PDFs were checked in both unit systems.
+
+## Temporary supports — model 2
+
+Analytical reference: three equal spans with rigid vertical intermediate supports
+and fixed external ends under uniform load, linear N=0. Equal span length l=D/3:
+intermediate reactions q*l, clamp reactions q*l/2, middle sag -q*l^4/(384*EI),
+clamp moment magnitude q*l^2/12. Verified independently of nonlinear compatibility
+by setting EA=0 in the isolated solver benchmark only (physical input validation
+still requires positive stiffness). Asymmetric supports verify full force/moment
+balance and complementarity. Further checks cover detached reactions, recontact,
+reflection symmetry, event localization, free horizontal motion, retained lateral
+Euler rejection, exact no-support regression, spacing failure, UI custom-position
+scaling, final-recheck failures and the single count-search budget.
+
+Reproducible example in scripts/check-service-support-report.ts: NPS 8, t=8.18 mm,
+40 m total, p=2900 kPa, T=Tref=10 C, natural gas with methane M and Z=1, Yellow Jacket,
+40% of 359 MPa, target +150 mm. Zero supports fails at 174.224 MPa during excavation;
+two supports at 13.333 and 26.667 m pass the custom model criterion at 108.608 MPa
+(75.63% utilization), governing at target. This is a model example, not a support
+capacity or field-method approval. The seven-page SI and imperial PDFs were rendered
+and every page checked (including continuation tables and footer).
+
+Browser checks in a dedicated local tab verify a two-support direct case and the 40 m support-count search (two supports), SI/imperial conversion without rerunning, and selection
+of excavation vs target and corresponding reactions/contact states. No external FE
+or field validation is claimed. Contact changes are localized where sampled states
+change; unsampled events are not mathematically excluded. Return is the reversible
+outgoing path, appropriate only to the documented elastic frictionless assumptions.

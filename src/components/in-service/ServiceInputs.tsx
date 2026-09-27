@@ -56,13 +56,29 @@ export function ServiceInputs({input:i,onChange}:{input:ServiceInput;onChange:(i
     </section>
     <CoatingCard coatingType={i.coatingType??'custom'} coatingThickness={i.coatingThickness} coatingDensity={i.coatingDensity} Do={i.od} nps={nps} onChange={(field,value)=>onChange({...i,[field]:value})}/>
     <section className="rounded-lg border bg-card p-4 space-y-3"><h2 className="font-semibold">Excavation & movement</h2>
-      <label className="block text-xs">Calculation<select aria-label="Calculation" className={selectClass} value={i.mode} onChange={e=>update('mode',e.target.value as Mode)}><option value="direct">Direct calculation</option><option value="length">Find excavated length</option><option value="displacement">Find displacement</option></select></label>
+      <label className="block text-xs">Calculation<select aria-label="Calculation" className={selectClass} value={i.mode} onChange={e=>update('mode',e.target.value as Mode)}><option value="direct">Direct calculation</option><option value="length">Find excavated length</option><option value="displacement">Find displacement</option><option value="supports">Find support count</option></select></label>
       {i.mode!=='length'&&<><Field title="Length on each side" value={i.halfLength/1000} unit="m" onChange={v=>update('halfLength',v*1000)}/><p className="text-xs">Total: {Number(display(i.halfLength*2/1000,'m',system).toFixed(3))} {label('m',system)}</p></>}
       {i.mode==='length'&&<div className="grid grid-cols-2 gap-3"><Field title="Min. length each side" value={i.minHalfLength/1000} unit="m" onChange={v=>update('minHalfLength',v*1000)}/><Field title="Max. length each side" value={i.maxHalfLength/1000} unit="m" onChange={v=>update('maxHalfLength',v*1000)}/></div>}
       <label className="block text-xs">Direction<select aria-label="Direction" className={selectClass} value={i.direction} onChange={e=>onChange({...i,direction:e.target.value as Direction,angle:e.target.value==='combined'?45:90})}><option value="vertical">Vertical (lateral free)</option><option value="horizontal">Horizontal (vertical free)</option><option value="combined">Combined (both controlled)</option></select></label>
       {i.direction==='combined'?f('angle','Direction angle (degrees, horizontal = 0, up = 90)'):<label className="block text-xs">Sense<select aria-label="Sense" className={selectClass} value={i.angle<0?'-1':'1'} onChange={e=>update('angle',Number(e.target.value)*90)}><option value="1">{i.direction==='vertical'?'Up':'Positive lateral'}</option><option value="-1">{i.direction==='vertical'?'Down':'Negative lateral'}</option></select></label>}
       {i.mode==='displacement'?f('maxDisplacement','Search amplitude upper bound','mm'):f('displacement','Target amplitude','mm')}
       <p className="text-xs text-muted-foreground">Targets are measured from the original straight axis. An unconstrained component remains free. The return path retraces the movement, then restores support.</p>
+    </section>
+    <section className="rounded-lg border bg-card p-4 space-y-3"><h2 className="font-semibold">Temporary supports</h2>
+      {i.mode==='supports'?<>
+        <Field title="Support search ceiling (even, 0–20)" value={i.maxSupports??10} onChange={v=>update('maxSupports',v)}/>
+        <p className="text-xs">Test 0, 2, 4… equidistant supports. Length and target amplitude stay fixed. The centre is reserved for the actuator.</p>
+      </>:<>
+        <label className="block text-xs">Layout<select aria-label="Support layout" className={selectClass} value={i.supports?.kind??'none'} onChange={e=>update('supports',e.target.value==='none'?{kind:'none'}:e.target.value==='equidistant'?{kind:'equidistant',count:2}:{kind:'custom',fractions:[0.25,0.75]})}><option value="none">No supports</option><option value="equidistant">Equidistant pairs</option><option value="custom">Custom positions</option></select></label>
+        {i.supports?.kind==='equidistant'&&<Field title="Number of supports (even, 2–20)" value={i.supports.count} onChange={count=>update('supports',{kind:'equidistant',count})}/>}
+        {i.supports?.kind==='custom'&&<>
+          {i.mode==='length'&&<Field title="Layout reference length on each side" value={i.halfLength/1000} unit="m" onChange={v=>update('halfLength',v*1000)}/>}
+          {i.supports.fractions.map((fraction,j)=><div key={j} className="flex items-end gap-2"><Field title={`Support ${j+1} from left end`} value={fraction*2*i.halfLength/1000} unit="m" onChange={v=>{if(i.supports.kind==='custom')update('supports',{kind:'custom',fractions:i.supports.fractions.map((x,k)=>k===j?v*1000/(2*i.halfLength):x)});}}/><Button size="sm" variant="ghost" onClick={()=>{if(i.supports.kind==='custom')update('supports',{kind:'custom',fractions:i.supports.fractions.filter((_,k)=>k!==j)});}}>Remove</Button></div>)}
+          <Button variant="outline" disabled={i.supports.fractions.length>=20} onClick={()=>{if(i.supports.kind==='custom'){const used=i.supports.fractions;const next=Array.from({length:41},(_,j)=>(j+1)/42).find(x=>x!==0.5&&!used.includes(x));update('supports',{kind:'custom',fractions:[...used,next]});}}}>Add support</Button>
+          <p className="text-xs">Positions exclude both clamps and the central actuator. Length changes preserve x / total length, including during Find excavated length.</p>
+        </>}
+      </>}
+      <p className="text-xs text-muted-foreground">Fixed, rigid, frictionless supports at the original pipe level. Vertical upward reaction only; lift-off, axial and horizontal sliding are free. Supports are installed before local soil release. No lateral stability restraint or support-capacity check.</p>
     </section>
     <section className="rounded-lg border bg-card p-4 space-y-3"><h2 className="font-semibold">Custom criterion</h2>
       <label className="block text-xs">Threshold format<select aria-label="Threshold format" className={selectClass} value={thresholdMode} onChange={e=>setThresholdMode(e.target.value)}><option value="percent">Percentage of yield</option><option value="factor">Safety factor</option></select></label>

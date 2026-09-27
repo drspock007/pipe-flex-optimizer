@@ -1,22 +1,28 @@
+import { supportMesh, type SupportContact } from './supports';
 import { BandMatrix, bandFactor } from '../mechanics-v2/banded';
 import { elementMatrixN, endActionsN, slopeSquared, hermiteAt, hermiteCoeffs, momentCoeffsN } from '../mechanics-v2/restrained-element';
 import { polyAdd, polyMul, polyEval, polyDeriv, extremaCandidates } from '../mechanics-v2/poly-roots';
 import type { Section, Stage } from './types';
 
-interface Plane { d: number[]; res: number[] }
-function plane(EI: number, N: number, q: number, D: number, n: number, middle: number|null): Plane {
-  const nd=2*(n+1), l=D/n, d=new Array<number>(nd).fill(0);
+interface Plane { d: number[]; res: number[]; contacts?:SupportContact[]; contactIterations?:number }
+function plane(EI: number, N: number, q: number, D: number, n: number, middle: number|null, mesh?:number[], active:number[]=[]): Plane {
+  const nd=2*(n+1), mid=mesh?2*mesh.indexOf(D/2):n, d=new Array<number>(nd).fill(0);
   const fixed=new Set([0,1,nd-2,nd-1]);
-  if(middle!==null) { fixed.add(n); d[n]=middle; }
+  active.forEach(j=>fixed.add(2*j));
+  if(middle!==null) { fixed.add(mid); d[mid]=middle; }
   const map=new Int32Array(nd).fill(-1), free:number[]=[];
   for(let j=0;j<nd;j++) if(!fixed.has(j)) {map[j]=free.length; free.push(j);}
-  const K=new BandMatrix(free.length,3), ke=elementMatrixN(EI,N,l);
-  for(let e=0;e<n;e++) for(let a=0;a<4;a++) for(let b=a;b<4;b++) {
-    const j=map[2*e+a], k=map[2*e+b]; if(j>=0&&k>=0) K.add(j,k,ke[a][b]);
+  const length=(e:number)=>mesh?mesh[e+1]-mesh[e]:D/n;
+  const K=new BandMatrix(free.length,3);
+  for(let e=0;e<n;e++) {
+    const ke=elementMatrixN(EI,N,length(e));
+    for(let a=0;a<4;a++) for(let b=a;b<4;b++) {
+      const j=map[2*e+a], k=map[2*e+b]; if(j>=0&&k>=0) K.add(j,k,ke[a][b]);
+    }
   }
   const residual=() => {
     const r=new Array<number>(nd).fill(0);
-    for(let e=0;e<n;e++) endActionsN(EI,N,q,l,d.slice(2*e,2*e+4)).forEach((v,j)=>r[2*e+j]+=v);
+    for(let e=0;e<n;e++) endActionsN(EI,N,q,length(e),d.slice(2*e,2*e+4)).forEach((v,j)=>r[2*e+j]+=v);
     return r;
   };
   const solve=bandFactor(K);
@@ -30,22 +36,46 @@ function plane(EI: number, N: number, q: number, D: number, n: number, middle: n
   if(!Number.isFinite(freeResidual) || freeResidual>1e-7*forceScale) throw new Error('Free-DOF equilibrium residual exceeds tolerance.');
   return {d,res};
 }
-export interface BeamState { N:number; z:Plane; y:Plane; compatibility:number; iterations:number }
-export function solveBeam(p:Section,D:number,n:number,N0:number,q:number,z:number|null,y:number|null,check=()=>{}):BeamState {
+/** Primal/dual active set for vertical point obstacles, on the positive stiffness branch. */
+function contactPlane(EI:number,N:number,q:number,D:number,mesh:number[],middle:number|null,supportNodes:number[],seed:Set<number>,check:()=>void):Plane {
+  const active=new Set(seed),seen=new Set<string>();
+  for(let iteration=0;iteration<200;iteration++) {
+    check();const key=[...active].sort((a,b)=>a-b).join(',');
+    if(seen.has(key))throw new Error('Support contact active-set cycle; unresolved.');seen.add(key);
+    const out=plane(EI,N,q,D,mesh.length-1,middle,mesh,[...active]);
+    const dispScale=Math.max(1,Math.abs(middle??0),...out.d.filter((_,j)=>j%2===0).map(Math.abs));
+    const forceScale=Math.max(1,Math.abs(q*D),...out.res.filter((_,j)=>j%2===0).map(Math.abs));
+    const gapTol=1e-8*dispScale,forceTol=1e-8*forceScale;
+    // Remove a tensile constraint first, then admit the deepest penetrating free support.
+    const tensile=[...active].filter(j=>out.res[2*j]<-forceTol).sort((a,b)=>out.res[2*a]-out.res[2*b]);
+    if(tensile.length){active.delete(tensile[0]);continue;}
+    const penetrating=supportNodes.filter(j=>!active.has(j)&&out.d[2*j]<-gapTol).sort((a,b)=>out.d[2*a]-out.d[2*b]);
+    if(penetrating.length){active.add(penetrating[0]);continue;}
+    seed.clear();active.forEach(j=>seed.add(j));
+    out.contacts=supportNodes.map(j=>({x:mesh[j],gap:out.d[2*j],reaction:active.has(j)?Math.max(0,out.res[2*j]):0,
+      state:out.d[2*j]>gapTol?'detached':out.res[2*j]>forceTol?'contact':'limit'}));
+    out.contactIterations=iteration+1;return out;
+  }
+  throw new Error('Support contact did not converge in 200 iterations.');
+}
+export interface BeamState { N:number; z:Plane; y:Plane; compatibility:number; iterations:number; mesh?:number[] }
+export function solveBeam(p:Section,D:number,n:number,N0:number,q:number,z:number|null,y:number|null,check=()=>{},fractions:number[]=[],contactSeed=new Set<number>()):BeamState {
   if(n%2 || n<4) throw new Error('Beam mesh requires an even element count >=4.');
-  const c=p.EA/(2*D), l=D/n;
+  const mesh=fractions.length?supportMesh(D,n,fractions):undefined;
+  const count=mesh?mesh.length-1:n, supportNodes=fractions.map(f=>mesh?.indexOf(f*D)??-1);
+  const c=p.EA/(2*D);
   const evaluate=(N:number) => {
     check();
-    const vz=plane(p.EI,N,q,D,n,z), vy=plane(p.EI,N,0,D,n,y);
+    const vz=mesh?contactPlane(p.EI,N,q,D,mesh,z,supportNodes,contactSeed,check):plane(p.EI,N,q,D,n,z), vy=plane(p.EI,N,0,D,count,y,mesh);
     let S=0;
-    for(let e=0;e<n;e++) S+=slopeSquared(l,vz.d.slice(2*e,2*e+4))+slopeSquared(l,vy.d.slice(2*e,2*e+4));
+    for(let e=0;e<count;e++) {const l=mesh?mesh[e+1]-mesh[e]:D/n;S+=slopeSquared(l,vz.d.slice(2*e,2*e+4))+slopeSquared(l,vy.d.slice(2*e,2*e+4));}
     const geometric=c*S, h=N-N0-geometric;
     if(![S,N,h].every(Number.isFinite)||S<0) throw new Error('Non-finite axial compatibility.');
     return {N,z:vz,y:vy,h,geometric};
   };
   let lo=evaluate(N0), hi=evaluate(N0+lo.geometric), iterations=2;
   const tolerance=1e-8*Math.max(1,Math.abs(N0),hi.N-lo.N);
-  const out=(v:ReturnType<typeof evaluate>):BeamState=>({N:v.N,z:v.z,y:v.y,compatibility:Math.abs(v.h),iterations});
+  const out=(v:ReturnType<typeof evaluate>):BeamState=>({N:v.N,z:v.z,y:v.y,compatibility:Math.abs(v.h),iterations,mesh});
   if(Math.abs(lo.h)<=tolerance) return out(lo);
   if(Math.abs(hi.h)<=tolerance) return out(hi);
   if(!(lo.h<0 && hi.h>=0)) throw new Error('Could not establish axial compatibility bracket.');
@@ -73,23 +103,26 @@ export function stressBound(p:Section, wall:number, moment:number, shear:number)
   return {normal,vm:Math.hypot(normal,Math.sqrt(3)*tau)};
 }
 export function recover(p:Section,D:number,n:number,pressure:number,q:number,b:BeamState,phase:Stage['phase'],fraction:number):Stage {
-  const wall=b.N+pressure*p.Ai, l=D/n;
+  const wall=b.N+pressure*p.Ai, mesh=b.mesh, mid=mesh?2*mesh.indexOf(D/2):n;
+  if(mesh)n=mesh.length-1;
+  const firstLength=mesh?mesh[1]:D/n;
   const base=stressBound(p,wall,0,0);
-  const out:Stage={phase,fraction,vm:base.vm,normalVm:base.normal,x:0,shearX:0,element:[0,l],N:b.N,wall,
-    midZ:b.z.d[n],midY:b.y.d[n],forceZ:b.z.res[n],forceY:b.y.res[n],
+  const out:Stage={phase,fraction,vm:base.vm,normalVm:base.normal,x:0,shearX:0,element:[0,firstLength],N:b.N,wall,
+    midZ:b.z.d[mid],midY:b.y.d[mid],forceZ:b.z.res[mid],forceY:b.y.res[mid],
     leftZ:b.z.res[0],rightZ:b.z.res[2*n],leftY:b.y.res[0],rightY:b.y.res[2*n],
     leftMz:b.z.res[1],rightMz:b.z.res[2*n+1],leftMy:b.y.res[1],rightMy:b.y.res[2*n+1],
-    maxSlope:0,residual:b.compatibility,shape:[]};
+    maxSlope:0,residual:b.compatibility,shape:[],supports:b.z.contacts,contactIterations:b.z.contactIterations};
   for(let e=0;e<n;e++) {
+    const l=mesh?mesh[e+1]-mesh[e]:D/n, x0=mesh?mesh[e]:e*l;
     const dz=b.z.d.slice(2*e,2*e+4),dy=b.y.d.slice(2*e,2*e+4);
     const az=endActionsN(p.EI,b.N,q,l,dz),ay=endActionsN(p.EI,b.N,0,l,dy);
     const mz=momentCoeffsN(l,b.N,q,dz,az[0],az[1]),my=momentCoeffsN(l,b.N,0,dy,ay[0],ay[1]);
     const moment=magnitudeMax(mz,my), shear=magnitudeMax(polyDeriv(mz).map(v=>v/l),polyDeriv(my).map(v=>v/l));
     const stress=stressBound(p,wall,moment.value,shear.value);
-    if(stress.vm>=out.vm) Object.assign(out,{vm:stress.vm,normalVm:stress.normal,x:(e+moment.u)*l,shearX:(e+shear.u)*l,element:[e*l,(e+1)*l]});
+    if(stress.vm>=out.vm) Object.assign(out,{vm:stress.vm,normalVm:stress.normal,x:x0+moment.u*l,shearX:x0+shear.u*l,element:[x0,x0+l]});
     const sz=polyDeriv(hermiteCoeffs(l,dz)).map(v=>v/l),sy=polyDeriv(hermiteCoeffs(l,dy)).map(v=>v/l);
     out.maxSlope=Math.max(out.maxSlope,magnitudeMax(sz,sy).value);
-    for(let j=0;j<2;j++) out.shape.push({x:(e+j/2)*l,z:hermiteAt(l,dz,j/2).w,y:hermiteAt(l,dy,j/2).w});
+    for(let j=0;j<2;j++) out.shape.push({x:x0+j*l/2,z:hermiteAt(l,dz,j/2).w,y:hermiteAt(l,dy,j/2).w});
   }
   out.shape.push({x:D,z:0,y:0});
   if(![out.vm,out.maxSlope,out.forceZ,out.forceY,out.x].every(Number.isFinite)) throw new Error('Non-finite recovered state.');

@@ -15,4 +15,15 @@ describe('in-service PDF snapshot',()=>{
     }
     expect(report).toEqual(before);
   });
+  it('exports support reactions and the selected stage from the completed snapshot',()=>{
+    const report=runService({...DEFAULT_SERVICE,allowablePercent:80,displacement:100,supports:{kind:'equidistant',count:2}});
+    const before=structuredClone(report),id=report.input.scenarios[0].id;
+    for(const system of ['SI','Imperial'] as const){
+      const pdf=createServicePdf(report,system,{[id]:0}).output();
+      expect(pdf).toContain('Support reactions and contacts');expect(pdf).toContain('Selected stage: initial');
+      expect(pdf).toContain('Contact path diagnostics');
+    }
+    expect(report).toEqual(before);
+  });
+
 });
