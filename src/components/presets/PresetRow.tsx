@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Check, Copy, Download, Pencil, Save, Trash2, X } from "lucide-react";
-import { PresetEntry } from "@/lib/presets/schema";
+import { PresetEntry, PresetMode } from "@/lib/presets/schema";
 
 interface Props {
   preset: PresetEntry;
@@ -17,7 +17,12 @@ interface Props {
 }
 
 // Short human preview of the key pipe parameters stored in a preset (always SI)
-function summarize(values: Record<string, unknown>): string {
+function summarize(values: Record<string, unknown>, mode: PresetMode): string {
+  if (mode === "in-service") {
+    const parts = [`D₀ ${values.od} mm`, `t ${values.thickness} mm`, `Total ${Number(values.halfLength)*2/1000} m`, `Target ${values.displacement} mm`, `${values.allowablePercent}% of yield`];
+    if (Array.isArray(values.scenarios)) parts.push(`${values.scenarios.length} scenario(s)`);
+    return parts.join(" · ");
+  }
   const num = (k: string) => (typeof values[k] === "number" ? (values[k] as number) : undefined);
   const parts: string[] = [];
   const Do = num("Do");
@@ -76,7 +81,7 @@ export const PresetRow = ({ preset, onLoad, onRename, onDuplicate, onOverwrite, 
         ) : (
           <>
             <p className="truncate font-medium">{preset.name}</p>
-            <p className="text-xs text-muted-foreground">{summarize(preset.values)}</p>
+            <p className="text-xs text-muted-foreground">{summarize(preset.values, preset.mode)}</p>
             <p className="text-xs text-muted-foreground">
               Created {fmtDate(preset.createdAt)} · Updated {fmtDate(preset.updatedAt)}
             </p>

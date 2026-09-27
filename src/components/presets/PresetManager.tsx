@@ -31,7 +31,7 @@ import { PresetConflictDialog } from "./PresetConflictDialog";
 interface Props {
   mode: PresetMode;
   getCurrentValues: () => Record<string, unknown>;
-  onLoad: (values: Record<string, unknown>) => void;
+  onLoad: (values: Record<string, unknown>) => void | boolean;
 }
 
 export const PresetManager = ({ mode, getCurrentValues, onLoad }: Props) => {
@@ -67,7 +67,7 @@ export const PresetManager = ({ mode, getCurrentValues, onLoad }: Props) => {
   const handleLoadByName = (name: string) => {
     const preset = presets.find((p) => p.name === name);
     if (!preset) return;
-    onLoad(preset.values);
+    if (onLoad(preset.values) === false) return;
     toast.success(`Preset "${name}" loaded`);
   };
 

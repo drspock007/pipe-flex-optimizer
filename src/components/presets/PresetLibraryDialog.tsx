@@ -33,7 +33,7 @@ interface Props {
   presets: PresetEntry[];
   refresh: () => void;
   getCurrentValues: () => Record<string, unknown>;
-  onLoad: (values: Record<string, unknown>) => void;
+  onLoad: (values: Record<string, unknown>) => void | boolean;
 }
 
 type SortKey = "name" | "updated";
@@ -112,7 +112,7 @@ export const PresetLibraryDialog = ({
                   key={p.id}
                   preset={p}
                   onLoad={() => {
-                    onLoad(p.values);
+                    if (onLoad(p.values) === false) return;
                     toast.success(`Preset "${p.name}" loaded`);
                     onOpenChange(false);
                   }}

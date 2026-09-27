@@ -91,3 +91,16 @@ Support capacity and local bearing are not verified; lateral instability remains
 Reproduce the 40 m excavation / 150 mm lift support-search example and both PDFs:
 `./node_modules/.bin/vite-node scripts/check-service-support-report.ts` (or
 `bun run scripts/check-service-support-report.ts`).
+
+### In-service presets
+
+The **Presets** section saves the complete In-service input set locally on the
+current browser/device, in a separate library from Pipe lowering. **Manage**
+provides search, sorting, rename, duplicate, overwrite, delete and JSON file
+export/import. The input payload is versioned; unsupported or malformed presets
+are rejected on load without replacing current inputs. Cleared numeric fields
+remain invalid until completed. Units are display preferences: stored inputs use
+the model's canonical units. Loading cancels obsolete work and clears results;
+review the inputs and calculate again. Presets contain inputs, not PDF reports or
+computed results. Storage is not synchronized automatically between devices or
+site addresses; use JSON export/import to transfer it.
