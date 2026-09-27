@@ -35,3 +35,10 @@ Référence free : L=30000, hv=2500, E=210000, A=2047.8333482348326,
 I=3010519.4980650246, c=57.15, q=0.1577005743975421, sigmaAllow=287.2.
 Contraintes MPa pour (hl,n) : (0,0)=424.5523905204 ; (0,1)=256.1568476301 ;
 (1000,0)=432.0258469081 ; (1000,1)=268.3615670840.
+
+## Module distinct : déviation temporaire en service
+
+`src/lib/in-service/` et la route `/in-service` ajoutent un modèle indépendant pour
+l'acier sous pression. Le contrat détaillé est dans [in-service-model.md](in-service-model.md).
+Ses entrées sont directement en mm/N/MPa/°C (contrairement à AppInputs ci-dessus).
+Le PEHD n'est pas pris en charge. Les modes existants et leurs seuils ne changent pas.

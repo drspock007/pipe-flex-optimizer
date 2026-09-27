@@ -55,3 +55,26 @@ pour l'interface et `src/lib/pdf/` pour les rapports.
 
 Pour reproduire les deux rapports de contrôle : `bun run scripts/check-report.ts`.
 Les PDF sont écrits dans `output/pdf/` (non versionné).
+
+## Temporary in-service steel deflection
+
+The dedicated module is available at `/in-service` (navigation: **In-service
+ deflection**) on `codex/in-service-pipe-deflection`. It supports direct calculation,
+exploratory length/displacement searches, multiple initial-state hypotheses and
+SI/imperial PDF reports. An explicit custom allowable percentage or safety factor
+is required before calculation. No normative compliance verdict is implemented.
+
+Read [the model and conventions](docs/in-service-model.md) and
+[validation evidence](docs/in-service-validation.md). Steel only, temporary movement;
+HDPE, permanent realignment and soil interaction are outside this version. Restore
+support after the reverse movement to recover the original straight configuration.
+
+```sh
+bun run test -- src/lib/in-service/__tests__ src/hooks/__tests__/useServiceEngine.test.ts
+bun run scripts/check-service-report.ts
+# With Node and existing dependencies, the same report script can run as:
+./node_modules/.bin/vite-node scripts/check-service-report.ts
+```
+
+Reference PDFs and the full calculation snapshot are generated under `output/pdf/`
+(ignored). The previous lowering module and its numerical budgets are unchanged.

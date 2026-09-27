@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, HelpCircle } from "lucide-react";
+import { Home, HelpCircle, MoveUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/logo-gmc.png";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -11,6 +11,7 @@ const Header = () => {
 
   const navItems = [
     { path: "/", label: "Home", icon: Home },
+    { path: "/in-service", label: "In-service deflection", icon: MoveUpRight },
     { path: "/help", label: "Help", icon: HelpCircle },
   ];
 

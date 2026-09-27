@@ -9,6 +9,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/components/theme-provider";
 import PrivacyNotice from "@/components/privacy/PrivacyNotice";
 import Index from "./pages/Index";
+import InServicePage from "./pages/InServicePage";
 import HelpPage from "./pages/HelpPage";
 import NotFound from "./pages/NotFound";
 
@@ -32,6 +33,7 @@ const App = () => (
         <PageViewTracker />
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/in-service" element={<InServicePage />} />
           <Route path="/help" element={<HelpPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
