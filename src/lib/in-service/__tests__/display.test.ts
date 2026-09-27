@@ -1,9 +1,22 @@
 import { describe,it,expect } from 'vitest';
-import { display,internal } from '../display';
+import { display,internal,label } from '../display';
 import { DEFAULT_SERVICE } from '../types';
 import { PIPE_SIZES,WALL_THICKNESS_BY_NPS } from '../../pipe-presets';
 import { validate,section } from '../types';
 describe('service units and pipe catalogue',()=>{
+  it('converts pressure from internal MPa to kPa or psi without changing mechanics',()=>{
+    expect(display(2,'pressure','SI')).toBe(2000);
+    expect(label('pressure','SI')).toBe('kPa');
+    expect(display(2,'pressure','Imperial')).toBeCloseTo(290.0754,3);
+    for(const system of ['SI','Imperial'] as const) expect(internal(display(2,'pressure',system),'pressure',system)).toBeCloseTo(2,12);
+  });
+  it('uses preset coating properties and NPS-dependent thickness in the weight',()=>{
+    const i={...DEFAULT_SERVICE,allowablePercent:80,coatingThickness:3,coatingDensity:1800};
+    const bare=section({...i,coatingType:'none'}).q;
+    expect(section({...i,coatingType:'yellowJacket'}).q-bare).toBeCloseTo(Math.PI*1.09*(168.3+1.09)*950*9.80665e-9,12);
+    expect(section({...i,coatingType:'custom'}).q-bare).toBeCloseTo(Math.PI*3*(168.3+3)*1800*9.80665e-9,12);
+    expect(section({...i,coatingType:'sp2888'}).q-bare).toBeCloseTo(Math.PI*3*(168.3+3)*1250*9.80665e-9,12);
+  });
   it('roundtrips absolute temperature and thermal coefficient correctly',()=>{
     expect(display(20,'C','Imperial')).toBe(68);
     expect(internal(32,'C','Imperial')).toBe(0);

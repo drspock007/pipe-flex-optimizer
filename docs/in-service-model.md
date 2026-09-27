@@ -81,3 +81,6 @@ No monotonicity/global-optimality claim. Missing, failed or budget-limited sampl
 remain unresolved; candidate is recomputed and all scenarios must pass. Upper
 bound reached is not a mechanical maximum. Bounds and numerical settings are
 included in the report. Normative checks are unavailable until separately validated.
+
+### Input display and coating catalogue
+Pressure remains MPa internally and is entered/exported in kPa (SI) or psi (imperial). Steel grade selection shares the lowering module selector. Coating uses the shared catalogue and effectiveCoating rules, including NPS-dependent Yellow Jacket thickness. The report records the selected type and effective properties; older inputs without a coating type retain their explicit custom thickness/density.

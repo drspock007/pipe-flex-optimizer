@@ -92,7 +92,7 @@ export const Footer = () => {
             </a>
             {" "}— Pipe Lowering — All rights reserved.
           </p>
-          <p className="text-[10px] text-muted-foreground">v20260927144352</p>
+          <p className="text-[10px] text-muted-foreground">v20260927164928</p>
         </div>
       </div>
     </footer>

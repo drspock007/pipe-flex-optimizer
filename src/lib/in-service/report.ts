@@ -2,7 +2,8 @@ import { jsPDF } from 'jspdf';
 import autoTable, { type UserOptions } from 'jspdf-autotable';
 import { planTable } from '../pdf/pdf-measure';
 import { format, STATUS } from './display';
-import { section, type ServiceReport, type Stage } from './types';
+import { COATING_LABELS } from '../coating-presets';
+import { section, serviceCoating, type ServiceReport, type Stage } from './types';
 import type { UnitSystem } from '../unit-conversions';
 const ascii=(s:string)=>s.replace(/—/g,'-').replace(/·/g,' ').replace(/⁻/g,'-').replace(/⁶/g,'6').replace(/³/g,'3').replace(/²/g,'2').replace(/⁴/g,'4');
 export const LIMITS='Steel only; temporary, symmetric excavation, ideal clamps, no ground contact. Elastic small-strain/moderate-rotation beam; uniform pressure and temperature. Conservative Von Mises beam bound, not local sling/contact stress. No assessment of ovalization, defects, weld concentrations, fatigue or soil failure. No normative compliance verdict. Model scope: full length / OD >= 10, resultant slope <= 0.1.';
@@ -12,7 +13,7 @@ export function phasePeaks(stages:Stage[]) {
   });
 }
 export function createServicePdf(r:ServiceReport,system:UnitSystem):jsPDF {
-  const doc=new jsPDF(),i=r.input,p=section(i);let y=24;
+  const doc=new jsPDF(),i=r.input,p=section(i),coat=serviceCoating(i);let y=24;
   const f=(v:number,u:Parameters<typeof format>[1],digits=3)=>ascii(format(v,u,system,digits));
   const text=(s:string,size=9)=>{
     doc.setFontSize(size);const lines=doc.splitTextToSize(ascii(s),178) as string[];
@@ -37,9 +38,9 @@ export function createServicePdf(r:ServiceReport,system:UnitSystem):jsPDF {
   table('Inputs and hypotheses',['Input','Value'],[
     ['Calculation',i.mode],['Steel OD / analysis thickness',`${f(i.od,'mm')} / ${f(i.thickness,'mm')}`],
     ['E / yield at operating temperature',`${f(i.E,'MPa')} / ${f(i.yield,'MPa')}`],['Poisson ratio / thermal expansion',`${i.nu} / ${f(i.alpha,'alpha')}`],
-    ['Pressure / temperature (constant)',`${f(i.pressure,'MPa')} / ${f(i.temperature,'C')}`],
+    ['Pressure / temperature (constant)',`${f(i.pressure,'pressure')} / ${f(i.temperature,'C')}`],
     ['Steel / fluid density',`${f(i.steelDensity,'kg/m3')} / ${f(i.fluidDensity,'kg/m3')}`],
-    ['Coating thickness / density',`${f(i.coatingThickness,'mm')} / ${f(i.coatingDensity,'kg/m3')}`],['Distributed weight',f(p.q,'N/mm')],
+    ['Coating / effective thickness / density',`${COATING_LABELS[i.coatingType??'custom']} / ${f(coat.thickness,'mm')} / ${f(coat.density,'kg/m3')}`],['Distributed weight',f(p.q,'N/mm')],
     ['Specified half / full length',`${f(i.halfLength/1000,'m')} / ${f(i.halfLength/500,'m')}`],
     ['Target direction / angle / amplitude',`${i.direction} / ${i.angle} deg / ${f(i.displacement,'mm')}`],
     ['Half-length search bounds',`${f(i.minHalfLength/1000,'m')} to ${f(i.maxHalfLength/1000,'m')}`],['Amplitude search upper bound',f(i.maxDisplacement,'mm')],

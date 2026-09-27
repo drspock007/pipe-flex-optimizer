@@ -5,6 +5,8 @@ import { useUnits } from '@/contexts/UnitContext';
 import PipeSizeSelect from '@/components/geometry/PipeSizeSelect';
 import WallThicknessSelect from '@/components/geometry/WallThicknessSelect';
 import { PIPE_SIZES,WALL_THICKNESS_BY_NPS,findNpsByOd,findScheduleByWt } from '@/lib/pipe-presets';
+import SteelGradeSelect from '@/components/SteelGradeSelect';
+import CoatingCard from '@/components/CoatingCard';
 import { GRADES } from '@/lib/calculations';
 import { display,internal,label,type ServiceUnit } from '@/lib/in-service/display';
 import { type ServiceInput,type Mode,type Direction } from '@/lib/in-service/types';
@@ -19,6 +21,7 @@ const selectClass='w-full rounded-md border border-input bg-background p-2 text-
 export function ServiceInputs({input:i,onChange}:{input:ServiceInput;onChange:(i:ServiceInput)=>void}) {
   const {system}=useUnits();const [nps,setNps]=useState(findNpsByOd(i.od)),[schedule,setSchedule]=useState(findScheduleByWt(findNpsByOd(i.od),i.thickness));
   const [thresholdMode,setThresholdMode]=useState('percent');
+  const [customGrade,setCustomGrade]=useState(false);
   const update=<K extends keyof ServiceInput>(k:K,v:ServiceInput[K])=>onChange({...i,[k]:v});
   const f=(k:keyof ServiceInput,title:string,unit:ServiceUnit='scalar')=><Field title={title} value={i[k] as number} unit={unit} onChange={v=>update(k,v)}/>;
   return <div className="space-y-4">
@@ -30,14 +33,15 @@ export function ServiceInputs({input:i,onChange}:{input:ServiceInput;onChange:(i
       }}/>
       {nps==='CUSTOM'?f('thickness','Analysis thickness','mm'):<WallThicknessSelect selectedNps={nps} selectedSchedule={schedule} t={i.thickness} onTChange={v=>update('thickness',v)} onScheduleChange={v=>{setSchedule(v);const wall=WALL_THICKNESS_BY_NPS[nps]?.find(w=>w.schedule===v);if(wall)update('thickness',wall.wt_mm);}}/>}</div>
       <p className="text-xs text-muted-foreground">Uniform analysis thickness; local corrosion and defects are not assessed.</p>
-      <label className="block text-xs">Steel yield preset<select aria-label="Steel yield preset" className={selectClass} value={GRADES.find(g=>g.smys===i.yield)?.key??'CUSTOM'} onChange={e=>{const g=GRADES.find(g=>g.key===e.target.value);if(g)update('yield',g.smys);}}><option value="CUSTOM">Custom / edit yield below</option>{GRADES.map(g=><option key={g.key} value={g.key}>{g.label}</option>)}</select></label>
+      <div className="space-y-1"><label className="text-xs">Steel Grade</label><SteelGradeSelect grade={customGrade?'CUSTOM':GRADES.find(g=>g.smys===i.yield)?.key??'CUSTOM'} onChange={key=>{setCustomGrade(key==='CUSTOM');const g=GRADES.find(g=>g.key===key);if(g)update('yield',g.smys);}} /></div>
       <div className="grid grid-cols-2 gap-3">{f('yield','Yield strength at operating T','MPa')}{f('E',"Young's modulus",'MPa')}{f('nu',"Poisson's ratio")}{f('alpha','Thermal expansion','alpha')}</div>
       <p className="text-xs text-muted-foreground">Steel only. Enter properties applicable at the operating temperature; no automatic material derating.</p>
     </section>
     <section className="rounded-lg border bg-card p-4 space-y-3"><h2 className="font-semibold">Operating conditions & weight</h2>
-      <div className="grid grid-cols-2 gap-3">{f('pressure','Internal gauge pressure','MPa')}{f('temperature','Operating temperature','C')}{f('steelDensity','Steel density','kg/m3')}{f('fluidDensity','Fluid density at operating P/T','kg/m3')}{f('coatingThickness','Coating thickness','mm')}{f('coatingDensity','Coating density','kg/m3')}</div>
+      <div className="grid grid-cols-2 gap-3">{f('pressure','Internal gauge pressure','pressure')}{f('temperature','Operating temperature','C')}{f('steelDensity','Steel density','kg/m3')}{f('fluidDensity','Fluid density at operating P/T','kg/m3')}</div>
       <p className="text-xs text-muted-foreground">Constant pressure and temperature; zero external pressure. Coating contributes weight only.</p>
     </section>
+    <CoatingCard coatingType={i.coatingType??'custom'} coatingThickness={i.coatingThickness} coatingDensity={i.coatingDensity} Do={i.od} nps={nps} onChange={(field,value)=>onChange({...i,[field]:value})}/>
     <section className="rounded-lg border bg-card p-4 space-y-3"><h2 className="font-semibold">Excavation & movement</h2>
       <label className="block text-xs">Calculation<select aria-label="Calculation" className={selectClass} value={i.mode} onChange={e=>update('mode',e.target.value as Mode)}><option value="direct">Direct calculation</option><option value="length">Find excavated length</option><option value="displacement">Find displacement</option></select></label>
       {i.mode!=='length'&&<><Field title="Length on each side" value={i.halfLength/1000} unit="m" onChange={v=>update('halfLength',v*1000)}/><p className="text-xs">Total: {Number(display(i.halfLength*2/1000,'m',system).toFixed(3))} {label('m',system)}</p></>}

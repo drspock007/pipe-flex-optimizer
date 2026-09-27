@@ -5,7 +5,7 @@ Branch: `codex/in-service-pipe-deflection`, based on `a303288` from
 
 ## Automated evidence
 
-- Full Vitest suite: **342 passing tests across 41 files** (317 baseline + 25 new).
+- Full Vitest suite: **344 passing tests across 41 files** (317 baseline + 27 new).
 - TypeScript: application and Node/Vite configuration pass.
 - Production build: passes; existing large-chunk and outdated Browserslist notices remain.
 - New/modified module lint: passes. Whole-repository lint remains at the baseline
@@ -59,3 +59,5 @@ not a local stress prediction at the actuator or a defect.
 CSA Z662:2023 checks await the requested excerpts. ASME and European modules and
 PEHD remain outside this delivery. See `in-service-model.md` for equations, numerical
 scope guards, sign conventions and source references.
+
+Input parity update: shared steel-grade selector and coating card; kPa/psi pressure roundtrip and preset/custom coating weight regression checks pass. Both six-page reports were regenerated and visually inspected after the input table change.
