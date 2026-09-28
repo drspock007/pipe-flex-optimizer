@@ -59,7 +59,7 @@ const Header = () => {
           >
             <p>Engineering</p>
             <p>Consulting</p>
-            <p>Projet management</p>
+            <p>Project management</p>
           </div>
         </div>
 
