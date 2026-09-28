@@ -68,9 +68,10 @@ exploratory length/displacement searches, multiple initial-state hypotheses and
 SI/imperial PDF reports. The custom allowable defaults to 50% of yield (safety factor 2) and remains editable. No normative compliance verdict is implemented.
 
 Read [the model and conventions](docs/in-service-model.md) and
-[validation evidence](docs/in-service-validation.md). Steel only, temporary movement;
-HDPE, permanent realignment and soil interaction are outside this version. Restore
-support after the reverse movement to recover the original straight configuration.
+[validation evidence](docs/in-service-validation.md) for the temporary branch.
+HDPE and plastic steel are outside the module. The separate permanent direct branch
+adds staged supports and reversible soil interaction (see below). In temporary mode,
+restore support after the reverse movement to recover the original straight configuration.
 
 ```sh
 bun run test -- src/lib/in-service/__tests__ src/hooks/__tests__/useServiceEngine.test.ts
@@ -117,4 +118,16 @@ pressure/temperature criterion (4.7.1). Explicit design inputs and applicability
 confirmations are required. Lifting, 4.7.2 and Annex C remain unassessed; no overall
 CSA compliance is claimed. Custom criteria alone govern searches. See
 [applicability contract](docs/csa-targeted-checks.md). In-service presets now write
-version 2 and still read version 1 with CSA disabled.
+version 3; versions 1 and 2 remain temporary, and version 1 loads with CSA disabled.
+
+### Permanent maintained deviation (elastic steel)
+
+Select the dedicated permanent intervention type for direct calculation through
+support adjustment, equipment release, staged backfill, pair removal and explicit
+future operating cases. Soil curves, sources, loads and final centre tolerances are
+required; no project soil data is supplied by default. Stress, retained position and
+soil-limit results remain separate. This is not a permanent-installation approval.
+See [formulation and independent numerical evidence](docs/permanent-elastic-model.md).
+Run `vite-node scripts/check-permanent-reference.ts` followed by the independent
+NumPy check `python3 scripts/check-permanent-reference.py`; PDF checks use
+`vite-node scripts/check-permanent-report.ts` (executables under node_modules/.bin).

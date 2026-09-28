@@ -1,3 +1,4 @@
+import {createPermanentPdf} from './permanent/report';
 import {requireReportIdentity,type ReportIdentity} from '../pdf/identity';
 import { jsPDF } from 'jspdf';
 import autoTable, {type UserOptions} from 'jspdf-autotable';
@@ -11,6 +12,7 @@ import { supportPeaks } from './supports';
 /** One readable sheet per scenario in the usual case; long content flows without truncation. */
 export function createServiceSummary(r:ServiceReport,system:UnitSystem,palette:PdfPalette=LIGHT_PDF,identity?:ReportIdentity):jsPDF {
   const meta=requireReportIdentity(identity);
+  if(r.permanent)return createPermanentPdf(r,system,palette,meta,false);
   const doc=new jsPDF();themePages(doc,palette);
   const f=(v:number|undefined,u:Parameters<typeof format>[1])=>format(v,u,system,2).replace(/—/g,'-').replace(/⁻/g,'-').replace(/⁶/g,'6').replace(/³/g,'3').replace(/·/g,' ');
   const i=r.input,c=r.result;let y=24;

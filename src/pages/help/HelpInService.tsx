@@ -6,11 +6,11 @@ const HelpInService = () => (
     <div id="in-service" className="scroll-mt-6 border-l-4 border-primary pl-4">
       <p className="text-xs font-semibold uppercase tracking-wider text-primary">Model guide</p>
       <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">In-service Deflection</h2>
-      <p className="mt-2 max-w-3xl text-sm text-muted-foreground">Temporary movement of a uniform pressurized steel pipe in a symmetric excavation, evaluated over release, actuation, return and restoration.</p>
+      <p className="mt-2 max-w-3xl text-sm text-muted-foreground">Elastic movement of a uniform pressurized steel pipe in a symmetric excavation. Choose temporary return or a separate maintained-deviation sequence with backfill.</p>
     </div>
 
     <HelpSection id="service-scope" eyebrow="In-service Deflection" title="Operation and input model">
-      <P>This module is independent from Pipe Lowering. It represents a straight, uniform, elastic steel pipe with ideal clamps at both buried ends. The full excavated length is twice the entered half-length. Pressure and temperature remain constant throughout one intervention.</P>
+      <P>This module is independent from Pipe Lowering. It represents a straight, uniform, elastic steel pipe with ideal clamps at both buried ends. The full excavated length is twice the entered half-length. Pressure and temperature remain constant during construction; permanent mode adds explicit future operating cases.</P>
       <ScrollTable>
         <thead><tr><Th>Input group</Th><Th>What the model uses</Th></tr></thead>
         <tbody>
@@ -26,6 +26,19 @@ const HelpInService = () => (
         <FormulaBlock tex={String.raw`\rho=\frac{(p_{gauge}+p_{atm})10^6(M/1000)}{Z\,R\,(T_C+273.15)}`} label="Selected-gas density at operating conditions" />
         <P>Z = 1 is an ideal-gas assumption, not an automatic real-gas equation of state. The natural-gas initial molar mass is a methane approximation; use known mixture properties or custom density when unsuitable. Coating adds dead weight but no structural stiffness.</P>
       </Advanced>
+    </HelpSection>
+
+    <HelpSection id="service-permanent" eyebrow="Permanent maintained deviation" title="Elastic construction and backfill sequence">
+      <P>Select Permanent maintained deviation for a separate direct calculation. The initial pipe remains the steel reference configuration: neither support adjustment nor backfill erases stress.</P>
+      <Bullets>
+        <li>Keep initial supports at their original height, or unload them under equipment control before moving the pipe. Loaded supports must be unloaded before reuse.</li>
+        <li>Install symmetric vertical pairs at the calculated shape, without added preload, or enter common absolute heights for all scenarios. Common heights can create a calculated preload.</li>
+        <li>Release equipment before or after backfill. Vertical supports allow lateral rebound and do not lock the imposed position.</li>
+        <li>Enter documented axial, lateral, downward and uplift soil curves and separate backfill/construction loads. Zones activate in explicit stages; temporary pairs are lowered and removed in the specified order.</li>
+        <li>Each future pressure/temperature case starts from the final loaded state. Enter its fluid density and confirm material properties at all temperatures.</li>
+      </Bullets>
+      <P>Stress, final centre position and soil resistance limits have separate results. Position tolerances apply in controlled directions, including computed operating transitions. Convergence failures, missing data or soil limits prevent verified retention. Scenario-fitted support heights do not validate one common physical setting.</P>
+      <Note title="What numerical verification does not establish" tone="warning">Independent matrix/solver comparisons cover synthetic construction histories. They do not validate site soil data, adjacent-pipe fixity, fatigue, welds, defects, local buckling, ovalization or equipment capacity. Reversible soil laws do not model permanent soil slip, consolidation or cyclic accumulation. CSA checks remain partial and separate.</Note>
     </HelpSection>
 
     <HelpSection id="service-axial" eyebrow="In-service Deflection" title="Wall force and effective tension must remain separate">
@@ -89,10 +102,10 @@ const HelpInService = () => (
 
     <HelpSection id="service-limitations" eyebrow="In-service Deflection" title="Explicit exclusions and evidence limits">
       <Bullets>
-        <li>Steel only: no HDPE, permanent deviation or material aging model.</li>
+        <li>Steel only: no HDPE, plastic steel or material aging model.</li>
         <li>No plasticity, post-buckling, torsion, ovalization, local sling/contact stress, defects, weld concentration or fatigue assessment.</li>
-        <li>No moving excavation front, surrounding-soil interaction in the excavated span, support capacity, local bearing, settlement or soil failure check.</li>
-        <li>The reverse path assumes elastic, frictionless behavior without impact, hysteresis or construction dynamics.</li>
+        <li>No moving excavation front, support capacity, local bearing or evolving settlement check. The temporary branch excludes surrounding-soil interaction; the permanent branch uses the documented reversible soil laws described above.</li>
+        <li>The temporary reverse path assumes elastic, frictionless behavior without impact, hysteresis or construction dynamics.</li>
         <li>Analytical benchmarks and automated regression tests support implementation evidence; no independent commercial FE benchmark or field calibration is claimed.</li>
         <li>Optional CSA Z662:2023 checks assess minimum nominal wall (4.3.11.2) and the anchored pressure/temperature design state (4.7.1), with the temperature factor from 4.3.9. Separate design inputs and scope confirmations are required. They do not assess lifting, bending/stability (4.7.2), or Annex C, and never govern searches. ASME and European checks and overall normative compliance verdicts are not implemented.</li>
       </Bullets>

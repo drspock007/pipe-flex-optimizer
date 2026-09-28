@@ -1,3 +1,4 @@
+import PermanentResults from './PermanentResults';
 import type {IdentityFields} from '@/components/ReportIdentityFields';
 import { createServiceSummary } from '@/lib/in-service/report-summary';
 import { currentPdfPalette } from '@/lib/in-service/pdf-theme';
@@ -29,6 +30,7 @@ export default function ServiceResults({report:r,identity}:{report:ServiceReport
   const {system}=useUnits();const f=(v:number|undefined,u:Parameters<typeof format>[1])=>format(v,u,system);
   const [exportError,setExportError]=useState('');
   const [selected,setSelected]=useState<Record<string,number>>({});
+  if(r.permanent)return <PermanentResults report={r} identity={identity}/>;
   const c=r.result;
   return <div className="space-y-4">
     <section className="border rounded-lg p-4 bg-card space-y-3"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold text-lg">Results</h2>

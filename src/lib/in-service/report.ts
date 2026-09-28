@@ -1,3 +1,4 @@
+import {createPermanentPdf} from './permanent/report';
 import {requireReportIdentity,type ReportIdentity} from '../pdf/identity';
 import { LIGHT_PDF, PLOT_COLORS, themePages, type PdfPalette } from './pdf-theme';
 import { CSA_FORMULAS } from './csa-formulas';
@@ -21,6 +22,7 @@ export function phasePeaks(stages:Stage[]) {
 }
 export function createServicePdf(r:ServiceReport,system:UnitSystem,selected:Record<string,number>={},palette:PdfPalette=LIGHT_PDF,identity?:ReportIdentity):jsPDF {
   const meta=requireReportIdentity(identity);
+  if(r.permanent)return createPermanentPdf(r,system,palette,meta,true);
   const doc=new jsPDF(),i=r.input,p=section(i),coat=serviceCoating(i);let y=24;themePages(doc,palette);
   const f=(v:number,u:Parameters<typeof format>[1],digits=3)=>ascii(format(v,u,system,digits));
   const text=(s:string,size=9)=>{

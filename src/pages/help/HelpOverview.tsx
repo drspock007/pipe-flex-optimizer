@@ -9,9 +9,9 @@ const HelpOverview = () => (
         <tbody>
           <tr><Td>Intended operation</Td><Td>Lowering or differential end offsets of a fixed-end span</Td><Td>Temporary central movement of an operating steel pipe in a symmetric excavation</Td></tr>
           <tr><Td>Loads and axial state</Td><Td>Self-weight; free sliding or initially straight restrained ends; optional ground</Td><Td>Weight, gauge pressure, temperature and additional wall force; effective tension may be tensile or compressive</Td></tr>
-          <tr><Td>Supports</Td><Td>Equally spaced vertical unilateral supports; optional rigid horizontal ground</Td><Td>None, equidistant pairs or custom temporary supports; excavated span has no surrounding soil contact</Td></tr>
+          <tr><Td>Supports</Td><Td>Equally spaced vertical unilateral supports; optional rigid horizontal ground</Td><Td>None, equidistant pairs or custom temporary supports; permanent mode adds staged backfill interaction</Td></tr>
           <tr><Td>Governing result</Td><Td>Biaxial bending stress when free; combined axial plus biaxial normal stress when restrained</Td><Td>Conservative Von Mises beam bound over the complete intervention path</Td></tr>
-          <tr><Td>Not covered</Td><Td>Pressure, temperature, local pipe details and code compliance</Td><Td>HDPE, permanent realignment, local contact design and normative compliance</Td></tr>
+          <tr><Td>Not covered</Td><Td>Pressure, temperature, local pipe details and code compliance</Td><Td>HDPE, plastic steel, irreversible soil behavior, local contact design and normative compliance</Td></tr>
         </tbody>
       </ScrollTable>
       <Note title="These tools support preliminary engineering—not final approval" tone="warning">A converged calculation and a met criterion do not establish physical validity, construction suitability or compliance with CSA, ASME or European requirements. A qualified engineer must select the model, verify its assumptions and independently review the result.</Note>
