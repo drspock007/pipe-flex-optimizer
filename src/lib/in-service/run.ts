@@ -1,3 +1,4 @@
+import {runPermanent} from './permanent/sequence';
 import { evaluateCsa } from './csa';
 import { MODEL_VERSION, validate, type ServiceInput, type ServiceReport, type CaseResult, type SearchSample } from './types';
 import { solveCase } from './solve';
@@ -7,6 +8,9 @@ export function runService(input:ServiceInput,onProgress?:(message:string)=>void
   const r:ServiceReport={version:MODEL_VERSION,createdAt:new Date().toISOString(),input:structuredClone(input),errors,samples:[],budgetExhausted:false,boundReached:false,message:'',elapsedMs:0};
   if(errors.length) return {...r,csa:evaluateCsa(input),message:'Correct the input errors before calculating.'};
   const check=()=>{if(performance.now()-start>SEARCH_MS) {r.budgetExhausted=true;throw new Error('Calculation time budget exhausted; unresolved result.');}};
+  if(input.intervention==='permanent'){
+    r.permanent=runPermanent(input,check);r.version=r.permanent.version;r.message='Permanent elastic assessment: separate stress, position and soil-limit results; no installation approval.';r.csa=evaluateCsa(input);r.elapsedMs=performance.now()-start;return r;
+  }
   if(input.mode==='direct') {
     r.result=solveCase(input,check);r.message='Direct calculation. Custom elastic beam criterion only.';
   } else if(input.mode==='supports') {

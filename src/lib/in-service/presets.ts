@@ -1,3 +1,4 @@
+import {permanentSchema} from './permanent/profile';
 import { z } from 'zod';
 import type { ServiceInput } from './types';
 
@@ -5,8 +6,9 @@ import type { ServiceInput } from './types';
 // inputs, never as zero or an assumed valid engineering value.
 const number = z.number().finite().nullable().transform(v => v === null ? NaN : v);
 const schema = z.object({
-  presetVersion: z.union([z.literal(1),z.literal(2)]),
+  presetVersion: z.union([z.literal(1),z.literal(2),z.literal(3)]),
   csa:z.object({enabled:z.boolean(),eligibleSteel:z.boolean(),plainPipeline:z.boolean(),anchored:z.boolean(),designPressure:number,designTemperature:number,anchoringTemperature:number,nominalThickness:number,allowance:number,smys:number}).optional(),
+  intervention:z.enum(['temporary','permanent']).optional(),permanent:permanentSchema.optional(),
   od:number, thickness:number, E:number, yield:number, nu:number, alpha:number,
   steelDensity:number, fluidDensity:number, coatingThickness:number, coatingDensity:number,
   pressure:number, temperature:number, halfLength:number, angle:number, displacement:number,
@@ -25,12 +27,13 @@ const schema = z.object({
   scenarios:z.array(z.object({id:z.string(),name:z.string(),referenceTemperature:number,extraAxial:number})).max(12),
 });
 export function servicePresetValues(input:ServiceInput):Record<string,unknown> {
-  return JSON.parse(JSON.stringify({...input,presetVersion:2}));
+  return JSON.parse(JSON.stringify({...input,presetVersion:3}));
 }
 export function readServicePreset(values:Record<string,unknown>):ServiceInput | null {
   const parsed=schema.safeParse(values);
   if(!parsed.success)return null;
   const {presetVersion: _version,...input}=parsed.data;
+  if(_version<3){delete input.intervention;delete input.permanent;}
   if(_version===1) delete input.csa;
   return input as ServiceInput;
 }

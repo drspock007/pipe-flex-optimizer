@@ -170,3 +170,11 @@ identity before creating a document and print export date/time and local timezon
 separately from the calculation timestamp. Pipe-lowering export enforces the same
 identity validation. Input help is available by hover, focus, keyboard activation
 or click and does not supply missing engineering data.
+
+## Permanent maintained deviation (separate branch)
+
+The optional versioned permanent profile selects a separate elastic direct solver.
+See [the permanent formulation, construction history and evidence](permanent-elastic-model.md).
+It includes adjustable symmetric supports, staged backfill, force release and future
+operating cases. It does not replace the temporary solver described above. Reference
+numerical comparisons do not validate project soil data or excluded integrity checks.
