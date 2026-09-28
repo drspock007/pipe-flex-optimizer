@@ -1,3 +1,4 @@
+import type { CsaProfile, CsaAssessment } from './csa';
 import { validateSupports, type SupportLayout, type SupportContact } from './supports';
 import { effectiveFluidDensity, validateFluid, type FluidType } from './fluid';
 import { effectiveCoating, COATING_LABELS, type CoatingType } from '../coating-presets';
@@ -8,6 +9,7 @@ export type Mode = 'direct' | 'length' | 'displacement' | 'supports';
 export interface Scenario { id: string; name: string; referenceTemperature: number; extraAxial: number }
 /** All lengths mm; forces N; stress and E MPa; temperatures C. */
 export interface ServiceInput {
+  csa?: CsaProfile;
   od: number; thickness: number; E: number; yield: number; nu: number; alpha: number;
   steelDensity: number; fluidDensity: number; coatingThickness: number; coatingDensity: number;
   supports?: SupportLayout; maxSupports?: number;
@@ -47,6 +49,7 @@ export interface ScenarioResult {
 export interface CaseResult { halfLength: number; displacement: number; status: Status; scenarios: ScenarioResult[]; supportPositions?:number[]; governing?: string }
 export interface SearchSample { value: number; status: Status; maxUtilization: number | null }
 export interface ServiceReport {
+  csa?: CsaAssessment;
   version: string; createdAt: string; input: ServiceInput; errors: string[];
   result?: CaseResult; samples: SearchSample[]; candidate?: number; budgetExhausted: boolean;
   boundReached: boolean; message: string; elapsedMs: number;
@@ -54,7 +57,7 @@ export interface ServiceReport {
 export function validate(i: ServiceInput): string[] {
   const errors: string[] = [...validateFluid(i),...validateSupports(i)];
   if (i.coatingType!==undefined && !Object.prototype.hasOwnProperty.call(COATING_LABELS,i.coatingType)) errors.push('Unknown coating type.');
-  const nums = Object.entries(i).filter(([k]) => !['scenarios', 'mode', 'direction', 'coatingType', 'fluidType', 'fluidDensity', 'gasMolarMass', 'gasZ', 'atmosphericPressure', 'supports', 'maxSupports'].includes(k));
+  const nums = Object.entries(i).filter(([k]) => !['csa', 'scenarios', 'mode', 'direction', 'coatingType', 'fluidType', 'fluidDensity', 'gasMolarMass', 'gasZ', 'atmosphericPressure', 'supports', 'maxSupports'].includes(k));
   if (nums.some(([,v]) => typeof v !== 'number' || !Number.isFinite(v))) errors.push('Enter finite values, including an explicit custom allowable percentage.');
   if (!(i.od > 0 && i.thickness > 0 && 2*i.thickness < i.od)) errors.push('Require 0 < 2t < outside diameter.');
   if (!(i.E > 0 && i.yield > 0 && i.nu >= 0 && i.nu < 0.5 && i.alpha >= 0)) errors.push('Invalid elastic steel properties.');

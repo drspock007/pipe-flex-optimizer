@@ -1,155 +1,38 @@
-// src/pages/HelpPage.tsx
-
-import { useEffect } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Disclaimer from "@/components/Disclaimer";
-import HelpIntroduction from "./help/HelpIntroduction";
-import HelpInputs from "./help/HelpInputs";
-import HelpSectionProperties from "./help/HelpSectionProperties";
-import HelpMechanicalModel from "./help/HelpMechanicalModel";
-import HelpLoading from "./help/HelpLoading";
-import HelpSettlement from "./help/HelpSettlement";
-import HelpSupports from "./help/HelpSupports";
-import HelpFEM from "./help/HelpFEM";
-import HelpCalcModes from "./help/HelpCalcModes";
-import HelpSafetyCriteria from "./help/HelpSafetyCriteria";
-import HelpValidation from "./help/HelpValidation";
-import HelpLimitations from "./help/HelpLimitations";
-
-const tocItems = [
-  { id: "introduction", label: "1. Introduction" },
-  { id: "inputs", label: "2. Input Parameters" },
-  { id: "section-properties", label: "3. Section Properties" },
-  { id: "mechanical-model", label: "4. Mechanical Model" },
-  { id: "loading", label: "5. Loading" },
-  { id: "settlement", label: "6. Differential Settlement" },
-  { id: "supports", label: "7. Intermediate Supports" },
-  { id: "fem", label: "8. Finite Element Method" },
-  { id: "calc-modes", label: "9. Calculation Modes" },
-  { id: "safety", label: "10. Safety Criteria" },
-  { id: "validation", label: "11. Validation" },
-  { id: "limitations", label: "12. Limitations" },
-];
+import HelpOverview from "./help/HelpOverview";
+import HelpPipeLowering from "./help/HelpPipeLowering";
+import HelpInService from "./help/HelpInService";
+import { HELP_TOC } from "./help/help-toc";
 
 const HelpPage = () => {
-  useEffect(() => {
-    const pageTitle = "Help & Documentation — Pipe Lowering Reference";
-    const pageDesc = "Technical documentation for Pipe Lowering: mechanical model, FEM solver, calculation modes, safety criteria, and validation for pipeline operations.";
-    const pageUrl = "https://pipe-lowering.giovannimalagninoconsulting.com/help";
-    const homeTitle = "Pipe Lowering — Pipeline Stress Analysis Tool";
-    const homeDesc = "Online pipe lowering stress analysis tool for engineers. Compute bending stress, deflection and optimal support spacing for trench lowering-in operations.";
-    const homeUrl = "https://pipe-lowering.giovannimalagninoconsulting.com/";
-
-    document.title = pageTitle;
-    const setMeta = (selector: string, value: string) => {
-      const el = document.querySelector(selector);
-      if (el) el.setAttribute("content", value);
-    };
-    setMeta('meta[name="description"]', pageDesc);
-    setMeta('meta[property="og:title"]', pageTitle);
-    setMeta('meta[property="og:description"]', pageDesc);
-    setMeta('meta[property="og:url"]', pageUrl);
-    setMeta('meta[name="twitter:title"]', pageTitle);
-    setMeta('meta[name="twitter:description"]', pageDesc);
-    const canonical = document.querySelector('link[rel="canonical"]');
-    const prevCanonical = canonical?.getAttribute("href") ?? null;
-    if (canonical) canonical.setAttribute("href", pageUrl);
-
-    // Inject TechArticle JSON-LD for the documentation page
-    const techArticleLd = document.createElement("script");
-    techArticleLd.type = "application/ld+json";
-    techArticleLd.id = "help-techarticle-jsonld";
-    techArticleLd.text = JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "TechArticle",
-      "headline": "Pipe Lowering Documentation",
-      "description": pageDesc,
-      "url": pageUrl,
-      "inLanguage": "en",
-      "proficiencyLevel": "Expert",
-      "dependencies": "Web browser",
-      "about": [
-        "Pipe lowering-in stress analysis",
-        "Beam deflection (Euler-Bernoulli FEM)",
-        "Pipeline support spacing optimization",
-      ],
-      "audience": {
-        "@type": "Audience",
-        "audienceType": "Mechanical and structural engineers (oil & gas)",
-      },
-      "author": {
-        "@type": "Organization",
-        "name": "Giovanni Malagnino Consulting",
-        "url": "https://www.giovannimalagninoconsulting.com",
-      },
-      "isPartOf": {
-        "@type": "WebApplication",
-        "name": "Pipe Lowering — Flexibility Optimizer",
-        "url": "https://pipe-lowering.giovannimalagninoconsulting.com",
-      },
-    });
-    document.head.appendChild(techArticleLd);
-
-    return () => {
-      document.title = homeTitle;
-      setMeta('meta[name="description"]', homeDesc);
-      setMeta('meta[property="og:title"]', homeTitle);
-      setMeta('meta[property="og:description"]', homeDesc);
-      setMeta('meta[property="og:url"]', homeUrl);
-      setMeta('meta[name="twitter:title"]', homeTitle);
-      setMeta('meta[name="twitter:description"]', homeDesc);
-      if (canonical && prevCanonical) canonical.setAttribute("href", prevCanonical);
-      techArticleLd.parentNode?.removeChild(techArticleLd);
-    };
-  }, []);
-
-  return (
-  <div className="min-h-screen grid-background flex flex-col">
+  return <div className="min-h-screen grid-background flex flex-col">
     <Header />
+    <main className="container mx-auto max-w-5xl flex-1 space-y-10 px-4 py-8">
+      <header className="space-y-3">
+        <p className="text-sm font-medium text-primary">Engineering model guide</p>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Help &amp; Technical Documentation</h1>
+        <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">Use this guide to choose the correct calculation model, prepare inputs and interpret what a result does—and does not—demonstrate.</p>
+      </header>
 
-    <main className="container max-w-4xl mx-auto px-4 py-8 space-y-10 flex-1">
-      <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">
-        Pipe Lowering Documentation
-      </h1>
-
-      {/* Table of contents */}
-      <nav className="rounded-lg border bg-card p-4">
-        <h2 className="text-sm font-semibold mb-2">Table of Contents</h2>
-        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-          {tocItems.map((item) => (
-            <li key={item.id}>
-              <a
-                href={`#${item.id}`}
-                className="text-xs text-muted-foreground hover:text-primary transition-colors"
-              >
-                {item.label}
-              </a>
-            </li>
-          ))}
-        </ul>
+      <nav aria-label="Help table of contents" className="rounded-xl border bg-card p-5">
+        <h2 className="text-base font-semibold">On this page</h2>
+        <div className="mt-4 grid gap-5 md:grid-cols-3">
+          {HELP_TOC.map(group => <div key={group.label}>
+            <h3 className="text-sm font-semibold text-foreground">{group.label}</h3>
+            <ul className="mt-2 space-y-1.5">{group.items.map(([id, label]) => <li key={id}><a className="text-sm text-muted-foreground underline-offset-4 hover:text-primary hover:underline" href={`#${id}`}>{label}</a></li>)}</ul>
+          </div>)}
+        </div>
       </nav>
 
-      <HelpIntroduction />
-      <HelpInputs />
-      <HelpSectionProperties />
-      <HelpMechanicalModel />
-      <HelpLoading />
-      <HelpSettlement />
-      <HelpSupports />
-      <HelpFEM />
-      <HelpCalcModes />
-      <HelpSafetyCriteria />
-      <HelpValidation />
-      <HelpLimitations />
+      <HelpOverview />
+      <HelpPipeLowering />
+      <HelpInService />
     </main>
-
-    <div className="container max-w-4xl mx-auto px-4 pb-6">
-      <Disclaimer />
-    </div>
+    <div className="container mx-auto max-w-5xl px-4 pb-6"><Disclaimer /></div>
     <Footer />
-  </div>
-  );
+  </div>;
 };
 
 export default HelpPage;

@@ -33,6 +33,10 @@ bun run build
 bun run lint
 ```
 
+Le build prérend les trois routes publiques et génère le sitemap depuis le
+registre SEO commun. Après publication, suivre la [liste de contrôle SEO](docs/seo-deployment.md)
+pour vérifier les réponses du CDN, la vraie 404 et les consoles Google/Bing.
+
 `bun run test:watch` lance Vitest en mode interactif ; `bun run preview` sert le build.
 Le lint historique n'est pas entièrement propre : comparer avec la branche de départ
 et ne pas confondre ces diagnostics avec de nouvelles régressions.
@@ -104,3 +108,13 @@ the model's canonical units. Loading cancels obsolete work and clears results;
 review the inputs and calculate again. Presets contain inputs, not PDF reports or
 computed results. Storage is not synchronized automatically between devices or
 site addresses; use JSON export/import to transfer it.
+
+### Targeted CSA evaluation (in-service only)
+
+Optional, separate CSA Z662:2023 checks now cover plain pipeline minimum nominal
+wall (4.3.11.2), the temperature factor (4.3.9), and the anchored design-state
+pressure/temperature criterion (4.7.1). Explicit design inputs and applicability
+confirmations are required. Lifting, 4.7.2 and Annex C remain unassessed; no overall
+CSA compliance is claimed. Custom criteria alone govern searches. See
+[applicability contract](docs/csa-targeted-checks.md). In-service presets now write
+version 2 and still read version 1 with CSA disabled.

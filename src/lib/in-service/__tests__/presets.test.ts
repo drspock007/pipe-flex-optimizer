@@ -33,7 +33,7 @@ describe('In-service preset persistence',()=>{
   });
   it('rejects foreign, incomplete, future-version and malformed payloads',()=>{
     const values=servicePresetValues(input);
-    for(const bad of [{Do:123},{...values,presetVersion:2},{...values,mode:'bad'},{...values,scenarios:'bad'},{...values,pressure:'2'}])expect(readServicePreset(bad)).toBeNull();
+    for(const bad of [{Do:123},{...values,presetVersion:3},{...values,mode:'bad'},{...values,scenarios:'bad'},{...values,pressure:'2'}])expect(readServicePreset(bad)).toBeNull();
     delete values.od;expect(readServicePreset(values)).toBeNull();
   });
   it('still reads legacy lowering export files',()=>{

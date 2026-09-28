@@ -1,3 +1,4 @@
+import FieldHelp from '@/components/FieldHelp';
 // créé par Giovanni Malagnino, 2026-09-25 20:10 CEST (Europe/Rome, UTC+2)
 // Modifié par Giovanni Malagnino, 2026-09-26 04:30 CEST: Find L search domain (V2-7).
 // Modifié par Giovanni Malagnino, 2026-09-26 05:10 CEST: domain shared with Min. supports (V2-8).
@@ -21,7 +22,7 @@ const GroundControls = ({ inputs, onChange }: Props) => {
   return (
     <div className="col-span-2 space-y-2 rounded-md border border-border/60 p-2">
       <label className="flex items-center justify-between gap-2 text-xs font-medium">
-        Ground contact
+        Ground contact <FieldHelp text="Rigid horizontal frictionless ground provides upward reaction only. The entered elevation refers to the pipe axis, including its outer radius."/>
         <Switch checked={inputs.groundEnabled} onCheckedChange={(v) => onChange("groundEnabled", v)} aria-label="Ground contact" />
       </label>
       {inputs.groundEnabled && (

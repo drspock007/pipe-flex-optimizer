@@ -1,3 +1,7 @@
+import type {IdentityFields} from '@/components/ReportIdentityFields';
+import { createServiceSummary } from '@/lib/in-service/report-summary';
+import { currentPdfPalette } from '@/lib/in-service/pdf-theme';
+import { ServiceCsaResults } from './ServiceCsa';
 import SupportResults from './SupportResults';
 import {selectedStage} from '@/lib/in-service/supports';
 import { useState } from 'react';
@@ -21,14 +25,15 @@ function Shape({s,axis,D,selected}:{s:ScenarioResult;axis:'z'|'y';D:number;selec
     <text x="45" y="188" fill="currentColor" fontSize="18">0</text><text x="500" y="188" fill="currentColor" fontSize="18">{format(D/1000,'m',system)}</text>
   </svg></figure>;
 }
-export default function ServiceResults({report:r}:{report:ServiceReport}) {
+export default function ServiceResults({report:r,identity}:{report:ServiceReport;identity:IdentityFields}) {
   const {system}=useUnits();const f=(v:number|undefined,u:Parameters<typeof format>[1])=>format(v,u,system);
   const [exportError,setExportError]=useState('');
   const [selected,setSelected]=useState<Record<string,number>>({});
   const c=r.result;
   return <div className="space-y-4">
     <section className="border rounded-lg p-4 bg-card space-y-3"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold text-lg">Results</h2>
-      {c&&<Button variant="outline" onClick={()=>{try{createServicePdf(r,system,selected).save('in-service-steel-deflection.pdf');setExportError('');}catch(e){setExportError(e instanceof Error?e.message:String(e));}}}>Export PDF · {system}</Button>}</div>
+      {c&&<div className="flex flex-wrap gap-2">{(['Summary','Complete'] as const).map(kind=><Button key={kind} disabled={!identity.preparedBy.trim()||!identity.projectName.trim()} variant={kind==='Summary'?'default':'outline'} onClick={()=>{try{if(!identity.preparedBy.trim()||!identity.projectName.trim())return;const meta={...identity,date:new Date()},palette=currentPdfPalette();(kind==='Summary'?createServiceSummary(r,system,palette,meta):createServicePdf(r,system,selected,palette,meta)).save(`in-service-steel-${kind.toLowerCase()}.pdf`);setExportError('');}catch(e){setExportError(e instanceof Error?e.message:String(e));}}}>{kind} PDF · {system}</Button>)}</div>}</div>
+      <p className="text-xs text-muted-foreground">Summary: conditions and essential results, usually one page per scenario. Complete: equations, profiles and diagnostics. Both use the current app theme.</p>
       <p>{r.message}</p>{exportError&&<p role="alert">{exportError}</p>}
       {r.errors.map(e=><p key={e} role="alert" className="text-destructive">{e}</p>)}
       {c&&<><p className="text-sm">Displayed case: <strong>{f(c.halfLength/1000,'m')} each side</strong> · total {f(c.halfLength/500,'m')} · target amplitude {f(c.displacement,'mm')} · {c.supportPositions?.length??0} supports.</p>
@@ -36,6 +41,7 @@ export default function ServiceResults({report:r}:{report:ServiceReport}) {
         <div className="overflow-x-auto"><table className="w-full text-sm text-left"><thead><tr className="border-b"><th className="p-2">Scenario</th><th className="p-2">Status</th><th className="p-2">VM beam bound</th><th className="p-2">Utilization</th></tr></thead><tbody>{c.scenarios.map(s=><tr key={s.scenario.id} className="border-b"><td className="p-2 max-w-56 break-words">{s.scenario.name}{s.scenario.id===c.governing?' · largest computed bound':''}</td><td className={`p-2 ${s.status==='pass'?'text-emerald-600':'text-amber-600'}`}>{STATUS[s.status]}</td><td className="p-2 whitespace-nowrap">{f(s.worst?.vm,'MPa')}</td><td className="p-2">{s.utilization===undefined?'—':`${(s.utilization*100).toFixed(1)}%`}</td></tr>)}</tbody></table></div>
         <p className="text-xs text-muted-foreground">Common custom criterion: {STATUS[c.status]}. Initial temperature and extra force remain hypotheses; only the listed scenarios were assessed.</p></>}
     </section>
+    <ServiceCsaResults assessment={r.csa}/>
     {c?.scenarios.map(s=><section key={s.scenario.id} className="border rounded-lg p-4 bg-card space-y-4">
       <h3 className="font-semibold">{s.scenario.name}</h3><p className="text-sm">{s.message}</p>
       <dl className="grid grid-cols-2 gap-3 text-sm"><div><dt className="text-muted-foreground">Initial wall force</dt><dd>{f(s.wall0,'N')}</dd></div><div><dt className="text-muted-foreground">Initial effective force</dt><dd>{f(s.N0,'N')}</dd></div><div><dt className="text-muted-foreground">Euler compression magnitude</dt><dd>{f(s.criticalLoad,'N')}</dd></div><div><dt className="text-muted-foreground">Reference temperature / extra force</dt><dd>{f(s.scenario.referenceTemperature,'C')} / {f(s.scenario.extraAxial,'N')}</dd></div></dl>

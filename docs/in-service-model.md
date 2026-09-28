@@ -139,3 +139,34 @@ reaction and gap envelopes, plus reactions/gaps at common path samples, with the
 Stages carry support positions, reactions, gaps, contact state and iteration count;
 reports expose selected stage, path diagnostics and maxima. Support reaction
 maxima are loads for separate support design, not a capacity approval.
+
+## Optional CSA Z662:2023 targeted assessment
+
+The independent evaluator `csa.ts` implements only the plain pipeline minimum
+nominal wall (4.3.11.2/table 4.5), table 4.4 temperature factor (4.3.9), and
+anchored design-state pressure/temperature check (4.7.1, 4.6.5, 4.6.6).
+See [csa-targeted-checks.md](csa-targeted-checks.md) for the applicability contract.
+It neither changes the mechanical solution nor accepts/rejects search candidates.
+The optional profile and versioned assessment belong to the completed report
+snapshot. Editing any input invalidates that snapshot; unit changes do not rerun it.
+Old presets load with CSA disabled. Profile blanks remain missing, not zero.
+
+### Report formats and colours
+
+The completed snapshot supports Summary and Complete PDF exports. Summary repeats
+calculation conditions per scenario and includes essential target/path results,
+support reaction peaks, partial CSA statuses and indispensable scope notes. It
+normally fits one page per scenario; long names/support lists flow without clipping.
+Diagnostic search samples and incomplete paths remain explicitly identified.
+Complete retains formulas, profiles and all diagnostics. Both capture current
+CSS theme tokens at export time (including dark/light background), and use the
+same exact blue/amber/emerald profile colours as the interface. Theme and format
+selection do not change or rerun the mechanical calculation.
+
+PDF export requires a nonblank preparer name and project name (80 characters max).
+Identity is kept separately from mechanical inputs and survives input invalidation;
+changes to identity do not rerun mechanics. Both service PDF generators validate
+identity before creating a document and print export date/time and local timezone,
+separately from the calculation timestamp. Pipe-lowering export enforces the same
+identity validation. Input help is available by hover, focus, keyboard activation
+or click and does not supply missing engineering data.

@@ -1,3 +1,4 @@
+const identity={preparedBy:'Report tester',projectName:'Verification project',date:new Date('2026-09-27T16:30:00Z')};
 import { mkdirSync,writeFileSync } from 'node:fs';
 import { DEFAULT_SERVICE,type ServiceInput } from '../src/lib/in-service/types';
 import { runService } from '../src/lib/in-service/run';
@@ -8,7 +9,7 @@ const input:ServiceInput={...DEFAULT_SERVICE,od:219.1,thickness:8.18,halfLength:
 const report=runService(input);
 mkdirSync('output/pdf',{recursive:true});
 for(const system of ['SI','Imperial'] as const){
-  const pdf=createServicePdf(report,system);
+  const pdf=createServicePdf(report,system,{},undefined,identity);
   writeFileSync(`output/pdf/supports-${system}.pdf`,Buffer.from(pdf.output('arraybuffer')));
   console.log(system,pdf.getNumberOfPages(),'pages');
 }

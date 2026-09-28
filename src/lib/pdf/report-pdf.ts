@@ -1,3 +1,4 @@
+import {requireReportIdentity} from './identity';
 // Modifié par Giovanni malagnino, 2026-09-25 01:43 CEST (Europe/Rome, UTC+2)
 // PDF report generation for pipe lowering analysis results.
 
@@ -28,6 +29,7 @@ export const createReportPdf = (
   report: V2Report,
   meta: ReportMeta,
 ): jsPDF => {
+  meta = {...meta,...requireReportIdentity(meta)};
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -43,12 +45,12 @@ export const createReportPdf = (
   doc.setTextColor(30, 30, 30);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text(`Project: ${meta.projectName}`, 14, 27);
-  doc.text(`Prepared by: ${meta.preparedBy}`, 14, 33);
-  doc.text(`Date: ${meta.date.toLocaleString()}`, 14, 39);
-  doc.text(`Unit system: ${meta.system === "SI" ? "SI (metric)" : "Imperial"}`, 14, 45);
-
-  let cursorY = 52;
+  let cursorY = 27;
+  for (const text of [`Project: ${meta.projectName}`, `Prepared by: ${meta.preparedBy}`, `Exported: ${meta.date.toLocaleString()} | ${Intl.DateTimeFormat().resolvedOptions().timeZone}`, `Unit system: ${meta.system === "SI" ? "SI (metric)" : "Imperial"}`]) {
+    const lines=doc.splitTextToSize(text,182);
+    doc.text(lines,14,cursorY);cursorY+=lines.length*5+1;
+  }
+  cursorY+=1;
   for (const section of buildSections(report.inputs, report.derived, report, meta.system)) {
     const opts: UserOptions = {
       startY: cursorY,
