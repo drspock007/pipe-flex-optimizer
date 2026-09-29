@@ -46,3 +46,22 @@ it('applies layouts and soil examples explicitly, and shows explanatory help',as
  fireEvent.click(screen.getByRole('button',{name:/Help: Generate zone extents/}));
  expect(await screen.findByRole('tooltip')).toHaveTextContent('Uniform');
 });
+
+it('derives backfill weight from geometry, preserves units and supports direct legacy loads',()=>{
+ const changes=vi.fn();
+ function Form(){const [input,setInput]=useState(DEFAULT_SERVICE);const units=useUnits();return <><button onClick={units.toggle}>Switch load units</button><PermanentInputs input={input} onChange={v=>{changes(v);setInput(v);}}/></>;}
+ render(<UnitProvider><Form/></UnitProvider>);
+ fireEvent.change(screen.getByLabelText('Intervention type'),{target:{value:'permanent'}});
+ fireEvent.change(screen.getByLabelText('Soil cover above pipe crown (m)'),{target:{value:'2'}});
+ fireEvent.change(screen.getByLabelText('Soil column width carried by pipe (m)'),{target:{value:'0.5'}});
+ fireEvent.change(screen.getByLabelText('Backfill bulk density (kg/m3)'),{target:{value:'2000'}});
+ expect(changes.mock.calls.at(-1)[0].permanent.zones[0].weight).toBeCloseTo(19.6133,10);
+ const count=changes.mock.calls.length;fireEvent.click(screen.getByText('Switch load units'));
+ expect(changes).toHaveBeenCalledTimes(count);
+ expect(Number((screen.getByLabelText('Soil cover above pipe crown (ft)') as HTMLInputElement).value)).toBeCloseTo(2/.3048,8);
+ fireEvent.change(screen.getByLabelText('Soil cover above pipe crown (ft)'),{target:{value:''}});
+ expect(changes.mock.calls.at(-1)[0].permanent.zones[0].weight).toBeNaN();
+ fireEvent.change(screen.getByLabelText('Backfill weight method zone 1'),{target:{value:'direct'}});
+ expect(changes.mock.calls.at(-1)[0].permanent.zones[0].loadEstimate).toBeUndefined();
+ expect(screen.getByLabelText('Known downward backfill load (lbf/in)')).toHaveValue(null);
+});

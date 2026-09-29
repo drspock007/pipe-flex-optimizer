@@ -1,3 +1,4 @@
+import {backfillLoad} from './backfill-load';
 import { z } from 'zod';
 import type {ServiceInput} from '../types';
 import {supportFractions} from '../supports';
@@ -9,7 +10,7 @@ export const permanentSchema=z.object({
  initialSupports:z.enum(['keep','remove']),release:z.enum(['before','after']),
  reusePositions:z.boolean(),pairs:z.array(num).max(10),heightMode:z.enum(['fitted','common']),heights:z.array(num).max(10),
  removalOrder:z.array(num).max(10),verticalTolerance:num,lateralTolerance:num,
- zones:z.array(z.object({name:z.string(),material:z.string().optional(),start:num,end:num,step:num,bedOffset:num,weight:num,construction:num,axial:curve,lateral:curve,down:curve,up:curve})).max(20),
+ zones:z.array(z.object({name:z.string(),material:z.string().optional(),loadEstimate:z.object({cover:num,width:num,density:num}).optional(),start:num,end:num,step:num,bedOffset:num,weight:num,construction:num,axial:curve,lateral:curve,down:curve,up:curve})).max(20),
  operations:z.array(z.object({name:z.string(),pressure:num,temperature:num,fluidDensity:num})).max(12),
 });
 export type PermanentProfile=z.infer<typeof permanentSchema>;
@@ -35,6 +36,7 @@ export function validatePermanent(i:ServiceInput):string[]{
  const zones=[...p.zones].sort((a,b)=>a.start-b.start);
  if(zones[0]?.start!==0||zones.at(-1)?.end!==1||zones.some((v,j)=>j>0&&Math.abs(v.start-zones[j-1].end)>1e-12))errors.push('Backfill zones must cover the full span without overlap or gaps.');
  for(const v of zones){
+  if(v.loadEstimate){const q=backfillLoad(v.loadEstimate);if(!Number.isFinite(q)||!Number.isFinite(v.weight)||Math.abs(v.weight-q)>1e-12*Math.max(1,q))errors.push(`Invalid backfill weight estimate for ${v.name}: check cover, width, density and derived load.`);}
   if(!v.name.trim()||![v.start,v.end,v.step,v.bedOffset,v.weight,v.construction].every(Number.isFinite)||v.start<0||v.end>1||v.end<=v.start||!Number.isInteger(v.step)||v.step<1||v.step>20||v.bedOffset<0||v.weight<0||v.construction<0)errors.push(`Invalid zone ${v.name}: complete geometry, stage, gap and loads.`);
   for(const key of ['axial','lateral','down','up'] as const){const c=v[key];if(!c.source.trim()||c.points[0]?.displacement!==0||c.points[0]?.reaction!==0||c.points.some((x,j)=>!Number.isFinite(x.displacement)||!Number.isFinite(x.reaction)||x.displacement<0||x.reaction<0||(j>0&&(x.displacement<=c.points[j-1].displacement||x.reaction<c.points[j-1].reaction)))||!(c.points.at(-1)?.reaction>0))errors.push(`Document a monotone ${key} soil curve for ${v.name}, starting at (0,0) with positive terminal resistance.`);}
  }

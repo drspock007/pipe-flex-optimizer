@@ -143,7 +143,7 @@ Uniform / successive halves / ends-then-centre layouts generate adjoining zones.
 Splitting the longest zone preserves coverage and copies its properties.
 
 These are examples, **not the most common geotechnical design values**:
-- centre tolerances 10 mm; bed gap 0 mm; backfill load 1 N/mm;
+- centre tolerances 10 mm; bed gap 0 mm; backfill weight estimated as described below (legacy direct-load starter: 1 N/mm);
 - construction load 0; future operation initially copies construction P/T/density;
 - intermediate terminal (movement mm, resistance N/mm): axial (20,20),
   lateral (50,40), bearing (10,100), uplift (25,10), each preceded by (0,0);
@@ -164,3 +164,23 @@ Soil reaction and mobilization cannot be inferred from a material name alone.
 For conceptual background (not a source of the example numbers), see the
 [Orcina buried-line formulation](https://www.orcina.com/webhelp/OrcaFlex/Content/html/Linetheory%2CBuriedlines.htm).
 Our reversible laws do not implement that product's history-dependent model.
+
+### Guided backfill weight
+
+New UI profiles estimate distributed dead load from a rectangular soil column:
+`q [N/mm] = density [kg/m³] × 9.80665 × cover [m] × width [m] / 1000`.
+Cover is measured above the pipe crown, not to its axis or the trench bottom.
+Starting examples are 1 m cover, 1800 kg/m³ bulk density and steel OD for width.
+These are editable illustrative assumptions, not material-specific design values.
+The width is stored explicitly; changing pipe size does not silently change it.
+The action “Use current pipe outside diameter” updates it explicitly.
+This above-water column-weight estimate does not model arching, buoyancy,
+soil beside the curved crown, consolidation or compaction forces, and is not
+a universal conservative earth-load method. It does not generate soil resistance curves.
+A study-derived distributed load can still be entered directly. Existing profiles
+retain their direct loads. Missing/invalid estimator inputs invalidate the derived
+load; validation rejects mismatches between saved geometry and saved load.
+Both report formats record geometry, density, resulting load and exclusions.
+Conceptual background on prism loading and differing earth-load methods:
+https://www.fdot.gov/docs/default-source/structures/structuresresearchcenter/Final-Reports/BC775-vol-one.pdf
+This reference does not calibrate the illustrative starting values.
