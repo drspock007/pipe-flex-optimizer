@@ -9,7 +9,7 @@ export const permanentSchema=z.object({
  initialSupports:z.enum(['keep','remove']),release:z.enum(['before','after']),
  reusePositions:z.boolean(),pairs:z.array(num).max(10),heightMode:z.enum(['fitted','common']),heights:z.array(num).max(10),
  removalOrder:z.array(num).max(10),verticalTolerance:num,lateralTolerance:num,
- zones:z.array(z.object({name:z.string(),start:num,end:num,step:num,bedOffset:num,weight:num,construction:num,axial:curve,lateral:curve,down:curve,up:curve})).max(20),
+ zones:z.array(z.object({name:z.string(),material:z.string().optional(),start:num,end:num,step:num,bedOffset:num,weight:num,construction:num,axial:curve,lateral:curve,down:curve,up:curve})).max(20),
  operations:z.array(z.object({name:z.string(),pressure:num,temperature:num,fluidDensity:num})).max(12),
 });
 export type PermanentProfile=z.infer<typeof permanentSchema>;

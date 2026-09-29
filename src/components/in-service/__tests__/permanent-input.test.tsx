@@ -39,6 +39,9 @@ it('applies layouts and soil examples explicitly, and shows explanatory help',as
  fireEvent.click(screen.getByLabelText('Starting values reviewed'));
  fireEvent.change(screen.getByLabelText('Soil response example zone 1'),{target:{value:'soft'}});
  expect(screen.getByLabelText('Starting values reviewed')).not.toBeChecked();
+ fireEvent.change(screen.getByLabelText('Backfill material zone 1'),{target:{value:'Sand and gravel mixture'}});
+ expect(screen.getByLabelText('Backfill material zone 1')).toHaveValue('Sand and gravel mixture');
+ expect(screen.getByLabelText('Backfill material zone 2')).toHaveValue('');
  expect(screen.getAllByLabelText('axial resistance 2 (N/mm)')[0]).toHaveValue(5);
  fireEvent.click(screen.getByRole('button',{name:/Help: Generate zone extents/}));
  expect(await screen.findByRole('tooltip')).toHaveTextContent('Uniform');
