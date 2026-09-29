@@ -1,3 +1,4 @@
+import {BACKFILL_DENSITIES} from './backfill-links';
 import {backfillLoad,initialBackfillLoad} from './backfill-load';
 import {effectiveFluidDensity} from '../fluid';
 import type {ServiceInput} from '../types';
@@ -46,7 +47,7 @@ export function fillPermanentBlanks(i:ServiceInput):PermanentProfile{
   const sample=starterZone(),z={...zone,name:zone.name.trim()?zone.name:`Zone ${j+1}`};
   for(const k of ['start','end','step','bedOffset','weight','construction'] as const)z[k]=finite(z[k],k==='start'?j/p.zones.length:k==='end'?(j+1)/p.zones.length:sample[k]);
   for(const key of ['axial','lateral','down','up'] as const){const c=z[key],end=sample[key].points[1];z[key]={source:c.source.trim()?(c.points.some(pt=>!Number.isFinite(pt.displacement)||!Number.isFinite(pt.reaction))?c.source+'; missing points filled from '+sample[key].source:c.source):sample[key].source,points:c.points.map((pt,k)=>({displacement:finite(pt.displacement,end.displacement*k/(c.points.length-1)),reaction:finite(pt.reaction,end.reaction*k/(c.points.length-1))}))};}
-  if(z.loadEstimate){const e=initialBackfillLoad(i.od);z.loadEstimate={cover:finite(z.loadEstimate.cover,e.cover),width:finite(z.loadEstimate.width,e.width),density:finite(z.loadEstimate.density,e.density)};z.weight=backfillLoad(z.loadEstimate);}
+  if(z.loadEstimate){const e=initialBackfillLoad(i.od);z.loadEstimate={cover:finite(z.loadEstimate.cover,e.cover),width:finite(z.loadEstimate.width,e.width),density:finite(z.loadEstimate.density,z.material?(BACKFILL_DENSITIES[z.material]??NaN):e.density)};z.weight=backfillLoad(z.loadEstimate);}
   return z;
  });
  if(!p.operations.length)p.operations=fallback.operations;

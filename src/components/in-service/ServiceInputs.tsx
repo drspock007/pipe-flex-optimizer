@@ -1,3 +1,5 @@
+import {syncBackfillDiameter} from '@/lib/in-service/permanent/backfill-links';
+import type {ReactNode} from 'react';
 import FieldHelp from '@/components/FieldHelp';
 import {fieldHelp} from '@/lib/field-help';
 import { useId,useState } from 'react';
@@ -22,7 +24,8 @@ export function Field({title,value,onChange,unit='scalar',help}:{title:string;va
     <Input id={id} type="number" step="any" value={Number.isFinite(v)?Number(v.toPrecision(12)):''} onChange={e=>onChange(e.target.value===''?NaN:internal(Number(e.target.value),unit,system))}/></div>;
 }
 const selectClass='w-full rounded-md border border-input bg-background p-2 text-sm';
-export function ServiceInputs({input:i,onChange}:{input:ServiceInput;onChange:(i:ServiceInput)=>void}) {
+export function ServiceInputs({input:i,onChange:emit,afterPipe}:{input:ServiceInput;onChange:(i:ServiceInput)=>void;afterPipe?:ReactNode}) {
+  const onChange=(v:ServiceInput)=>emit(syncBackfillDiameter(i,v));
   const gas=gasProperties(i),fluidType=i.fluidType??'custom';
   const {system}=useUnits();const [nps,setNps]=useState(findNpsByOd(i.od)),[schedule,setSchedule]=useState(findScheduleByWt(findNpsByOd(i.od),i.thickness));
   const [thresholdMode,setThresholdMode]=useState('percent');
@@ -42,6 +45,7 @@ export function ServiceInputs({input:i,onChange}:{input:ServiceInput;onChange:(i
       <div className="grid grid-cols-2 gap-3">{f('yield','Yield strength at operating T','MPa')}{f('E',"Young's modulus",'MPa')}{f('nu',"Poisson's ratio")}{f('alpha','Thermal expansion','alpha')}</div>
       <p className="text-xs text-muted-foreground">Steel only. Enter properties applicable at the operating temperature; no automatic material derating.</p>
     </section>
+    {afterPipe}
     <section className="rounded-lg border bg-card p-4 space-y-3"><h2 className="font-semibold">Operating conditions & weight</h2>
       <div className="grid grid-cols-2 gap-3">{f('pressure','Internal gauge pressure','pressure')}{f('temperature','Operating temperature','C')}{f('steelDensity','Steel density','kg/m3')}</div>
       <label className="block text-xs">Fluid<FieldHelp text={fieldHelp('Fluid')!}/><select aria-label="Fluid" className={selectClass} value={fluidType} onChange={e=>{const type=e.target.value as FluidType;onChange({...i,fluidType:type,gasMolarMass:FLUIDS[type].molarMass,gasZ:1});}}>{Object.entries(FLUIDS).map(([key,fluid])=><option key={key} value={key}>{fluid.label}</option>)}</select></label>

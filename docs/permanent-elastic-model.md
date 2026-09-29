@@ -172,8 +172,16 @@ New UI profiles estimate distributed dead load from a rectangular soil column:
 Cover is measured above the pipe crown, not to its axis or the trench bottom.
 Starting examples are 1 m cover, 1800 kg/m³ bulk density and steel OD for width.
 These are editable illustrative assumptions, not material-specific design values.
-The width is stored explicitly; changing pipe size does not silently change it.
-The action “Use current pipe outside diameter” updates it explicitly.
+The width is stored explicitly. Changing NPS or custom OD updates every estimated
+zone width to steel OD and recalculates its load; manual width edits persist until
+the next OD change. Unit-only changes never trigger this synchronization.
+Material selection replaces density with editable illustrative starters: sand
+1800, sand/gravel 2000, gravel 2000, crushed stone 2100, silt 1800, clay 1900 kg/m³.
+These values are UI starting assumptions, not calibrated material specifications.
+Reused/unspecified soils clear density and require project data. Direct known
+loads remain unchanged. Changes reset the project-review flag.
+Background on density variability, not a calibration of these presets:
+https://www.fhwa.dot.gov/engineering/geotech/pubs/05037/07d.cfm
 This above-water column-weight estimate does not model arching, buoyancy,
 soil beside the curved crown, consolidation or compaction forces, and is not
 a universal conservative earth-load method. It does not generate soil resistance curves.
