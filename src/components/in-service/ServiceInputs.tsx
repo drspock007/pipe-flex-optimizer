@@ -15,10 +15,10 @@ import { GRADES } from '@/lib/calculations';
 import { display,internal,label,type ServiceUnit } from '@/lib/in-service/display';
 import { type ServiceInput,type Mode,type Direction } from '@/lib/in-service/types';
 
-export function Field({title,value,onChange,unit='scalar'}:{title:string;value:number;onChange:(v:number)=>void;unit?:ServiceUnit}) {
+export function Field({title,value,onChange,unit='scalar',help}:{title:string;value:number;onChange:(v:number)=>void;unit?:ServiceUnit;help?:string}) {
   const {system}=useUnits(),id=useId();
   const v=display(value,unit,system);
-  return <div className="space-y-1"><label htmlFor={id} className="text-xs font-medium">{title} {unit!=='scalar'&&`(${label(unit,system)})`}</label>{fieldHelp(title)&&<FieldHelp text={fieldHelp(title)!}/>}
+  return <div className="space-y-1"><label htmlFor={id} className="text-xs font-medium">{title} {unit!=='scalar'&&`(${label(unit,system)})`}</label>{(help??fieldHelp(title))&&<FieldHelp text={(help??fieldHelp(title))!}/>}
     <Input id={id} type="number" step="any" value={Number.isFinite(v)?Number(v.toPrecision(12)):''} onChange={e=>onChange(e.target.value===''?NaN:internal(Number(e.target.value),unit,system))}/></div>;
 }
 const selectClass='w-full rounded-md border border-input bg-background p-2 text-sm';

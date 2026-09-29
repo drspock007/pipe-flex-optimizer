@@ -69,7 +69,8 @@ specified downward backfill/construction loads ramp together in each stage. Temp
 construction load is removed after that stage. Thus this model represents the stated
 staged support/load activation, not a detailed compaction simulation. Positive
 distributed loads act downward. Sources, load values and curves must be entered;
-there are no implicit soil or pressure/temperature assumptions.
+project values remain necessary for assessed verdicts. The UI now offers explicitly
+labelled illustrative starting values (see below).
 
 All support pairs are removed after backfill and equipment release. Each future
 operating case starts independently from this final loaded state. Pressure,
@@ -131,3 +132,35 @@ python3 scripts/check-permanent-reference.py
 ./node_modules/.bin/vite-node scripts/check-permanent-report.ts
 ```
 No dependency or lockfile update is necessary. Outputs live in ignored output/pdf/.
+
+## Guided entry and illustrative starting values
+
+New permanent UI profiles are prefilled by `starters.ts`; existing saved profiles
+and deliberately cleared fields are not silently changed. The explicit fill-empty
+button preserves finite entries and fills missing permanent-profile fields only.
+Identity, CSA design inputs and applicability confirmations are not fabricated.
+Uniform / successive halves / ends-then-centre layouts generate adjoining zones.
+Splitting the longest zone preserves coverage and copies its properties.
+
+These are examples, **not the most common geotechnical design values**:
+- centre tolerances 10 mm; bed gap 0 mm; backfill load 1 N/mm;
+- construction load 0; future operation initially copies construction P/T/density;
+- intermediate terminal (movement mm, resistance N/mm): axial (20,20),
+  lateral (50,40), bearing (10,100), uplift (25,10), each preceded by (0,0);
+- flexible/stiff examples multiply resistance by 0.25/4; they are sensitivity
+  cases, not calibrated sand, clay or gravel classifications;
+- common height starts at zero (original axis), while fitted settings remain
+  calculated. A common height is not an automatically derived jack setting.
+
+The optional `defaultsReviewed` flag is false when examples are introduced and
+persists in presets/snapshots. Numerical calculations may run, but both mechanical
+and retained-position verdicts remain not evaluated until the user reviews the
+values against project information. Reapplying examples clears the review. Legacy
+profiles without this flag retain their explicit-data behavior. Curve sources
+identify examples; filling missing points appends that provenance to an existing
+source. Reports retain the warning and the separate not-evaluated verdicts.
+
+Soil reaction and mobilization cannot be inferred from a material name alone.
+For conceptual background (not a source of the example numbers), see the
+[Orcina buried-line formulation](https://www.orcina.com/webhelp/OrcaFlex/Content/html/Linetheory%2CBuriedlines.htm).
+Our reversible laws do not implement that product's history-dependent model.

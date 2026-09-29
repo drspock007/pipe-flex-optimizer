@@ -1,3 +1,4 @@
+import {permanentHelp} from './in-service/permanent/help';
 /** Explanations shared by input labels; no numerical assumptions are supplied here. */
 const hints:[RegExp,string][]=[
  [/^NPS/, 'Nominal pipe size. Choosing a size supplies its standard outside diameter; use Custom for a measured diameter.'],
@@ -51,4 +52,4 @@ const hints:[RegExp,string][]=[
  [/^Nominal thickness/,'Nominal steel wall for the CSA checks, distinct from mechanical analysis thickness.'],
  [/^Allowance/,'Applicable wall allowance under CSA 4.3.10, subtracted from nominal wall for the anchored check. Enter zero explicitly only when justified.'],
 ];
-export function fieldHelp(label:string):string|undefined{return hints.find(([pattern])=>pattern.test(label.trim()))?.[1];}
+export function fieldHelp(label:string):string|undefined{return permanentHelp(label.trim())??hints.find(([pattern])=>pattern.test(label.trim()))?.[1];}

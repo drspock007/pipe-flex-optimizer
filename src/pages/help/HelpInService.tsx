@@ -30,6 +30,8 @@ const HelpInService = () => (
 
     <HelpSection id="service-permanent" eyebrow="Permanent maintained deviation" title="Elastic construction and backfill sequence">
       <P>Select Permanent maintained deviation for a separate direct calculation. The initial pipe remains the steel reference configuration: neither support adjustment nor backfill erases stress.</P>
+      <P>Quick setup pre-fills editable examples and offers uniform, successive-half or ends-first backfill layouts. Open a zone for its values and soil-response examples. Infobubbles explain units, signs, examples and limitations. Fill empty fields preserves existing entries; deliberate blanks stay blank until that action is used.</P>
+      <P>Flexible/intermediate/stiff soil examples are sensitivity cases, not material classifications. Stress and position verdicts remain not evaluated until starting values have been checked against project information. New operating cases initially copy construction conditions. Identity and applicability confirmations still require your input.</P>
       <Bullets>
         <li>Keep initial supports at their original height, or unload them under equipment control before moving the pipe. Loaded supports must be unloaded before reuse.</li>
         <li>Install symmetric vertical pairs at the calculated shape, without added preload, or enter common absolute heights for all scenarios. Common heights can create a calculated preload.</li>

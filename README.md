@@ -125,7 +125,8 @@ version 3; versions 1 and 2 remain temporary, and version 1 loads with CSA disab
 Select the dedicated permanent intervention type for direct calculation through
 support adjustment, equipment release, staged backfill, pair removal and explicit
 future operating cases. Soil curves, sources, loads and final centre tolerances are
-required; no project soil data is supplied by default. Stress, retained position and
+required for assessed verdicts. Guided entry offers illustrative defaults and
+backfill layouts; examples remain unreviewed until checked against project data. Stress, retained position and
 soil-limit results remain separate. This is not a permanent-installation approval.
 See [formulation and independent numerical evidence](docs/permanent-elastic-model.md).
 Run `vite-node scripts/check-permanent-reference.ts` followed by the independent

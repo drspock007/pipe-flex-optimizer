@@ -9,7 +9,7 @@ export function runService(input:ServiceInput,onProgress?:(message:string)=>void
   if(errors.length) return {...r,csa:evaluateCsa(input),message:'Correct the input errors before calculating.'};
   const check=()=>{if(performance.now()-start>SEARCH_MS) {r.budgetExhausted=true;throw new Error('Calculation time budget exhausted; unresolved result.');}};
   if(input.intervention==='permanent'){
-    r.permanent=runPermanent(input,check);r.version=r.permanent.version;r.message='Permanent elastic assessment: separate stress, position and soil-limit results; no installation approval.';r.csa=evaluateCsa(input);r.elapsedMs=performance.now()-start;return r;
+    r.permanent=runPermanent(input,check);if(input.permanent.defaultsReviewed===false){r.permanent.scenarios.forEach(s=>{s.mechanical='not evaluated';s.position='not evaluated';s.message='ILLUSTRATIVE INPUTS — starting values have not been confirmed for this project. Numerical results only; stress and retention verdicts are not evaluated. '+s.message;});}r.version=r.permanent.version;r.message='Permanent elastic assessment: separate stress, position and soil-limit results; no installation approval.';r.csa=evaluateCsa(input);r.elapsedMs=performance.now()-start;return r;
   }
   if(input.mode==='direct') {
     r.result=solveCase(input,check);r.message='Direct calculation. Custom elastic beam criterion only.';

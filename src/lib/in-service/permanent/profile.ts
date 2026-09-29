@@ -5,7 +5,7 @@ const num=z.number().finite().nullable().transform(v=>v===null?NaN:v);
 const curve=z.object({source:z.string(),points:z.array(z.object({displacement:num,reaction:num})).min(2).max(30)});
 /** Canonical units: mm, N, MPa, C. Distributed reactions N/mm. */
 export const permanentSchema=z.object({
- version:z.literal(1),clampsConfirmed:z.boolean(),propertiesConfirmed:z.boolean(),
+ version:z.literal(1),defaultsReviewed:z.boolean().optional(),clampsConfirmed:z.boolean(),propertiesConfirmed:z.boolean(),
  initialSupports:z.enum(['keep','remove']),release:z.enum(['before','after']),
  reusePositions:z.boolean(),pairs:z.array(num).max(10),heightMode:z.enum(['fitted','common']),heights:z.array(num).max(10),
  removalOrder:z.array(num).max(10),verticalTolerance:num,lateralTolerance:num,

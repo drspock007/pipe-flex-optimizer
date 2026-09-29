@@ -13,9 +13,10 @@ it('restricts permanent mode to direct calculation and preserves blanks and cano
  fireEvent.change(screen.getByLabelText('Intervention type'),{target:{value:'permanent'}});
  expect(screen.getByLabelText('Calculation')).toBeDisabled();
  expect(screen.getByLabelText('Calculation')).toHaveValue('direct');
- expect(screen.getByLabelText('Final vertical tolerance (mm)')).toHaveValue(null);
+ expect(screen.getByLabelText('Final vertical tolerance (mm)')).toHaveValue(10);
  fireEvent.change(screen.getByLabelText('Final vertical tolerance (mm)'),{target:{value:'25.4'}});
  fireEvent.blur(screen.getByLabelText('Final vertical tolerance (mm)'));
+ fireEvent.change(screen.getByLabelText('Final lateral tolerance (mm)'),{target:{value:''}});
  const count=changes.mock.calls.length;
  fireEvent.click(screen.getByText('Toggle test units'));
  expect(changes).toHaveBeenCalledTimes(count);
@@ -24,4 +25,21 @@ it('restricts permanent mode to direct calculation and preserves blanks and cano
  expect(changes.mock.calls.at(-1)[0].permanent.verticalTolerance).toBe(25.4);
  fireEvent.change(screen.getByLabelText('Intervention type'),{target:{value:'temporary'}});
  expect(screen.getByLabelText('Calculation')).not.toBeDisabled();
+});
+
+it('applies layouts and soil examples explicitly, and shows explanatory help',async()=>{
+ function Form(){const [input,setInput]=useState(DEFAULT_SERVICE);return <UnitProvider><PermanentInputs input={input} onChange={setInput}/></UnitProvider>;}
+ render(<Form/>);
+ fireEvent.change(screen.getByLabelText('Intervention type'),{target:{value:'permanent'}});
+ expect(screen.getByLabelText('Gauge pressure (kPa)')).toHaveValue(2000);
+ expect(screen.getByLabelText('Temperature (°C)')).toHaveValue(20);
+ fireEvent.change(screen.getByLabelText('Backfill layout'),{target:{value:'ends'}});
+ fireEvent.click(screen.getByRole('button',{name:'Apply layout (replace zones)'}));
+ expect(screen.getAllByLabelText('Activation stage').map(v=>(v as HTMLInputElement).value)).toEqual(['1','2','1']);
+ fireEvent.click(screen.getByLabelText('Starting values reviewed'));
+ fireEvent.change(screen.getByLabelText('Soil response example zone 1'),{target:{value:'soft'}});
+ expect(screen.getByLabelText('Starting values reviewed')).not.toBeChecked();
+ expect(screen.getAllByLabelText('axial resistance 2 (N/mm)')[0]).toHaveValue(5);
+ fireEvent.click(screen.getByRole('button',{name:/Help: Generate zone extents/}));
+ expect(await screen.findByRole('tooltip')).toHaveTextContent('Uniform');
 });
