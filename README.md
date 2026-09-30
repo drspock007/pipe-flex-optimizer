@@ -6,11 +6,11 @@ conserve la connexion Lovable et l'hébergement existant.
 
 ## Démarrer
 
-Prérequis : Git, Node.js 24 LTS et Bun 1.3.11 (validation avec Node 24.19.0).
-`bun.lock` est le verrou de référence : il correspond à `package.json`, contrairement
-au `package-lock.json` historique (notamment jsPDF, Recharts et React Router).
-Aucune configuration CI n'est présente dans cette version. Ne pas lancer `npm install`
-ou régénérer les deux verrous pour une modification de code.
+Prérequis : Node.js 24 LTS. Bun 1.3.11 reste utilisable pour le développement
+Lovable/local. `bun.lock` et `package-lock.json` sont synchronisés avec le manifeste :
+utiliser `bun install --frozen-lockfile` avec Bun ou `npm ci --include=dev` avec npm.
+Ne pas mettre à jour les dépendances pour une simple modification de code.
+La compilation et le prérendu fonctionnent avec Node.js sans exiger Bun.
 
 ```sh
 git clone https://github.com/drspock007/pipe-flex-optimizer.git
@@ -132,3 +132,25 @@ See [formulation and independent numerical evidence](docs/permanent-elastic-mode
 Run `vite-node scripts/check-permanent-reference.ts` followed by the independent
 NumPy check `python3 scripts/check-permanent-reference.py`; PDF checks use
 `vite-node scripts/check-permanent-report.ts` (executables under node_modules/.bin).
+
+## Déploiement Infomaniak (Node.js 24)
+
+Après fusion de la demande validée dans `main`, utiliser la racine du dépôt
+(dossier contenant `package.json`) et ces paramètres :
+
+- Construction : `git pull --ff-only origin main && npm ci --include=dev && npm run build`
+- Lancement : `npm start`
+- Port : `3000`, ou le port fourni par Infomaniak via la variable `PORT`.
+
+Le dépôt sur le serveur doit déjà être positionné sur `main` : `git pull` ne change
+pas la branche active. Lancer Build puis redémarrer le site après une mise à jour.
+Cette commande ne déclenche pas un déploiement automatique à chaque commit GitHub.
+
+Le serveur ne sert que `dist`, avec les pages prérendues propres à `/`, `/help`
+et `/in-service`. Il n'utilise pas de repli global vers l'accueil : les chemins
+inconnus doivent conserver une vraie réponse 404. Vérifier ces routes et les
+fichiers JavaScript après publication, ainsi que les contrôles de
+[référencement](docs/seo-deployment.md). Les calculs restent dans le navigateur.
+
+Contrôle local de production : `npm ci --include=dev`, `npm run build`, puis
+`npm start`. `npm run preview` reste destiné à la vérification locale.
