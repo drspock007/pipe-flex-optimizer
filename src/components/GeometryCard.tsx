@@ -1,11 +1,10 @@
-import { useState, useEffect } from "react";
+// Modifié par Giovanni malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SectionProperties, CalcMode } from "@/lib/calculations";
+import { SectionProperties } from "@/lib/calculations";
 import { Ruler } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import NumericInput from "@/components/NumericInput";
 import { useUnits } from "@/contexts/UnitContext";
 import PipeSizeSelect from "@/components/geometry/PipeSizeSelect";
@@ -13,16 +12,16 @@ import WallThicknessSelect from "@/components/geometry/WallThicknessSelect";
 import { PIPE_SIZES, WALL_THICKNESS_BY_NPS, findNpsByOd, findScheduleByWt } from "@/lib/pipe-presets";
 
 interface Props {
-  Do: number; t: number; L: number; h: number;
+  Do: number; t: number; L: number; h: number; hl: number;
   section: SectionProperties;
-  calcMode: CalcMode;
-  computedLmin?: number;
-  computedLmax?: number;
-  computedH?: number;
+  /** L is only an input of the fixed-length mode; searches never read it. */
+  showL: boolean;
+  /** hv is not an input of Find h (it is searched). */
+  showH?: boolean;
   onChange: (field: string, value: number | string) => void;
 }
 
-const GeometryCard = ({ Do, t, L, h, section, calcMode, computedLmin, computedLmax, computedH, onChange }: Props) => {
+const GeometryCard = ({ Do, t, L, h, hl, showL, showH = true, onChange }: Props) => {
   const { conv, parse, label, system, toggle } = useUnits();
   // Local state for selectors — derived from global Do/t on mount
   const [selectedNps, setSelectedNps] = useState(() => findNpsByOd(Do));
@@ -67,15 +66,6 @@ const GeometryCard = ({ Do, t, L, h, section, calcMode, computedLmin, computedLm
             <span className={`text-[10px] font-medium ${system === "Imperial" ? "text-foreground" : "text-muted-foreground"}`}>IMP</span>
           </div>
         </div>
-        <ToggleGroup
-          type="single" value={calcMode}
-          onValueChange={(v) => { if (v) onChange("calcMode", v); }}
-          className="justify-start mt-2" size="sm"
-        >
-          <ToggleGroupItem value="standard" className="text-[11px] px-2.5 h-7">Standard</ToggleGroupItem>
-          <ToggleGroupItem value="findL" className="text-[11px] px-2.5 h-7">Find L</ToggleGroupItem>
-          <ToggleGroupItem value="findH" className="text-[11px] px-2.5 h-7">Find h</ToggleGroupItem>
-        </ToggleGroup>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
@@ -104,48 +94,21 @@ const GeometryCard = ({ Do, t, L, h, section, calcMode, computedLmin, computedLm
             )}
           </div>
 
-          {/* L */}
-          {calcMode === "findL" ? (
-            <div className="col-span-2 grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">L<sub>min</sub> ({label("m")})</Label>
-                {computedLmin == null ? (
-                  <div className="h-8 text-sm border border-destructive bg-destructive/10 rounded-md flex items-center px-3 font-semibold text-destructive text-[11px]">No solution</div>
-                ) : (
-                  <Input type="number" value={+conv(computedLmin, "m").toFixed(4)} readOnly className="h-8 text-sm border-primary bg-primary/10 font-semibold" />
-                )}
-              </div>
-              <div>
-                <Label className="text-xs">L<sub>max</sub> ({label("m")})</Label>
-                {computedLmax == null ? (
-                  <div className="h-8 text-sm border border-destructive bg-destructive/10 rounded-md flex items-center px-3 font-semibold text-destructive text-[11px]">No solution</div>
-                ) : (
-                  <Input type="number" value={+conv(computedLmax, "m").toFixed(4)} readOnly className="h-8 text-sm border-primary bg-primary/10 font-semibold" />
-                )}
-              </div>
-            </div>
-          ) : (
+          {showL && (
             <div>
               <Label className="text-xs">L ({label("m")})</Label>
-              <NumericInput value={conv(L, "m")} onValueChange={v => onChange("L", parse(v, "m"))} className="h-8 text-sm" decimals={0} />
+              <NumericInput value={conv(L, "m")} onValueChange={v => onChange("L", parse(v, "m"))} className="h-8 text-sm" decimals={3} />
             </div>
           )}
-
-          {/* h */}
+          {showH && <div>
+            <Label className="text-xs" title="Vertical end offset, positive when the right end is higher">h<sub>v</sub> ({label("mm")})</Label>
+            <NumericInput value={conv(h, "mm")} onValueChange={v => onChange("h", parse(v, "mm"))} className="h-8 text-sm" decimals={1} />
+          </div>}
           <div>
-            <Label className="text-xs">h ({label("mm")})</Label>
-            {calcMode === "findH" ? (
-              computedH == null ? (
-                <div className="h-8 text-sm border border-destructive bg-destructive/10 rounded-md flex items-center px-3 font-semibold text-destructive">No solution</div>
-              ) : (
-                <Input type="number" value={+conv(computedH, "mm").toFixed(2)} readOnly className="h-8 text-sm border-primary bg-primary/10 font-semibold" />
-              )
-            ) : (
-              <NumericInput value={conv(h, "mm")} onValueChange={v => onChange("h", parse(v, "mm"))} className="h-8 text-sm" decimals={0} />
-            )}
+            <Label className="text-xs" title="Signed lateral end offset (horizontal, perpendicular to the pipe axis)">h<sub>l</sub> lateral ({label("mm")})</Label>
+            <NumericInput value={conv(hl, "mm")} onValueChange={v => onChange("hl", parse(v, "mm"))} className="h-8 text-sm" decimals={1} />
           </div>
         </div>
-
       </CardContent>
     </Card>
   );

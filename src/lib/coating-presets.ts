@@ -53,3 +53,11 @@ export const calcCoatingWeight = (Do_mm: number, thickness_mm: number, density_k
   if (thickness_mm <= 0 || density_kgm3 <= 0) return 0;
   return Math.PI * (Do_mm + thickness_mm) * thickness_mm * density_kgm3 * 1e-6;
 };
+
+/** Effective coating thickness (mm) and density (kg/m3) used by the calculation. */
+export const effectiveCoating = (type: CoatingType, thickness: number, density: number, nps?: string) => {
+  const effDensity = getCoatingDensity(type, density);
+  const auto = type === "yellowJacket" && nps ? getYellowJacketThickness(nps) : undefined;
+  const effThickness = type === "none" ? 0 : auto ?? thickness;
+  return { thickness: effThickness, density: effDensity };
+};

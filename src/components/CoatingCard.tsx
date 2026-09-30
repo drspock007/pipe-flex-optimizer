@@ -125,7 +125,7 @@ function SummaryBlock({ effectiveThickness, effectiveDensity, weight }: {
         <span className="text-muted-foreground">Thickness</span>
         <span className="text-right font-mono">{conv(effectiveThickness, "mm").toFixed(2)} {label("mm")}</span>
         <span className="text-muted-foreground">Density</span>
-        <span className="text-right font-mono">{effectiveDensity.toFixed(0)} {label("kg/m3")}</span>
+        <span className="text-right font-mono">{conv(effectiveDensity, "kg/m3").toFixed(0)} {label("kg/m3")}</span>
         <span className="text-muted-foreground">Weight</span>
         <span className="text-right font-mono">{conv(weight, "kg/m").toFixed(3)} {label("kg/m")}</span>
       </div>

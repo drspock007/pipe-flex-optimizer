@@ -51,7 +51,7 @@ export const PresetTransferBar = ({ mode, count, onFileParsed }: Props) => {
         variant="outline"
         onClick={() => {
           if (count === 0) return toast.error("No preset to export");
-          downloadJSON(`pipe-lowering-presets-${stamp}.json`, buildExportPayload([mode]));
+          downloadJSON(`${mode === "lowering" ? "pipe-lowering" : "in-service"}-presets-${stamp}.json`, buildExportPayload([mode]));
           toast.success(`${count} preset(s) exported`);
         }}
       >

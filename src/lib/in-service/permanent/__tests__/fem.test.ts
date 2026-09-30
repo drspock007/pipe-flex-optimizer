@@ -1,0 +1,12 @@
+import {describe,it,expect} from 'vitest';
+import {DEFAULT_SERVICE,section} from '../../types';
+import {equilibrium,assemble,type LoadState} from '../fem';
+import {solveBeam} from '../../beam';
+const input={...DEFAULT_SERVICE,pressure:0,temperature:20,displacement:10};
+function setup(n=16){const mesh=Array.from({length:n+1},(_,j)=>j*2*input.halfLength/n),l:LoadState={pressure:0,temperature:20,density:40,weightFactor:1,loads:mesh.map(()=>0),fixed:new Map(),forces:new Map(),obstacles:[],springs:[]};for(const j of [0,n])for(let k=0;k<5;k++)l.fixed.set(5*j+k,0);return {mesh,l,d:mesh.flatMap(()=>[0,0,0,0,0])};}
+describe('Permanent FE formulation',()=>{
+ it('recovers the existing no-ground coupled Hermite solution',()=>{const {mesh,l,d}=setup(),p=section(input),old=solveBeam(p,2*input.halfLength,16,0,p.q,null,null),out=equilibrium(input,input.scenarios[0],mesh,l,d);expect(out.d[8*5+1]).toBeCloseTo(old.z.d[16],6);expect(out.axial[0]).toBeCloseTo(old.N,5);});
+ it('supports nonzero obstacle elevations and exact force balance',()=>{const {mesh,l,d}=setup();l.obstacles=[{id:'a',node:4,height:10},{id:'b',node:12,height:10}];const out=equilibrium(input,input.scenarios[0],mesh,l,d);expect(out.contacts.every(v=>v.gap>=-1e-6&&v.reaction>=0)).toBe(true);expect(out.d[21]).toBeCloseTo(10,8);expect(out.reactions[1]+out.reactions[81]+out.contacts.reduce((a,c)=>a+c.reaction,0)).toBeCloseTo(section(input).q*20000,4);});
+ it('has a consistent tangent including geometric extension',()=>{const {mesh,l,d}=setup(4);d.forEach((_,j)=>d[j]=j%5===2||j%5===4?.0001*Math.sin(j):.1*Math.sin(j));const a=assemble(input,input.scenarios[0],mesh,d,l);for(const j of [6,7,8,10,11]){const h=j%5===2?1e-7:1e-5,x=[...d],y=[...d];x[j]+=h;y[j]-=h;const rx=assemble(input,input.scenarios[0],mesh,x,l).r,ry=assemble(input,input.scenarios[0],mesh,y,l).r;for(let k=0;k<d.length;k++)expect((rx[k]-ry[k])/(2*h)).toBeCloseTo(a.K.get(k,j),2);}});
+ it('retains steel stress when zero-reference soil is installed',()=>{const {mesh,l,d}=setup(),before=equilibrium(input,input.scenarios[0],mesh,l,d),curve={source:'test',points:[{displacement:0,reaction:0},{displacement:100,reaction:100}]};l.springs=mesh.map((_,node)=>({node,axis:3 as const,reference:before.d[node*5+3],sign:0 as const,curve,length:1000,factor:1,zone:'test'}));const after=equilibrium(input,input.scenarios[0],mesh,l,before.d);expect(after.vm).toBeCloseTo(before.vm,8);expect(after.axial).toEqual(before.axial);});
+});

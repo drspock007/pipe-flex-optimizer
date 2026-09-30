@@ -10,7 +10,10 @@ interface NumericInputProps {
   decimals?: number;
 }
 
-const formatValue = (v: number, decimals: number): string => {
+// Modifié par Giovanni malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
+// Missing or non-finite values (e.g. state from an older input shape) render empty instead of crashing.
+const formatValue = (v: number | undefined, decimals: number): string => {
+  if (typeof v !== "number" || !Number.isFinite(v)) return "";
   const rounded = parseFloat(v.toFixed(decimals));
   return String(rounded);
 };

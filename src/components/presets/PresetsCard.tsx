@@ -1,13 +1,15 @@
 // src/components/presets/PresetsCard.tsx
+// Modifié par Giovanni malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
 // Bottom-of-page presets section, mirroring the Surface Load Calc layout.
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PresetManager } from "./PresetManager";
-import { PipeInputs } from "@/lib/calculations";
+import { AppInputs, normalizeAppInputs, unknownCoatingOf } from "@/lib/v2-app/inputs";
 
 interface Props {
-  inputs: PipeInputs;
-  onLoad: (values: Partial<PipeInputs>) => void;
+  inputs: AppInputs;
+  /** Receives complete inputs: legacy presets get explicit defaults (hl = 0, free axial mode). */
+  onLoad: (values: AppInputs, unknownCoating: string | null) => void;
 }
 
 const PresetsCard = ({ inputs, onLoad }: Props) => (
@@ -24,7 +26,7 @@ const PresetsCard = ({ inputs, onLoad }: Props) => (
       <PresetManager
         mode="lowering"
         getCurrentValues={() => ({ ...inputs })}
-        onLoad={(values) => onLoad(values as Partial<PipeInputs>)}
+        onLoad={(values) => onLoad(normalizeAppInputs(values as Record<string, unknown>, inputs), unknownCoatingOf(values as Record<string, unknown>))}
       />
     </CardContent>
   </Card>

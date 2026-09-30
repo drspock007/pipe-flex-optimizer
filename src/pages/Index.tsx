@@ -1,19 +1,12 @@
 // src/pages/Index.tsx
+// Modifié par Giovanni malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Header from "@/components/Header";
 import GeometryCard from "@/components/GeometryCard";
 import MaterialCard from "@/components/MaterialCard";
 import AllowableStressCard from "@/components/AllowableStressCard";
 import LoadCard from "@/components/LoadCard";
-import ResultsPanel from "@/components/ResultsPanel";
-import StressChart from "@/components/StressChart";
-import DeflectionChart from "@/components/DeflectionChart";
-import DebugPanel from "@/components/DebugPanel";
-import { PipeInputs } from "@/lib/calculations";
-import { useFEMWorker } from "@/hooks/use-fem-worker";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2 } from "lucide-react";
 import { UnitProvider } from "@/contexts/UnitContext";
 import PipeSchematicSVG from "@/components/PipeSchematicSVG";
 import CoatingCard from "@/components/CoatingCard";
@@ -21,24 +14,28 @@ import { findNpsByOd } from "@/lib/pipe-presets";
 import heroPipeline from "@/assets/hero-pipeline.png";
 import Footer from "@/components/Footer";
 import Disclaimer from "@/components/Disclaimer";
-import ExportPdfCard from "@/components/ExportPdfCard";
 import PresetsCard from "@/components/presets/PresetsCard";
+import AnalysisCard from "@/components/v2/AnalysisCard";
+import V2Workspace from "@/components/v2/V2Workspace";
+import { AppInputs, DEFAULT_INPUTS, normalizeAppInputs } from "@/lib/v2-app/inputs";
+import UnknownCoatingAlert, { UNKNOWN_COATING_TEXT } from "@/components/v2/UnknownCoatingAlert";
+import { derive } from "@/lib/v2-app/bridge";
 
 
 const Index = () => {
-  const [inputs, setInputs] = useState<PipeInputs>({
-    Do: 114.3, t: 6.02, L: 30, h: 2500,
-    grade: "X52", customYield: 359, E: 207,
-    allowablePercent: 80, includeSelfWeight: true, density: 7850,
-    calcMode: "standard", targetSupports: 0, findLDisplay: "Lmid",
-    coatingType: "none", coatingThickness: 1.5, coatingDensity: 950,
-  });
+  const [rawInputs, setInputs] = useState<AppInputs>(DEFAULT_INPUTS);
+  // Normalized so that a state kept from an older input shape (hot reload) is always complete.
+  const inputs = useMemo(() => normalizeAppInputs(rawInputs as unknown as Record<string, unknown>), [rawInputs]);
 
+  // Unknown coating key of the last loaded preset: blocks the export until resolved.
+  const [unknownCoating, setUnknownCoating] = useState<string | null>(null);
   const update = (field: string, value: string | number | boolean) => {
+    if (field === "coatingType") setUnknownCoating(null);
     setInputs((prev) => ({ ...prev, [field]: value }));
   };
 
-  const { results, isComputing } = useFEMWorker(inputs);
+  // Section, load and allowable stress (engine units), shared by cards and V2.
+  const results = useMemo(() => derive(inputs), [inputs]);
 
   return (
     <UnitProvider>
@@ -57,24 +54,27 @@ const Index = () => {
             Pipe Lowering Analysis &amp; Stress Calculator
           </h1>
 
-          <div className="rounded-lg border bg-muted/50 px-4 py-3 text-xs text-muted-foreground leading-relaxed">
+          <div className="rounded-lg border bg-muted/50 px-4 py-3 text-xs text-muted-foreground leading-relaxed space-y-2">
             <p>
-              This calculation applies, for example, to a <strong>trench lowering-in with sidebooms</strong>.
-              The height <strong>h</strong> represents the trench depth plus the pipe lifting height from ground level.
-              The length <strong>L</strong> is the distance from the last sideboom to the point where the pipe contacts the trench bottom.
-              Additional sideboom(s) may be positioned in between if intermediate support(s) are required.
+              Analyze <strong>pipe lowering into a trench with sidebooms</strong> using four modes: <strong>Fixed L</strong> checks a specified length, <strong>Find L range</strong> searches admissible lengths, <strong>Min. supports</strong> searches the smallest support count, and <strong>Find h</strong> searches admissible vertical end offsets.
+            </p>
+            <p>
+              <strong>L</strong> is the span along the x-axis between the fixed ends; <strong>h<sub>v</sub></strong> and <strong>h<sub>l</sub></strong> are the vertical and lateral offsets of the right end, with h<sub>v</sub> positive upwards. Add up to <strong>20 equally spaced vertical supports</strong> that carry load only when in contact, and optionally enable <strong>rigid, horizontal, frictionless ground contact</strong> at the specified minimum pipe-axis elevation.
+            </p>
+            <p>
+              All four modes support <strong>free axial sliding</strong> (bending stress) or <strong>axial restraint</strong> (coupled axial tension and bending; combined normal stress governs), with or without ground contact. Searches with ground or axial restraint are <strong>exploratory</strong>: coverage is not certified, and a support count above zero is not certified minimal. Review numerical validity and model limits alongside the stress verdict; physical validity is not assessed. Results and PDF reports are available in <strong>SI or imperial units</strong>.
             </p>
           </div>
           <PipeSchematicSVG />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="space-y-4">
               <GeometryCard
-                Do={inputs.Do} t={inputs.t} L={inputs.L} h={inputs.h}
-                section={results.section} calcMode={inputs.calcMode}
-                computedLmin={results.computedLmin} computedLmax={results.computedLmax}
-                computedH={results.computedH} onChange={update}
+                Do={inputs.Do} t={inputs.t} L={inputs.L} h={inputs.h} hl={inputs.hl}
+                section={results.section} showL={inputs.mode === "fixedLength" || inputs.mode === "findH"} showH={inputs.mode !== "findH"} onChange={update}
               />
+              <AnalysisCard inputs={inputs} onChange={update} />
               <MaterialCard grade={inputs.grade} E={inputs.E} customYield={inputs.customYield} onChange={update} />
+              {unknownCoating !== null && <UnknownCoatingAlert coatingKey={unknownCoating} onConfirmNone={() => update("coatingType", "none")} />}
               <CoatingCard
                 coatingType={inputs.coatingType as any}
                 coatingThickness={inputs.coatingThickness}
@@ -95,37 +95,14 @@ const Index = () => {
               />
             </div>
 
-            <div className="lg:col-span-2 space-y-4">
-              {isComputing && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted rounded-md px-3 py-2">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                  Computing FEM solution…
-                </div>
-              )}
-
-              <Tabs defaultValue="stress">
-                <TabsList>
-                  <TabsTrigger value="stress">Stress σ(x)</TabsTrigger>
-                  <TabsTrigger value="deflection">Deflection w(x)</TabsTrigger>
-                </TabsList>
-                <TabsContent value="stress">
-                  <StressChart results={results} />
-                </TabsContent>
-                <TabsContent value="deflection">
-                  <DeflectionChart results={results} />
-                </TabsContent>
-              </Tabs>
-
-              <ResultsPanel results={results} onChange={update} />
-              <ExportPdfCard inputs={inputs} results={results} />
-
-              {/* <DebugPanel debug={results.debug} numSupports={results.numSupports} supportStatus={results.supportStatus} /> */}
+            <div className="lg:col-span-2">
+              <V2Workspace inputs={inputs} derived={results} exportBlocked={unknownCoating !== null ? UNKNOWN_COATING_TEXT : null} />
             </div>
           </div>
 
           <PresetsCard
             inputs={inputs}
-            onLoad={(values) => setInputs((prev) => ({ ...prev, ...values }))}
+            onLoad={(v, unknown) => { setInputs(v); setUnknownCoating(unknown); }}
           />
         </main>
 

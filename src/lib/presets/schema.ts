@@ -3,11 +3,11 @@
 
 import { z } from "zod";
 
-export type PresetMode = "lowering";
+export type PresetMode = "lowering" | "in-service";
 
-export const PRESET_MODES: PresetMode[] = ["lowering"];
+export const PRESET_MODES: PresetMode[] = ["lowering", "in-service"];
 
-export const presetModeSchema = z.enum(["lowering"]);
+export const presetModeSchema = z.enum(["lowering", "in-service"]);
 
 export const presetEntrySchema = z.object({
   id: z.string().min(1),
@@ -54,4 +54,5 @@ export interface StorageResult {
 
 export const MODE_LABELS: Record<PresetMode, string> = {
   lowering: "Pipe lowering",
+  "in-service": "In-service deflection",
 };

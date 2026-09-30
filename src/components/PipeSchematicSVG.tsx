@@ -1,4 +1,5 @@
 // src/components/PipeSchematicSVG.tsx
+// Modifié par Giovanni malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
 
 const PipeSchematicSVG = () => (
   <svg
@@ -72,7 +73,7 @@ const PipeSchematicSVG = () => (
       fill="none"
     />
     <text x="320" y="158" className="fill-muted-foreground/40 text-[8px]" textAnchor="middle">
-      (optional support)
+      (optional vertical support)
     </text>
 
     {/* Annotation: h (vertical) */}
@@ -83,7 +84,11 @@ const PipeSchematicSVG = () => (
       markerStart="url(#arrow-rev)"
       markerEnd="url(#arrow)"
     />
-    <text x="408" y="130" className="fill-muted-foreground text-[11px] font-semibold" textAnchor="end">h</text>
+    <text x="408" y="130" className="fill-muted-foreground text-[11px] font-semibold" textAnchor="end">hv</text>
+    {/* Lateral offset hl (plan view hint, perpendicular to the page) */}
+    <circle cx="530" cy="160" r="7" className="stroke-muted-foreground" strokeWidth="1" fill="none" />
+    <circle cx="530" cy="160" r="1.8" className="fill-muted-foreground" />
+    <text x="530" y="182" className="fill-muted-foreground text-[10px] font-semibold" textAnchor="middle">hl (out of plane)</text>
 
     {/* Annotation: L (horizontal) */}
     <line

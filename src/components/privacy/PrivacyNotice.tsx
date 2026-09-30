@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { ShieldCheck, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { getLocale, pickLocale, DEFAULT_LOCALE, type Locale } from "@/lib/locale";
 import {
   DEFAULT_CHOICES,
   readChoices,
@@ -17,13 +16,13 @@ import PrivacySettingsDialog from "./PrivacySettingsDialog";
 const PrivacyNotice = () => {
   const [visible, setVisible] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
   const [choices, setChoices] = useState<PrivacyChoices>(DEFAULT_CHOICES);
 
-  const texts = pickLocale(NOTICE_TEXTS, locale);
+  // The application UI is English. Keep the consent notice in the same
+  // language instead of deriving it from the visitor's browser locale.
+  const texts = NOTICE_TEXTS.en;
 
   useEffect(() => {
-    setLocale(getLocale());
     const stored = readChoices();
     if (stored) {
       setChoices(stored);

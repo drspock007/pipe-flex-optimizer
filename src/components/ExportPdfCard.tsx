@@ -1,3 +1,4 @@
+// Modifié par Giovanni malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
 // Card with report metadata inputs and the PDF export action.
 
 import { useState } from "react";
@@ -8,13 +9,17 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { FileDown, Info } from "lucide-react";
 import { toast } from "sonner";
-import { PipeInputs, CalculationResults } from "@/lib/calculations";
+import { V2Report } from "@/lib/pdf/report-types";
 import { generateReportPdf } from "@/lib/pdf/report-pdf";
 import { useUnits } from "@/contexts/UnitContext";
 
 interface Props {
-  inputs: PipeInputs;
-  results: CalculationResults;
+  /** null when no current successful result exists (debounce, loading, stale or failed). */
+  report: V2Report | null;
+  /** Solve key of the current inputs; the report must belong to it. */
+  currentKey: string | null;
+  /** Non-null while an input issue (e.g. unknown preset coating) must be resolved first. */
+  blockedReason?: string | null;
 }
 
 const MAX_LEN = 80;
@@ -30,17 +35,19 @@ const FieldHint = ({ text }: { text: string }) => (
   </Tooltip>
 );
 
-const ExportPdfCard = ({ inputs, results }: Props) => {
+const ExportPdfCard = ({ report, currentKey, blockedReason = null }: Props) => {
   const { system } = useUnits();
   const [preparedBy, setPreparedBy] = useState("");
   const [projectName, setProjectName] = useState("");
 
-  const disabled = !preparedBy.trim() || !projectName.trim();
+  const isCurrent = !!report && report.key === currentKey;
+  const disabled = !preparedBy.trim() || !projectName.trim() || !isCurrent || blockedReason !== null;
 
   const handleExport = () => {
-    if (disabled) return;
+    // Re-check at trigger time: never export a result that no longer matches the inputs.
+    if (disabled || !report || report.key !== currentKey) return;
     try {
-      const fileName = generateReportPdf(inputs, results, {
+      const fileName = generateReportPdf(report, {
         preparedBy: preparedBy.trim(),
         projectName: projectName.trim(),
         date: new Date(),
@@ -98,11 +105,16 @@ const ExportPdfCard = ({ inputs, results }: Props) => {
             </span>
           </TooltipTrigger>
           <TooltipContent className="max-w-[260px] text-xs">
-            {disabled
+            {blockedReason !== null
+              ? blockedReason
+              : !isCurrent
+              ? "Export is available only for a current, successful calculation."
+              : disabled
               ? "Fill in both the preparer name and the project name to enable the export."
               : "Download a structured PDF report of inputs, section properties and FEM results."}
           </TooltipContent>
         </Tooltip>
+        {blockedReason !== null && <p className="text-[11px] text-destructive">{blockedReason}</p>}
       </CardContent>
     </Card>
   );
