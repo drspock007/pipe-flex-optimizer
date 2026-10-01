@@ -143,8 +143,8 @@ limits. Unresolved regions are not certified. Empty pipe explicitly means custom
 fluid density zero and pressure zero; steel/coating weight remains.
 
 Reproduce summary/complete SI and imperial PDFs with
-`./node_modules/.bin/vite-node scripts/check-sag-report.ts`. This generates twelve
-reports under `output/pdf/`, including sag failure and unresolved scenarios.
+`./node_modules/.bin/vite-node scripts/check-sag-report.ts`. This generates sixteen
+reports under `output/pdf/`, including stress/sag failure and unresolved scenarios.
 The model contract documents the analytical comparisons and scope limits.
 
 ## Déploiement Infomaniak (Node.js 24)

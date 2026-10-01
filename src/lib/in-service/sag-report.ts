@@ -6,7 +6,7 @@ import {planTable} from '../pdf/pdf-measure';
 import {requireReportIdentity,type ReportIdentity} from '../pdf/identity';
 import {themePages,PLOT_COLORS,type PdfPalette} from './pdf-theme';
 import {format} from './display';
-import {sagConditions,sagResultRows} from './sag-report-data';
+import {sagConditions,sagResultRows,sagStress} from './sag-report-data';
 import {SAG_SCOPE} from './sag-profile';
 import {CSA_STATUS,CSA_SCOPE,csaDetails} from './csa';
 import type {ServiceReport} from './types';
@@ -17,7 +17,7 @@ export function createSagPdf(r:ServiceReport,system:UnitSystem,palette:PdfPalett
  const f=(v:number|undefined,u:Parameters<typeof format>[1])=>clean(format(v,u,system));
  const line=(s:string,size=9)=>{doc.setFontSize(size);doc.setTextColor(...palette.foreground);for(const l of doc.splitTextToSize(clean(s),178)){if(y>273){doc.addPage();y=22;}doc.text(l,16,y);y+=size*.45;}y+=2;};
  const table=(title:string,body:string[][],head=[title,'Value'])=>{
-  const opts:UserOptions={startY:y,columnStyles:head.length===2?{0:{cellWidth:65}}:undefined,head:[head.map(clean)],body:body.map(row=>row.map(clean)),margin:{top:22,bottom:22,left:16,right:16},styles:{fontSize:9,cellPadding:1.5,textColor:palette.foreground,fillColor:palette.background,lineColor:palette.border},headStyles:{fillColor:palette.primary,textColor:palette.primaryText},alternateRowStyles:{fillColor:palette.card},rowPageBreak:'avoid'};
+  const opts:UserOptions={startY:y,columnStyles:head.length===2?{0:{cellWidth:65}}:undefined,head:[head.map(clean)],body:body.map(row=>row.map(clean)),margin:{top:22,bottom:22,left:16,right:16},styles:{fontSize:9,cellPadding:1.2,textColor:palette.foreground,fillColor:palette.background,lineColor:palette.border},headStyles:{fillColor:palette.primary,textColor:palette.primaryText},alternateRowStyles:{fillColor:palette.card},rowPageBreak:'avoid'};
   const plan=planTable(opts,22,3);if(plan.newPage)doc.addPage();plan.parts.forEach((part,k)=>{if(k)doc.addPage();autoTable(doc,part);});
   y=(doc as jsPDF & {lastAutoTable:{finalY:number}}).lastAutoTable.finalY+4;
  };
@@ -32,7 +32,8 @@ export function createSagPdf(r:ServiceReport,system:UnitSystem,palette:PdfPalett
   line(r.message,8);r.errors.forEach(e=>line(e));table('Calculation conditions',sagConditions(r,system));
   if(s){
    if(r.input.sag?.boundary==='clamped')line(`Reference temperature: ${f(s.scenario.referenceTemperature,'C')} | Extra axial force: ${f(s.scenario.extraAxial,'N')}`,8);
-   table('Results',sagResultRows(s,system));line(s.message,8);
+   const stress=sagStress(s,r.input.yield);
+   table('Results',[...(stress.alert?[['WARNING',stress.alert]]:[]),...sagResultRows(s,system,r.input.yield)]);line(s.message,8);
    if(!['pass','fail'].includes(s.status))line('Unresolved/out-of-scope calculation: displayed values are diagnostic, not a verified design.',8);
   }
   line('Sag is positive downward; support reactions are forces ON the pipe, positive upward. Stress is a conservative von Mises beam bound, not a local contact stress.',8);

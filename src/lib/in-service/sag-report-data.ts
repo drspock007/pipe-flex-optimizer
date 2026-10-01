@@ -23,14 +23,23 @@ export function sagConditions(r:ServiceReport,system:UnitSystem):string[][]{
  ['Custom stress limit',`${i.allowablePercent}% of yield = ${f(i.yield*i.allowablePercent/100,'MPa')}`],
  ];
 }
-export function sagResultRows(s:ScenarioResult,system:UnitSystem):string[][]{
- const f=(v:number|undefined,u:Parameters<typeof format>[1])=>format(v,u,system),t=s.target;
+export const stressPercent=(v:number|undefined)=>v===undefined||!Number.isFinite(v)?'Not evaluated':v>100&&v.toFixed(2)==='100.00'?'>100.00%':`${v.toFixed(2)}%`;
+export function sagStress(s:ScenarioResult,yieldStrength:number){
+ const customPercent=Number.isFinite(s.utilization)?100*s.utilization:undefined;
+ const yieldPercent=Number.isFinite(s.worst?.vm)&&Number.isFinite(yieldStrength)&&yieldStrength>0?100*s.worst.vm/yieldStrength:undefined;
+ const exceeded=customPercent!==undefined&&customPercent>100;
+ const alert=exceeded?`WARNING: Custom stress limit exceeded (${stressPercent(customPercent)} of the custom limit). ${stressPercent(yieldPercent)} of yield strength reached.`:undefined;
+ return {customPercent,yieldPercent,exceeded,alert};
+}
+export function sagResultRows(s:ScenarioResult,system:UnitSystem,yieldStrength:number):string[][]{
+ const f=(v:number|undefined,u:Parameters<typeof format>[1])=>format(v,u,system),t=s.target,stress=sagStress(s,yieldStrength);
  return [
  ['Mechanical criterion',STATUS[s.status]],['Deflection criterion',sagStatus(s.sag)],
  ['Maximum downward sag / position from left',`${f(s.sag?.value,'mm')} / ${f(s.sag?.x===undefined?undefined:s.sag.x/1000,'m')}`],
  ['Sag uncertainty',format(s.sag?.uncertainty,'mm',system,6)],
  ['Maximum von Mises beam bound',f(s.worst?.vm,'MPa')],
- ['Stress / custom limit',s.utilization===undefined?'Not evaluated':`${(100*s.utilization).toFixed(2)}%`],
+ ['Stress / custom limit',stressPercent(stress.customPercent)],
+ ['Stress / yield strength',stressPercent(stress.yieldPercent)],
  ['Left / right vertical reaction',`${f(t?.leftZ,'N')} / ${f(t?.rightZ,'N')}`],
  ['Left / right end moment',`${f(t?.leftMz===undefined?undefined:t.leftMz/1e6,'kN·m')} / ${f(t?.rightMz===undefined?undefined:t.rightMz/1e6,'kN·m')}`],
  ['Final wall / effective axial force',`${f(t?.wall,'N')} / ${f(t?.N,'N')}`],

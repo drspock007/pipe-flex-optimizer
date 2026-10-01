@@ -243,3 +243,10 @@ light/dark palettes, sag failure and unresolved compression. Reproduce with
 fixed sag, Find L, unit-only conversion, result invalidation and required PDF identity.
 These are implementation/model comparisons, not certification of lifting equipment
 or of a project's end-restraint assumptions.
+
+Sag-only results display both 100 × stress/custom allowable and 100 × stress/yield
+strength from the completed request snapshot. An explicit warning appears when
+custom utilization exceeds 100%, independently of the deflection verdict; diagnostic
+or out-of-domain results retain their existing limitations. The same values and
+warning are included in both PDF formats. Comparisons use unrounded values, and a
+small exceedance is not rounded down to an apparently equal 100.00%.

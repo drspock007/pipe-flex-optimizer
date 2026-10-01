@@ -8,6 +8,7 @@ import {LIGHT_PDF,hslRgb} from '../src/lib/in-service/pdf-theme';
 const base:ServiceInput={...DEFAULT_SERVICE,analysis:'sag',sag:{version:1,boundary:'simple',confirmed:true,limit:10},pressure:0,fluidDensity:0,halfLength:3000,csa:{...emptyCsa(),enabled:true}};
 const cases:Record<string,ServiceInput>={
  simple:base,
+ stress:{...base,csa:undefined,od:114.3,thickness:6.02,halfLength:9000,coatingType:'fbeAro',coatingThickness:1.5,allowablePercent:30,sag:{...base.sag,limit:600}},
  clamped:{...base,sag:{version:1,boundary:'clamped',confirmed:true,limit:1},pressure:2,halfLength:5000,scenarios:[...base.scenarios,{...base.scenarios[0],id:'fail',name:'Unresolved compression scenario',extraAxial:-1e9}]},
  search:{...base,mode:'length',minHalfLength:1000,maxHalfLength:6000},
 };
