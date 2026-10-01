@@ -1,3 +1,5 @@
+import SagInputs from './SagInputs';
+import {defaultSag,emptyPipe} from '@/lib/in-service/sag-profile';
 import {syncBackfillDiameter} from '@/lib/in-service/permanent/backfill-links';
 import type {ReactNode} from 'react';
 import FieldHelp from '@/components/FieldHelp';
@@ -45,8 +47,9 @@ export function ServiceInputs({input:i,onChange:emit,afterPipe}:{input:ServiceIn
       <div className="grid grid-cols-2 gap-3">{f('yield','Yield strength at operating T','MPa')}{f('E',"Young's modulus",'MPa')}{f('nu',"Poisson's ratio")}{f('alpha','Thermal expansion','alpha')}</div>
       <p className="text-xs text-muted-foreground">Steel only. Enter properties applicable at the operating temperature; no automatic material derating.</p>
     </section>
-    {afterPipe}
-    <section className="rounded-lg border bg-card p-4 space-y-3"><h2 className="font-semibold">Operating conditions & weight</h2>
+    <section className="rounded-lg border bg-card p-4 space-y-2"><label className="block text-sm font-semibold">Analysis<FieldHelp text="Imposed displacement uses an actuator and the existing intervention sequence. Sag only computes the downward deflection caused by pipe, coating and fluid weight, without a centre actuator."/><select aria-label="Analysis type" className={selectClass} value={i.analysis??'movement'} onChange={e=>onChange({...i,analysis:e.target.value as 'movement'|'sag',sag:i.sag??defaultSag(),intervention:e.target.value==='sag'?'temporary':i.intervention,mode:'direct'})}><option value="movement">Imposed displacement</option><option value="sag">Sag only — deflection under self-weight</option></select></label></section>
+    {i.analysis==='sag'?<SagInputs input={i} onChange={onChange}/>:afterPipe}
+    <section className="rounded-lg border bg-card p-4 space-y-3"><h2 className="font-semibold">Operating conditions & weight</h2><Button variant="outline" onClick={()=>onChange(emptyPipe(i))}>Empty pipe, no pressure</Button><FieldHelp text="Sets custom fluid density and internal gauge pressure to zero. Steel and coating weight remain, as do specified thermal/axial loads for clamped ends. Gas at zero gauge pressure still has atmospheric density; it is not an empty-pipe model."/>
       <div className="grid grid-cols-2 gap-3">{f('pressure','Internal gauge pressure','pressure')}{f('temperature','Operating temperature','C')}{f('steelDensity','Steel density','kg/m3')}</div>
       <label className="block text-xs">Fluid<FieldHelp text={fieldHelp('Fluid')!}/><select aria-label="Fluid" className={selectClass} value={fluidType} onChange={e=>{const type=e.target.value as FluidType;onChange({...i,fluidType:type,gasMolarMass:FLUIDS[type].molarMass,gasZ:1});}}>{Object.entries(FLUIDS).map(([key,fluid])=><option key={key} value={key}>{fluid.label}</option>)}</select></label>
       {fluidType==='custom'?f('fluidDensity','Fluid density at operating P/T','kg/m3'):<>
@@ -62,7 +65,7 @@ export function ServiceInputs({input:i,onChange:emit,afterPipe}:{input:ServiceIn
       <p className="text-xs text-muted-foreground">{i.intervention==='permanent'?'These conditions apply during construction; future operating cases are specified separately.':'Constant pressure and temperature during the intervention.'} Zero external gauge pressure. Coating contributes weight only.</p>
     </section>
     <CoatingCard coatingType={i.coatingType??'custom'} coatingThickness={i.coatingThickness} coatingDensity={i.coatingDensity} Do={i.od} nps={nps} onChange={(field,value)=>onChange({...i,[field]:value})}/>
-    <section className="rounded-lg border bg-card p-4 space-y-3"><h2 className="font-semibold">Excavation & movement</h2>
+    {i.analysis!=='sag'&&<><section className="rounded-lg border bg-card p-4 space-y-3"><h2 className="font-semibold">Excavation & movement</h2>
       <label className="block text-xs">Calculation<FieldHelp text={fieldHelp('Calculation')!}/><select aria-label="Calculation" disabled={i.intervention==='permanent'} className={selectClass} value={i.mode} onChange={e=>update('mode',e.target.value as Mode)}><option value="direct">Direct calculation</option><option value="length">Find excavated length</option><option value="displacement">Find displacement</option><option value="supports">Find support count</option></select></label>
       {i.mode!=='length'&&<><Field title="Length on each side" value={i.halfLength/1000} unit="m" onChange={v=>update('halfLength',v*1000)}/><p className="text-xs">Total: {Number(display(i.halfLength*2/1000,'m',system).toFixed(3))} {label('m',system)}</p></>}
       {i.mode==='length'&&<div className="grid grid-cols-2 gap-3"><Field title="Min. length each side" value={i.minHalfLength/1000} unit="m" onChange={v=>update('minHalfLength',v*1000)}/><Field title="Max. length each side" value={i.maxHalfLength/1000} unit="m" onChange={v=>update('maxHalfLength',v*1000)}/></div>}
@@ -87,6 +90,7 @@ export function ServiceInputs({input:i,onChange:emit,afterPipe}:{input:ServiceIn
       </>}
       <p className="text-xs text-muted-foreground">Fixed, rigid, frictionless supports at the original pipe level. Vertical upward reaction only; lift-off, axial and horizontal sliding are free. Supports are installed before local soil release. No lateral stability restraint or support-capacity check.</p>
     </section>
+    </>}
     <section className="rounded-lg border bg-card p-4 space-y-3"><h2 className="font-semibold">Custom criterion</h2>
       <label className="block text-xs">Threshold format<FieldHelp text={fieldHelp('Threshold format')!}/><select aria-label="Threshold format" className={selectClass} value={thresholdMode} onChange={e=>setThresholdMode(e.target.value)}><option value="percent">Percentage of yield</option><option value="factor">Safety factor</option></select></label>
       <Field title={thresholdMode==='percent'?'Allowable (% of yield)':'Safety factor (at least 1)'} value={thresholdMode==='percent'?i.allowablePercent:100/i.allowablePercent} onChange={v=>update('allowablePercent',thresholdMode==='percent'?v:100/v)}/>
@@ -103,7 +107,7 @@ export function ServiceInputs({input:i,onChange:emit,afterPipe}:{input:ServiceIn
       <p className="text-xs text-muted-foreground">Extra axial force: tension positive, compression negative. Excludes the pressure and thermal contributions already modeled. Zero is an explicit assumption.</p>
       {i.scenarios.map((s,k)=><div key={s.id} className="border rounded-md p-3 space-y-2">
         <label className="text-xs block">Scenario name<FieldHelp text={fieldHelp('Scenario name')!}/><Input aria-label={`Scenario ${k+1} name`} value={s.name} onChange={e=>update('scenarios',i.scenarios.map((v,j)=>j===k?{...v,name:e.target.value}:v))}/></label>
-        <div className="grid grid-cols-2 gap-2"><Field title="Reference temperature" value={s.referenceTemperature} unit="C" onChange={v=>update('scenarios',i.scenarios.map((s,j)=>j===k?{...s,referenceTemperature:v}:s))}/><Field title="Extra axial force" value={s.extraAxial} unit="N" onChange={v=>update('scenarios',i.scenarios.map((s,j)=>j===k?{...s,extraAxial:v}:s))}/></div>
+        <div className="grid grid-cols-2 gap-2"><Field title={i.analysis==='sag'&&i.sag?.boundary==='simple'?"Reference temperature (unused: axial sliding free)":"Reference temperature"} value={s.referenceTemperature} unit="C" onChange={v=>update('scenarios',i.scenarios.map((s,j)=>j===k?{...s,referenceTemperature:v}:s))}/><Field title="Extra axial force" value={s.extraAxial} unit="N" onChange={v=>update('scenarios',i.scenarios.map((s,j)=>j===k?{...s,extraAxial:v}:s))}/></div>
         <Button variant="ghost" size="sm" disabled={i.scenarios.length===1} onClick={()=>update('scenarios',i.scenarios.filter((_,j)=>j!==k))}>Remove scenario</Button>
       </div>)}
       <Button variant="outline" disabled={i.scenarios.length>=12} onClick={()=>update('scenarios',[...i.scenarios,{id:crypto.randomUUID(),name:`Hypothesis ${i.scenarios.length+1}`,referenceTemperature:i.temperature,extraAxial:0}])}>Add scenario</Button>

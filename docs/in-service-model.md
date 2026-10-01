@@ -178,3 +178,68 @@ See [the permanent formulation, construction history and evidence](permanent-ela
 It includes adjustable symmetric supports, staged backfill, force release and future
 operating cases. It does not replace the temporary solver described above. Reference
 numerical comparisons do not validate project soil data or excluded integrity checks.
+
+## Sag-only assessment (version 1)
+
+`analysis: 'sag'` selects a separate path with `sag: {version:1, boundary:
+'clamped'|'simple', confirmed:boolean, limit?:number}`. Absent analysis retains
+movement mode. Preset version 4 adds this profile; versions 1-3 remain movement.
+Full span L is displayed, while `halfLength` and length search samples remain
+half-span mm internally. Movement amplitudes, directions, intermediate supports
+and permanent profiles are retained but unused. Permanent + sag is invalid.
+Fixed span requires a finite positive L; Find L requires positive increasing bounds
+and a positive sag limit. A missing optional fixed-span limit gives no sag verdict.
+
+Clamped sag reuses the coupled beam only through initial state and progressive
+excavation; no actuator, displacement, return or restoration. End restraints,
+pressure/thermal wall versus effective forces, stability and refinement are unchanged.
+Sag is the largest negative vertical displacement found from Hermite polynomial
+stationary points and endpoints, not the display sampling. The final sag and stress
+verdicts are separate. Sag uncertainty is the last refinement change plus 0.01 mm;
+limits within that band are unresolved. The existing 0.5% convergence and floors
+remain, with maximum sag replacing midpoint sag for this branch only.
+
+Simple supports represent one level, uniform Euler-Bernoulli span: rotations free,
+one end axially sliding, no applied axial force, gauge pressure exactly zero.
+Temperature still determines entered material properties and gas density; no thermal
+restraint force arises. Analytical maximum sag is 5qL^4/(384EI), moment qL^2/8,
+reactions qL/2, slope qL^3/(24EI). N and Nwall are zero. The existing annular
+stressBound combines global moment/shear maxima conservatively. No numerical mesh
+convergence is claimed. Analytic equality is admissible; clamped uncertainty bands
+are retained. Both branches enforce L/OD >= 10, slope <= 0.1 and elastic yield scope.
+
+No intermediate supports, overhangs, soil or backfill. Inclined slings, lifting
+dynamics, local bearing and equipment capacity are not evaluated. A long pipe is
+not automatically clamped, nor is this a continuous multi-span model. Simple supports
+make the CSA anchored-state check not applicable, even if its old checkbox is set.
+
+Find L samples 25 logarithmic half-spans, refines observed pass/non-pass transitions
+up to 49 samples, and rechecks the largest passing candidate for all scenarios under
+the existing 60 s global budget. Mechanical and deflection criteria must both pass.
+Unknown regions are never treated as failed/infeasible. An upper bound reached is
+not a physical maximum. Summary/complete reports use only completed snapshots and
+retain independent stress/sag verdicts and all incomplete/failed diagnostics.
+
+Empty pipe is custom fluid density = 0 and gauge pressure = 0: fluid weight and
+pressure contributions vanish, not steel/coating weight or imposed thermal/axial
+prestress. The explicit empty-pipe action makes these three input changes together;
+zero gauge pressure in a gas EOS still produces atmospheric gas density.
+
+### Sag-only verification evidence
+
+The dedicated sag regression suite checks empty/coated pipes versus atmospheric gas,
+independent simple-beam formulas, clamped agreement with the existing excavated
+state and its weak-load linear limit, stress- and sag-governed searches, equality
+and uncertainty, invalid/unstable cases, budget exhaustion, preset migration,
+unit conversion, CSA applicability and coherent exports. The component test checks
+full-span entry, hidden inactive fields and retained movement settings.
+
+Delivery checks (2026-10-01): 447 tests across 66 files passed; application and
+Node TypeScript checks and client/SSR/prerender builds passed. Repository lint
+retained its pre-existing 15 errors and 17 warnings. Twelve generated PDF fixtures
+(34 pages, all visually inspected) cover summary/complete SI/imperial output,
+light/dark palettes, sag failure and unresolved compression. Reproduce with
+`./node_modules/.bin/vite-node scripts/check-sag-report.ts`. Browser checks cover
+fixed sag, Find L, unit-only conversion, result invalidation and required PDF identity.
+These are implementation/model comparisons, not certification of lifting equipment
+or of a project's end-restraint assumptions.

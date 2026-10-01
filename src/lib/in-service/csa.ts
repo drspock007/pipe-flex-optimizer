@@ -71,6 +71,7 @@ export function evaluateCsa(i:ServiceInput):CsaAssessment|undefined {
     else Object.assign(anchored,{status:demand<=limit?'pass':'fail',demand,limit,utilization:demand/limit,reason:'Anchored pressure/temperature design state only; excludes imposed bending, additional axial loads and the intervention path.'});
   }
   const deferred=(id:string,reference:string,title:string,reason:string):CsaCheck=>({id,reference,title,reason,status:'not-assessed',formula:'Not implemented',values:[],unit:'scalar'});
+  if(i.analysis==='sag'&&i.sag?.boundary==='simple'){anchored.status='not-applicable';anchored.reason='Axially free simple supports: anchored design-state check does not apply to this configuration.';delete anchored.demand;delete anchored.limit;delete anchored.utilization;}
   return {version:'csa-z662-2023-targeted-1',checks:[thickness,temp,anchored,
     deferred('bending','4.7.2','Bending and stability','Sustained-load mapping and the normative stability check are not established. The solver Euler screen is not a CSA check.'),
     deferred('annex-c','Annex C','Limit states',i.fluidType==='hydrogen'?'Hydrogen is excluded from Annex C scope. No Annex C check is implemented.':'Additional applicability, characteristic data, safety class and capacity models are required. No Annex C check is implemented.') ]};

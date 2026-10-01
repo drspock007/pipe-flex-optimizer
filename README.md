@@ -118,7 +118,7 @@ pressure/temperature criterion (4.7.1). Explicit design inputs and applicability
 confirmations are required. Lifting, 4.7.2 and Annex C remain unassessed; no overall
 CSA compliance is claimed. Custom criteria alone govern searches. See
 [applicability contract](docs/csa-targeted-checks.md). In-service presets now write
-version 3; versions 1 and 2 remain temporary, and version 1 loads with CSA disabled.
+version 4; versions 1–3 remain in imposed-displacement mode; versions 1 and 2 remain temporary, and version 1 loads with CSA disabled.
 
 ### Permanent maintained deviation (elastic steel)
 
@@ -132,6 +132,20 @@ See [formulation and independent numerical evidence](docs/permanent-elastic-mode
 Run `vite-node scripts/check-permanent-reference.ts` followed by the independent
 NumPy check `python3 scripts/check-permanent-reference.py`; PDF checks use
 `vite-node scripts/check-permanent-report.ts` (executables under node_modules/.bin).
+
+### Sag only — one full span
+
+Select **Sag only** for a clamped prestressed span or an analytical, axially free
+simply supported span at zero gauge pressure and zero additional axial force.
+Displayed L is the full span. Fixed L computes sag; Find L selects the largest
+verified sampled span common to the listed scenarios, subject to stress and sag
+limits. Unresolved regions are not certified. Empty pipe explicitly means custom
+fluid density zero and pressure zero; steel/coating weight remains.
+
+Reproduce summary/complete SI and imperial PDFs with
+`./node_modules/.bin/vite-node scripts/check-sag-report.ts`. This generates twelve
+reports under `output/pdf/`, including sag failure and unresolved scenarios.
+The model contract documents the analytical comparisons and scope limits.
 
 ## Déploiement Infomaniak (Node.js 24)
 

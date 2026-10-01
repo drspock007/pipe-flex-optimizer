@@ -1,3 +1,4 @@
+import {validateSag,type SagProfile,type SagAssessment} from './sag-profile';
 import {validatePermanent,type PermanentProfile} from './permanent/profile';
 import type {PermanentResult} from './permanent/sequence';
 import type { CsaProfile, CsaAssessment } from './csa';
@@ -11,6 +12,7 @@ export type Mode = 'direct' | 'length' | 'displacement' | 'supports';
 export interface Scenario { id: string; name: string; referenceTemperature: number; extraAxial: number }
 /** All lengths mm; forces N; stress and E MPa; temperatures C. */
 export interface ServiceInput {
+  analysis?: 'movement' | 'sag'; sag?: SagProfile;
   intervention?: 'temporary' | 'permanent'; permanent?: PermanentProfile;
   csa?: CsaProfile;
   od: number; thickness: number; E: number; yield: number; nu: number; alpha: number;
@@ -35,6 +37,7 @@ export interface Section { ro: number; ri: number; A: number; Ai: number; I: num
 export type Status = 'pass' | 'fail' | 'unstable' | 'out-of-domain' | 'numerical-failure' | 'uncertain' | 'invalid';
 export interface ShapePoint { x: number; z: number; y: number }
 export interface Stage {
+  sagMax?:number; sagX?:number;
   supports?: SupportContact[]; contactIterations?: number;
   phase: 'initial' | 'excavation' | 'displacement' | 'return' | 'restoration'; fraction: number;
   vm: number; normalVm: number; x: number; shearX: number; element: [number, number];
@@ -45,6 +48,7 @@ export interface Stage {
 }
 export interface Refinement { supportReactions?:number[]; supportGaps?:number[]; contactEventsResolved?:boolean; elements: number; increments: number; vm: number; maxForce: number; sag: number; change: number }
 export interface ScenarioResult {
+  sag?:SagAssessment;
   scenario: Scenario; status: Status; message: string; N0: number; wall0: number; criticalLoad: number;
   worst?: Stage; excavated?: Stage; target?: Stage; stages: Stage[]; refinement: Refinement[];
   stressUncertainty: number; utilization?: number;
@@ -59,17 +63,18 @@ export interface ServiceReport {
   boundReached: boolean; message: string; elapsedMs: number;
 }
 export function validate(i: ServiceInput): string[] {
-  const errors: string[] = [...validateFluid(i),...validateSupports(i),...validatePermanent(i)];
+  const errors: string[] = [...validateFluid(i),...(i.analysis==='sag'?validateSag(i):[...validateSupports(i),...validatePermanent(i)])];
   if (i.coatingType!==undefined && !Object.prototype.hasOwnProperty.call(COATING_LABELS,i.coatingType)) errors.push('Unknown coating type.');
-  const nums = Object.entries(i).filter(([k]) => !['intervention', 'permanent', 'csa', 'scenarios', 'mode', 'direction', 'coatingType', 'fluidType', 'fluidDensity', 'gasMolarMass', 'gasZ', 'atmosphericPressure', 'supports', 'maxSupports'].includes(k));
+  const nums = Object.entries(i).filter(([k]) => !['analysis', 'sag', ...(i.analysis==='sag'?['angle','displacement','maxDisplacement','halfLength','minHalfLength','maxHalfLength']:[]), 'intervention', 'permanent', 'csa', 'scenarios', 'mode', 'direction', 'coatingType', 'fluidType', 'fluidDensity', 'gasMolarMass', 'gasZ', 'atmosphericPressure', 'supports', 'maxSupports'].includes(k));
   if (nums.some(([,v]) => typeof v !== 'number' || !Number.isFinite(v))) errors.push('Enter finite values, including an explicit custom allowable percentage.');
   if (!(i.od > 0 && i.thickness > 0 && 2*i.thickness < i.od)) errors.push('Require 0 < 2t < outside diameter.');
   if (!(i.E > 0 && i.yield > 0 && i.nu >= 0 && i.nu < 0.5 && i.alpha >= 0)) errors.push('Invalid elastic steel properties.');
-  if ([i.pressure, i.steelDensity, i.coatingThickness, i.coatingDensity, i.displacement, i.maxDisplacement].some(x => x < 0)) errors.push('Pressure, densities, thickness and displacement amplitudes must be nonnegative.');
-  if (!(i.halfLength > 0 && i.minHalfLength > 0 && i.maxHalfLength > i.minHalfLength)) errors.push('Require positive length and increasing search bounds.');
+  if ([i.pressure, i.steelDensity, i.coatingThickness, i.coatingDensity, ...(i.analysis==='sag'?[]:[i.displacement, i.maxDisplacement])].some(x => x < 0)) errors.push('Pressure, densities, thickness and displacement amplitudes must be nonnegative.');
+  if (!(i.analysis==='sag'?(i.mode==='direct'?Number.isFinite(i.halfLength)&&i.halfLength>0:[i.minHalfLength,i.maxHalfLength].every(Number.isFinite)&&i.minHalfLength>0&&i.maxHalfLength>i.minHalfLength):(i.halfLength > 0 && i.minHalfLength > 0 && i.maxHalfLength > i.minHalfLength))) errors.push('Require positive length and increasing search bounds.');
   if (i.mode==='displacement' && !(i.maxDisplacement>0)) errors.push('Displacement search requires a positive upper amplitude bound.');
   if (!(i.allowablePercent > 0 && i.allowablePercent <= 100)) errors.push('Elastic custom threshold must be above 0 and at most 100% of yield.');
-  if (!['direct','length','displacement','supports'].includes(i.mode) || !['vertical','horizontal','combined'].includes(i.direction)) errors.push('Unknown calculation mode or direction.');
+  if (i.analysis!==undefined&&!['movement','sag'].includes(i.analysis))errors.push('Unknown analysis type.');
+  if (!['direct','length','displacement','supports'].includes(i.mode) || (i.analysis!=='sag'&&!['vertical','horizontal','combined'].includes(i.direction))) errors.push('Unknown calculation mode or direction.');
   if (!i.scenarios.length || i.scenarios.length > 12) errors.push('Provide 1 to 12 scenarios.');
   if (new Set(i.scenarios.map(s => s.id)).size !== i.scenarios.length) errors.push('Scenario identifiers must be unique.');
   if (i.scenarios.some(s => !s.name.trim() || !Number.isFinite(s.referenceTemperature) || !Number.isFinite(s.extraAxial))) errors.push('Each scenario needs a name, reference temperature and finite extra axial force.');

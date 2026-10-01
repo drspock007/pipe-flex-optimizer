@@ -1,3 +1,4 @@
+import {runSag} from './sag';
 import {runPermanent} from './permanent/sequence';
 import { evaluateCsa } from './csa';
 import { MODEL_VERSION, validate, type ServiceInput, type ServiceReport, type CaseResult, type SearchSample } from './types';
@@ -8,6 +9,11 @@ export function runService(input:ServiceInput,onProgress?:(message:string)=>void
   const r:ServiceReport={version:MODEL_VERSION,createdAt:new Date().toISOString(),input:structuredClone(input),errors,samples:[],budgetExhausted:false,boundReached:false,message:'',elapsedMs:0};
   if(errors.length) return {...r,csa:evaluateCsa(input),message:'Correct the input errors before calculating.'};
   const check=()=>{if(performance.now()-start>SEARCH_MS) {r.budgetExhausted=true;throw new Error('Calculation time budget exhausted; unresolved result.');}};
+  if(input.analysis==='sag'){
+    r.version='in-service-sag-1';
+    try{runSag(r,check,SEARCH_LIMIT,onProgress);}catch(e){r.message=e instanceof Error?e.message:String(e);}
+    r.csa=evaluateCsa(input);r.elapsedMs=performance.now()-start;return r;
+  }
   if(input.intervention==='permanent'){
     r.permanent=runPermanent(input,check);if(input.permanent.defaultsReviewed===false){r.permanent.scenarios.forEach(s=>{s.mechanical='not evaluated';s.position='not evaluated';s.message='ILLUSTRATIVE INPUTS — starting values have not been confirmed for this project. Numerical results only; stress and retention verdicts are not evaluated. '+s.message;});}r.version=r.permanent.version;r.message='Permanent elastic assessment: separate stress, position and soil-limit results; no installation approval.';r.csa=evaluateCsa(input);r.elapsedMs=performance.now()-start;return r;
   }

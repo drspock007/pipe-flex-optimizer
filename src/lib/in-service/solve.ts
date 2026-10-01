@@ -12,7 +12,7 @@ export function solveScenario(i:ServiceInput,scenario:Scenario,check=()=>{}):Sce
   if(![...Object.values(p),D,N0,wall0,criticalLoad].every(Number.isFinite) || !(p.EA>0&&p.EI>0&&p.ri>0&&criticalLoad>0)) return {...r,message:'Non-finite or unrepresentable derived section/load.'};
   if(D/i.od<10) return {...r,status:'out-of-domain',message:'Full length / OD < 10: outside the slender-beam implementation scope.'};
   if(N0<=-criticalLoad*(1-1e-6)) return {...r,status:'unstable',message:'Initial effective compression reaches the full-span lateral fixed-fixed Euler load. Vertical supports do not restrain lateral buckling. No post-buckling or middle-restraint stabilization is attempted.'};
-  const target=targetComponents(i),fractions=supportFractions(i);let consecutive=0;
+  const sagOnly=i.analysis==='sag',target=sagOnly?{z:null,y:null}:targetComponents(i),fractions=sagOnly?[]:supportFractions(i);let consecutive=0;
   try {
     for(const n of [16,32,64,128]) {
       check();const steps=n/4,stages:Stage[]=[],contactSeed=new Set<number>();
@@ -46,10 +46,10 @@ export function solveScenario(i:ServiceInput,scenario:Scenario,check=()=>{}):Sce
       const initial=state(0,null,null,'initial',0);
       ramp('excavation',t=>state(p.q*t,null,null,'excavation',t),initial);
       const excavated=stages[stages.length-1];r.excavated=excavated;
-      ramp('displacement',t=>state(p.q,target.z===null?null:excavated.midZ+t*(target.z-excavated.midZ),target.y===null?null:excavated.midY+t*(target.y-excavated.midY),'displacement',t),excavated);
+      if(!sagOnly)ramp('displacement',t=>state(p.q,target.z===null?null:excavated.midZ+t*(target.z-excavated.midZ),target.y===null?null:excavated.midY+t*(target.y-excavated.midY),'displacement',t),excavated);
       const last=stages[stages.length-1];
       // Reversible elastic path: no second independent solve that could switch branches.
-      const reverse:Stage[]=[
+      const reverse:Stage[]=sagOnly?[]:[
         ...stages.filter(s=>s.phase==='displacement').reverse().map(s=>({...s,phase:'return' as const})),
         {...excavated,phase:'return',fraction:0},
         ...stages.filter(s=>s.phase!=='displacement').reverse().map(s=>({...s,phase:'restoration' as const})),
@@ -66,10 +66,10 @@ export function solveScenario(i:ServiceInput,scenario:Scenario,check=()=>{}):Sce
         return Math.max(0,...v.supports.flatMap((c,j)=>[delta(c.reaction,old.supports[j].reaction,1),delta(c.gap,old.supports[j].gap,0.01)]));
       })):0;
       const supportChange=prev?Math.max(pathSupportChange,...supportReactions.map((v,j)=>delta(v,prev.supportReactions?.[j]??0,1)),...supportGaps.map((v,j)=>delta(v,prev.supportGaps?.[j]??0,0.01))):Infinity;
-      const change=prev?Math.max(delta(worst.vm,prev.vm,0.05),delta(maxForce,prev.maxForce,1),delta(excavated.midZ,prev.sag,0.01),supportChange):Infinity;
+      const change=prev?Math.max(delta(worst.vm,prev.vm,0.05),delta(maxForce,prev.maxForce,1),delta(sagOnly?excavated.sagMax:excavated.midZ,prev.sag,0.01),supportChange):Infinity;
       r.stages=[...stages,...reverse];r.worst=worst;r.excavated=excavated;r.target=last;
       r.stressUncertainty=prev?Math.abs(worst.vm-prev.vm)+0.01:Infinity;
-      r.refinement.push({elements:fractions.length?(stages[0].shape.length-1)/2:n,increments:steps,vm:worst.vm,maxForce,sag:excavated.midZ,change,supportReactions,supportGaps,contactEventsResolved});
+      r.refinement.push({elements:fractions.length?(stages[0].shape.length-1)/2:n,increments:steps,vm:worst.vm,maxForce,sag:sagOnly?excavated.sagMax:excavated.midZ,change,supportReactions,supportGaps,contactEventsResolved});
       r.utilization=worst.vm/(i.yield*i.allowablePercent/100);
       if(maxSlope>0.1) return {...r,status:'out-of-domain',message:'Resultant slope exceeds 0.1: outside this moderate-rotation implementation scope.'};
       if(worst.vm>i.yield) return {...r,status:'out-of-domain',message:'Conservative beam stress bound exceeds yield; elastic intervention is not verified. No plastic analysis performed.'};
