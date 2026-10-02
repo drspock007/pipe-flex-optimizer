@@ -41,10 +41,13 @@ export function createSagPdf(r:ServiceReport,system:UnitSystem,palette:PdfPalett
   if(r.csa){line(CSA_SCOPE,8);line('Verifications partielles ; levage non evalue selon CSA.',8);line(r.csa.checks.map(c=>`${c.reference}: ${CSA_STATUS[c.status]}`).join('; '),8);}
   if(!complete)continue;
   doc.addPage();y=24;line('Model and numerical evidence',14);
-  line(r.input.sag?.boundary==='simple'?'Analytical Euler-Bernoulli solution: f = 5 q L^4 / (384 EI); Mmax = q L^2 / 8; RA = RB = q L / 2; maximum slope = q L^3 / (24 EI). Axial force and end moments are zero. No mesh-convergence claim.':'Coupled clamped elastic beam: progressive soil release only. No centre constraint, imposed movement or return. N = N0 + EA/(2L) integral(z\'^2 + y\'^2) dx; wall force = N + P Ai. Sag maximum recovered from stationary points of element polynomials.');
-  line(`Poisson ratio: ${r.input.nu}; thermal expansion: ${f(r.input.alpha,'alpha')}. Steel properties are those entered for operating temperature. End-condition applicability confirmed: ${r.input.sag?.confirmed?'yes':'no'}.`);
+  line(r.input.sag?.boundary==='simple'?'Analytical Euler-Bernoulli solution under uniformly distributed weight. Axial force and end moments are zero. No mesh-convergence claim.':'Coupled clamped elastic beam: progressive soil release only. No centre constraint, imposed movement or return. N = N0 + EA/(2L) integral(z\'^2 + y\'^2) dx; wall force = N + P Ai. Sag maximum recovered from stationary points of element polynomials.');
+  line(`Poisson ratio: ${r.input.nu}; thermal expansion coefficient shown below. Steel properties are those entered for operating temperature. End-condition applicability confirmed: ${r.input.sag?.confirmed?'yes':'no'}.`);
+  doc.setDrawColor(...palette.foreground);
+  drawFormula(doc,[{text:'a',greek:'alpha'},{text:' = ',upright:true},{text:String(Number(((system==='SI'?r.input.alpha:r.input.alpha/1.8)*1e6).toPrecision(6))),upright:true},{text:' x 10',sup:'-6',upright:true},{text:system==='SI'?' / °C':' / °F',upright:true}],22,y+4);
+  y+=10;
   line(r.input.sag?.boundary==='simple'?'Global bending and transverse-shear maxima, at different positions, are combined conservatively. Thermal expansion is free.':'Refinement: 16/32/64/128 elements and 4/8/16/32 load increments; two successive changes <= 0.5% with existing absolute floors. Sag comparison uncertainty = last sag change + 0.01 mm; stress uncertainty = last stress change + 0.01 MPa.');
-  if(r.input.sag?.boundary==='simple'){for(const formula of SAG_FORMULAS){if(y+20>274){doc.addPage();y=24;}doc.setDrawColor(...palette.foreground);drawFormula(doc,formula,22,y+8);y+=21;}}
+  if(r.input.sag?.boundary==='simple'){for(const formula of SAG_FORMULAS){if(y+20>274){doc.addPage();y=24;}doc.setDrawColor(...palette.foreground);drawFormula(doc,formula,22,y+8);y+=16;}}
   if(s?.target){
    if(y+72>274){doc.addPage();y=24;}line('Vertical profile (deflection exaggerated)',11);
    const shape=s.target.shape,L=2*r.result.halfLength,depth=Math.max(s.sag?.value??0,1e-9),top=y;
@@ -64,6 +67,15 @@ export function createSagPdf(r:ServiceReport,system:UnitSystem,palette:PdfPalett
   table('Search samples',r.samples.map(v=>[f(v.value/500,'m'),v.status,v.maxUtilization===null?'-':`${(v.maxUtilization*100).toFixed(2)}%`]),['Full span L','Joint stress/sag status','Stress utilization']);
  }
  if(complete&&r.csa){doc.addPage();y=24;line('CSA targeted checks - separate assessment',14);line(CSA_SCOPE);for(const c of r.csa.checks)table(c.title,[['Reference',c.reference],['Status',CSA_STATUS[c.status]],['Data',csaDetails(c,system)],['Scope / reason',c.reason],...(c.demand===undefined?[]:[['Demand / limit',`${f(c.demand,c.unit)} / ${f(c.limit,c.unit)}`]])]);}
+ if(complete){
+  // Keep an optional handwritten / reader-added signature clear of all content and footers.
+  if(y>244){doc.addPage();y=24;}
+  const top=Math.max(y+2,242);
+  doc.setDrawColor(...palette.border);doc.setLineWidth(.3);
+  doc.setTextColor(...palette.foreground);doc.setFont('helvetica','normal');doc.setFontSize(10);
+  doc.text('Signature',16,top);
+  doc.rect(16,top+3,178,25);
+ }
  const pages=doc.getNumberOfPages();for(let k=1;k<=pages;k++){doc.setPage(k);doc.setTextColor(...palette.muted);doc.setFontSize(8);doc.text('GMC | Sag only | Custom criterion, no installation approval',16,12);doc.text(`${complete?'Complete':'Summary'} | ${k} / ${pages}`,16,288);}
  return doc;
 }

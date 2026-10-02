@@ -23,6 +23,9 @@ describe('sag stress exceedance presentation',()=>{
   expect(screen.getByRole('row',{name:'Stress / custom limit 117.72%'})).toBeInTheDocument();
   for(const units of ['SI','Imperial'] as const)for(const complete of [false,true]){
    const pdf=(complete?createServicePdf(r,units,{},undefined,identity):createServiceSummary(r,units,undefined,identity)).output();
+   expect(pdf.includes('(Signature)')).toBe(complete);
+   expect(pdf).not.toContain('f = 5 q L^4');
+   if(complete)expect(pdf).toContain(units==='SI'?'(12)':'(6.66667)');
    expect(pdf).toContain('WARNING');expect(pdf).toContain('35.32%');expect(pdf).toContain('Stress / yield strength');
   }
  });
