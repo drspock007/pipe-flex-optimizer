@@ -1,3 +1,4 @@
+import {addSignature} from '../pdf/signature';
 import {appVersionFooter} from '../pdf/app-version-footer';
 import {SAG_FORMULAS} from './sag-formulas';
 import {drawFormula} from './csa-formulas-pdf';
@@ -68,15 +69,7 @@ export function createSagPdf(r:ServiceReport,system:UnitSystem,palette:PdfPalett
   table('Search samples',r.samples.map(v=>[f(v.value/500,'m'),v.status,v.maxUtilization===null?'-':`${(v.maxUtilization*100).toFixed(2)}%`]),['Full span L','Joint stress/sag status','Stress utilization']);
  }
  if(complete&&r.csa){doc.addPage();y=24;line('CSA targeted checks - separate assessment',14);line(CSA_SCOPE);for(const c of r.csa.checks)table(c.title,[['Reference',c.reference],['Status',CSA_STATUS[c.status]],['Data',csaDetails(c,system)],['Scope / reason',c.reason],...(c.demand===undefined?[]:[['Demand / limit',`${f(c.demand,c.unit)} / ${f(c.limit,c.unit)}`]])]);}
- if(complete){
-  // Keep an optional handwritten / reader-added signature clear of all content and footers.
-  if(y>244){doc.addPage();y=24;}
-  const top=Math.max(y+2,242);
-  doc.setDrawColor(...palette.border);doc.setLineWidth(.3);
-  doc.setTextColor(...palette.foreground);doc.setFont('helvetica','normal');doc.setFontSize(10);
-  doc.text('Signature',16,top);
-  doc.rect(16,top+3,178,25);
- }
+ addSignature(doc,y,palette);
  const pages=doc.getNumberOfPages();for(let k=1;k<=pages;k++){doc.setPage(k);doc.setTextColor(...palette.muted);doc.setFontSize(8);appVersionFooter(doc,r.appVersion);doc.text('GMC | Sag only | Custom criterion, no installation approval',16,12);doc.text(`${complete?'Complete':'Summary'} | ${k} / ${pages}`,16,288);}
  return doc;
 }

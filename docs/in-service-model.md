@@ -258,3 +258,7 @@ The app release is captured separately from the mechanics model version when a
 calculation runs. Every PDF page displays this captured release; legacy snapshots
 without it say "App version not recorded", never the current release at export.
 The shared release constant is src/lib/app-version.ts.
+
+All PDF exports across both modules, including Summary and Complete, end with a
+blank Signature box. Shared filename and captured app-version rules apply to every
+export. The signature space does not imply approval of excluded checks.

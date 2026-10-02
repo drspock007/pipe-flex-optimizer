@@ -5,9 +5,9 @@ import {DEFAULT_SERVICE} from '../types';
 import {createServiceSummary} from '../report-summary';
 import {hslRgb,LIGHT_PDF} from '../pdf-theme';
 describe('summary PDF',()=>{
- it('exports a single readable sheet in either unit system from the unchanged snapshot',()=>{
+ it('exports readable results and signature space in either unit system from the unchanged snapshot',()=>{
   const r=runService({...DEFAULT_SERVICE,supports:{kind:'equidistant',count:2}}),before=structuredClone(r);
-  for(const u of ['SI','Imperial'] as const){const d=createServiceSummary(r,u,undefined,identity);expect(d.getNumberOfPages()).toBe(1);const text=d.output();expect(text).toContain('Calculation conditions');expect(text).toContain('Essential results');expect(text).toContain('von Mises');expect(text).toContain('How to read it');expect(text).toContain('Vertical:');expect(text).toContain('Axial + tension');expect(text).not.toContain('Maximum VM beam bound');expect(text).toContain('Support 1');expect(text).not.toContain('Mesh and path refinement');}
+  for(const u of ['SI','Imperial'] as const){const d=createServiceSummary(r,u,undefined,identity);expect(d.getNumberOfPages()).toBe(2);const text=d.output();expect(text).toContain('(Signature)');expect(text).toContain('Calculation conditions');expect(text).toContain('Essential results');expect(text).toContain('von Mises');expect(text).toContain('How to read it');expect(text).toContain('Vertical:');expect(text).toContain('Axial + tension');expect(text).not.toContain('Maximum VM beam bound');expect(text).toContain('Support 1');expect(text).not.toContain('Mesh and path refinement');}
   expect(r).toEqual(before);
  });
  it('never presents a diagnostic search sample as a candidate',()=>{
