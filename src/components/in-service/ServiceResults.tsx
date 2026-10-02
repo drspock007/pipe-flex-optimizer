@@ -1,3 +1,4 @@
+import {buildPdfFileName} from '@/lib/pdf/file-name';
 import SagResults from './SagResults';
 import PermanentResults from './PermanentResults';
 import type {IdentityFields} from '@/components/ReportIdentityFields';
@@ -36,7 +37,7 @@ export default function ServiceResults({report:r,identity}:{report:ServiceReport
   const c=r.result;
   return <div className="space-y-4">
     <section className="border rounded-lg p-4 bg-card space-y-3"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold text-lg">Results</h2>
-      {c&&<div className="flex flex-wrap gap-2">{(['Summary','Complete'] as const).map(kind=><Button key={kind} disabled={!identity.preparedBy.trim()||!identity.projectName.trim()} variant={kind==='Summary'?'default':'outline'} onClick={()=>{try{if(!identity.preparedBy.trim()||!identity.projectName.trim())return;const meta={...identity,date:new Date()},palette=currentPdfPalette();(kind==='Summary'?createServiceSummary(r,system,palette,meta):createServicePdf(r,system,selected,palette,meta)).save(`in-service-steel-${kind.toLowerCase()}.pdf`);setExportError('');}catch(e){setExportError(e instanceof Error?e.message:String(e));}}}>{kind} PDF · {system}</Button>)}</div>}</div>
+      {c&&<div className="flex flex-wrap gap-2">{(['Summary','Complete'] as const).map(kind=><Button key={kind} disabled={!identity.preparedBy.trim()||!identity.projectName.trim()} variant={kind==='Summary'?'default':'outline'} onClick={()=>{try{if(!identity.preparedBy.trim()||!identity.projectName.trim())return;const meta={...identity,date:new Date()},palette=currentPdfPalette();(kind==='Summary'?createServiceSummary(r,system,palette,meta):createServicePdf(r,system,selected,palette,meta)).save(buildPdfFileName('in-serv-defl',meta.preparedBy,meta.date,kind.toLowerCase())+'.pdf');setExportError('');}catch(e){setExportError(e instanceof Error?e.message:String(e));}}}>{kind} PDF · {system}</Button>)}</div>}</div>
       <p className="text-xs text-muted-foreground">Summary: conditions and essential results, usually one page per scenario. Complete: equations, profiles and diagnostics. Both use the current app theme.</p>
       <p>{r.message}</p>{exportError&&<p role="alert">{exportError}</p>}
       {r.errors.map(e=><p key={e} role="alert" className="text-destructive">{e}</p>)}

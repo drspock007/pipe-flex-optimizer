@@ -1,3 +1,4 @@
+import {buildPdfFileName} from '@/lib/pdf/file-name';
 import {AlertTriangle} from 'lucide-react';
 import FormulaBlock from '@/pages/help/FormulaBlock';
 import {formulaTex} from '@/lib/in-service/csa-formulas';
@@ -18,7 +19,7 @@ export default function SagResults({report:r,identity}:{report:ServiceReport;ide
  const {system}=useUnits(),[error,setError]=useState('');
  const table=(rows:string[][])=><div className="overflow-x-auto"><table className="w-full text-left text-sm"><tbody>{rows.map(([k,v])=><tr key={k} className="border-b"><th className="p-2 font-medium">{k}</th><td className="p-2">{v}</td></tr>)}</tbody></table></div>;
  return <div className="space-y-4"><section className="border rounded-lg bg-card p-4 space-y-3"><h2 className="font-semibold text-lg">Sag only — results</h2>
- <div className="flex gap-2">{(['Summary','Complete'] as const).map(kind=><Button key={kind} variant={kind==='Summary'?'default':'outline'} disabled={!r.result||!identity.preparedBy.trim()||!identity.projectName.trim()} onClick={()=>{try{const meta={...identity,date:new Date()},p=currentPdfPalette();(kind==='Summary'?createServiceSummary(r,system,p,meta):createServicePdf(r,system,{},p,meta)).save(`sag-only-${kind.toLowerCase()}.pdf`);setError('');}catch(e){setError(e instanceof Error?e.message:String(e));}}}>{kind} PDF · {system}</Button>)}</div>
+ <div className="flex gap-2">{(['Summary','Complete'] as const).map(kind=><Button key={kind} variant={kind==='Summary'?'default':'outline'} disabled={!r.result||!identity.preparedBy.trim()||!identity.projectName.trim()} onClick={()=>{try{const meta={...identity,date:new Date()},p=currentPdfPalette();(kind==='Summary'?createServiceSummary(r,system,p,meta):createServicePdf(r,system,{},p,meta)).save(buildPdfFileName('pipe-sag',meta.preparedBy,meta.date,kind.toLowerCase())+'.pdf');setError('');}catch(e){setError(e instanceof Error?e.message:String(e));}}}>{kind} PDF · {system}</Button>)}</div>
  {error&&<p role="alert">{error}</p>}<p>{r.message}</p>{r.errors.map(e=><p className="text-destructive" role="alert" key={e}>{e}</p>)}
  {r.input.mode==='length'&&r.candidate===undefined&&<p className="text-amber-700 dark:text-amber-400">Diagnostic sample only — no verified span candidate.</p>}
  {table(sagConditions(r,system))}

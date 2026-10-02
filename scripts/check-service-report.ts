@@ -1,3 +1,4 @@
+import {createServiceSummary} from '../src/lib/in-service/report-summary';
 const identity={preparedBy:'Report tester',projectName:'Verification project',date:new Date('2026-09-27T16:30:00Z')};
 import { mkdirSync,writeFileSync } from 'node:fs';
 import { DEFAULT_SERVICE } from '../src/lib/in-service/types';
@@ -13,6 +14,8 @@ for(const system of ['SI','Imperial'] as const){
   const pdf=createServicePdf(report,system,{},undefined,identity);
   writeFileSync(`output/pdf/in-service-${system}.pdf`,Buffer.from(pdf.output('arraybuffer')));
   console.log(system,pdf.getNumberOfPages(),'pages');
+  const summary=createServiceSummary(report,system,undefined,identity);
+  writeFileSync(`output/pdf/in-service-summary-${system}.pdf`,Buffer.from(summary.output('arraybuffer')));
 }
 writeFileSync('output/pdf/in-service-report.json',JSON.stringify(report,null,2));
 console.log(report.result?.scenarios.map(s=>({name:s.scenario.name,status:s.status,vm:s.worst?.vm,refinement:s.refinement})));

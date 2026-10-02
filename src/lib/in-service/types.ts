@@ -56,6 +56,8 @@ export interface ScenarioResult {
 export interface CaseResult { halfLength: number; displacement: number; status: Status; scenarios: ScenarioResult[]; supportPositions?:number[]; governing?: string }
 export interface SearchSample { value: number; status: Status; maxUtilization: number | null }
 export interface ServiceReport {
+  /** App release captured when this calculation ran; absent in legacy reports. */
+  appVersion?: string;
   permanent?: PermanentResult;
   csa?: CsaAssessment;
   version: string; createdAt: string; input: ServiceInput; errors: string[];

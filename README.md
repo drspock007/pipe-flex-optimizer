@@ -50,8 +50,10 @@ ci-dessus. Pour un changement PDF, exporter SI et impérial et regarder toutes l
 Ne pas fusionner ni déployer sans demande explicite. La visibilité dans Lovable dépend
 de la branche effectivement connectée ; publier une branche de travail ne modifie pas `remix`.
 
-La version affichée est `vYYYYMMDDHHmmss`, calculée avec `Europe/Rome` (par exemple
+La version affichée est `vYYYYMMDDHHmm`, calculée avec `Europe/Rome` (par exemple
 `Intl.DateTimeFormat` avec `timeZone: "Europe/Rome"`), jamais avec un décalage UTC fixe.
+Les noms des PDF utilisent en revanche la date et l’heure locales du navigateur
+de l’utilisateur qui exporte le rapport (YYYYMMDDHHmm).
 
 Repères : `src/lib/mechanics-v2/` pour le moteur, `src/lib/v2-app/` pour l'adaptation
 et les workers, `src/hooks/useV2Engine.ts` pour l'orchestration, `src/components/v2/`

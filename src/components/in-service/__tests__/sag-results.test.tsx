@@ -13,6 +13,8 @@ afterEach(cleanup);
 describe('sag stress exceedance presentation',()=>{
  it('warns on the current over-limit case, distinguishes yield, and preserves percentages across units',()=>{
   const r=runService(input);
+  expect(r.appVersion).toMatch(/^v\d{12}$/);
+  r.appVersion='v200001010101';
   function Results(){const {toggle}=useUnits();return <><button onClick={toggle}>Toggle units</button><SagResults report={r} identity={identity}/></>;}
   render(<UnitProvider><Results/></UnitProvider>);
   expect(screen.getByRole('alert')).toHaveTextContent('117.72% of the custom limit');
@@ -23,6 +25,10 @@ describe('sag stress exceedance presentation',()=>{
   expect(screen.getByRole('row',{name:'Stress / custom limit 117.72%'})).toBeInTheDocument();
   for(const units of ['SI','Imperial'] as const)for(const complete of [false,true]){
    const pdf=(complete?createServicePdf(r,units,{},undefined,identity):createServiceSummary(r,units,undefined,identity)).output();
+   expect(pdf.includes('(Signature)')).toBe(complete);
+   expect(pdf).not.toContain('f = 5 q L^4');
+   if(complete)expect(pdf).toContain(units==='SI'?'(12)':'(6.66667)');
+   expect(pdf).toContain('App v200001010101');
    expect(pdf).toContain('WARNING');expect(pdf).toContain('35.32%');expect(pdf).toContain('Stress / yield strength');
   }
  });

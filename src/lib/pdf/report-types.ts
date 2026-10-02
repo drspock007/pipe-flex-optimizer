@@ -7,6 +7,7 @@ import { AppInputs } from "@/lib/v2-app/inputs";
 import { Derived } from "@/lib/v2-app/bridge";
 
 export interface V2Report {
+  appVersion?: string;
   /** Solve key of the request that produced the solution. */
   key: string;
   inputs: AppInputs;

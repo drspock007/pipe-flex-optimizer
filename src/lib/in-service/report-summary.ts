@@ -1,3 +1,4 @@
+import {appVersionFooter} from '../pdf/app-version-footer';
 import {createSagPdf} from './sag-report';
 import {createPermanentPdf} from './permanent/report';
 import {requireReportIdentity,type ReportIdentity} from '../pdf/identity';
@@ -76,6 +77,6 @@ export function createServiceSummary(r:ServiceReport,system:UnitSystem,palette:P
     line('Scope: symmetric elastic steel span, ideal clamps, constant pressure/temperature; frictionless upward-only supports. No lifting or support-capacity approval. CSA checks are partial. Full assumptions and diagnostics: complete report.',8);
   }
   const pages=doc.getNumberOfPages();
-  for(let k=1;k<=pages;k++){doc.setPage(k);doc.setTextColor(...palette.muted);doc.setFontSize(8);doc.text('GMC | Conditions & results | Custom criterion only',16,12);doc.text(`Summary | ${k} / ${pages}`,16,288);}
+  for(let k=1;k<=pages;k++){doc.setPage(k);doc.setTextColor(...palette.muted);doc.setFontSize(8);appVersionFooter(doc,r.appVersion);doc.text('GMC | Conditions & results | Custom criterion only',16,12);doc.text(`Summary | ${k} / ${pages}`,16,288);}
   return doc;
 }

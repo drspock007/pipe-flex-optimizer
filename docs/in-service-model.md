@@ -250,3 +250,11 @@ custom utilization exceeds 100%, independently of the deflection verdict; diagno
 or out-of-domain results retain their existing limitations. The same values and
 warning are included in both PDF formats. Comparisons use unrounded values, and a
 small exceedance is not rounded down to an apparently equal 100.00%.
+
+PDF filenames use the study identifier, preparer initials and export timestamp
+YYYYMMDDHHmm in the exporting user’s local browser timezone, with the summary/complete suffix where applicable.
+This is distinct from the fixed app release timestamp, which uses Europe/Rome.
+The app release is captured separately from the mechanics model version when a
+calculation runs. Every PDF page displays this captured release; legacy snapshots
+without it say "App version not recorded", never the current release at export.
+The shared release constant is src/lib/app-version.ts.

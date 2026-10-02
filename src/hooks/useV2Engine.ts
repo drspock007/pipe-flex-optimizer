@@ -1,3 +1,4 @@
+import {APP_VERSION} from '@/lib/app-version';
 // créé par Giovanni Malagnino, 2026-09-25 01:21 CEST (Europe/Rome, UTC+2)
 // Modifié par Giovanni Malagnino, 2026-09-25 01:43 CEST (Europe/Rome, UTC+2)
 // Modifié par Giovanni Malagnino, 2026-09-25 17:40 CEST: Find h search channel (L relaunches it, hv only the solve).
@@ -21,8 +22,8 @@ import { ChannelAction, ChannelState, channelReducer, initialChannel } from "@/l
 
 export interface SolveTarget { L_mm: number; numSupports: number; hv_mm?: number }
 export type SearchData = SearchOutcome & { key: string };
-export type SolveData = SolveOutcome & { key: string; inputs: AppInputs; derived: Derived };
-type Ctx = { key: string; inputs: AppInputs; derived: Derived };
+export type SolveData = SolveOutcome & { appVersion?: string; key: string; inputs: AppInputs; derived: Derived };
+type Ctx = { appVersion?: string; key: string; inputs: AppInputs; derived: Derived };
 type Channel = "search" | "solve";
 
 export const isSearchMode = (m: AppInputs["mode"]) => m === "searchLength" || m === "minSupports";
@@ -92,7 +93,7 @@ export function useV2Engine(inputs: AppInputs, debounceMs = 300) {
   const send = (c: Channel, id: number, request: EngineRequest, context: Ctx) => {
     const w = workers.current[c];
     if (!w) { dispatchOf(c)({ type: "failure", id, error: "Web Workers are not available in this browser" }); return; }
-    ctx.current.set(id, context);
+    ctx.current.set(id, {...context,appVersion:APP_VERSION});
     running.current[c] = id;
     w.postMessage({ id, channel: c, request } satisfies WorkerRequestMsg);
   };

@@ -1,3 +1,4 @@
+import {APP_VERSION} from '../app-version';
 import {runSag} from './sag';
 import {runPermanent} from './permanent/sequence';
 import { evaluateCsa } from './csa';
@@ -6,7 +7,7 @@ import { solveCase } from './solve';
 export const SEARCH_LIMIT=49,SEARCH_MS=60000;
 export function runService(input:ServiceInput,onProgress?:(message:string)=>void):ServiceReport {
   const start=performance.now(), errors=validate(input);
-  const r:ServiceReport={version:MODEL_VERSION,createdAt:new Date().toISOString(),input:structuredClone(input),errors,samples:[],budgetExhausted:false,boundReached:false,message:'',elapsedMs:0};
+  const r:ServiceReport={appVersion:APP_VERSION,version:MODEL_VERSION,createdAt:new Date().toISOString(),input:structuredClone(input),errors,samples:[],budgetExhausted:false,boundReached:false,message:'',elapsedMs:0};
   if(errors.length) return {...r,csa:evaluateCsa(input),message:'Correct the input errors before calculating.'};
   const check=()=>{if(performance.now()-start>SEARCH_MS) {r.budgetExhausted=true;throw new Error('Calculation time budget exhausted; unresolved result.');}};
   if(input.analysis==='sag'){
