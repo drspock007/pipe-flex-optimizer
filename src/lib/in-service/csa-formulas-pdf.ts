@@ -10,7 +10,7 @@ export function drawFormula(doc:jsPDF,parts:MathPart[],x:number,y:number,size=13
     if('relation' in p)return w+s*.4;
     if('numerator' in p)return w+Math.max(width(p.numerator,s*.9),width(p.denominator,s*.9))+3;
     font(p,s);const main=doc.getTextWidth(glyph(p));doc.setFont('times','italic');doc.setFontSize(s*.65);
-    return w+main+(p.sub?doc.getTextWidth(p.sub):0);
+    return w+main+Math.max(p.sub?doc.getTextWidth(p.sub):0,p.sup?doc.getTextWidth(p.sup):0);
   },0);
   const paint=(ps:MathPart[],left:number,baseline:number,s:number)=>{
     for(const p of ps){
@@ -26,6 +26,7 @@ export function drawFormula(doc:jsPDF,parts:MathPart[],x:number,y:number,size=13
         paint(p.denominator,left+(w-dw)/2,bar+s*.31,ns);
       }else{
         font(p,s);doc.text(glyph(p),left,baseline);const main=doc.getTextWidth(glyph(p));
+        if(p.sup){doc.setFont('times','normal');doc.setFontSize(s*.65);doc.text(p.sup,left+main,baseline-s*.16);}
         if(p.sub){doc.setFont('times',p.sub.length>1?'normal':'italic');doc.setFontSize(s*.65);doc.text(p.sub,left+main,baseline+s*.10);}
       }
       left+=w;

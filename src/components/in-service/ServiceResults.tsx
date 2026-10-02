@@ -1,3 +1,4 @@
+import SagResults from './SagResults';
 import PermanentResults from './PermanentResults';
 import type {IdentityFields} from '@/components/ReportIdentityFields';
 import { createServiceSummary } from '@/lib/in-service/report-summary';
@@ -30,6 +31,7 @@ export default function ServiceResults({report:r,identity}:{report:ServiceReport
   const {system}=useUnits();const f=(v:number|undefined,u:Parameters<typeof format>[1])=>format(v,u,system);
   const [exportError,setExportError]=useState('');
   const [selected,setSelected]=useState<Record<string,number>>({});
+  if(r.input.analysis==='sag')return <SagResults report={r} identity={identity}/>;
   if(r.permanent)return <PermanentResults report={r} identity={identity}/>;
   const c=r.result;
   return <div className="space-y-4">

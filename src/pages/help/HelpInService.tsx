@@ -9,8 +9,15 @@ const HelpInService = () => (
       <p className="mt-2 max-w-3xl text-sm text-muted-foreground">Elastic movement of a uniform pressurized steel pipe in a symmetric excavation. Choose temporary return or a separate maintained-deviation sequence with backfill.</p>
     </div>
 
+    <HelpSection id="service-sag" eyebrow="In-service Deflection" title="Sag only — empty or fluid-loaded pipe">
+      <P>Select Sag only for the downward deflection under steel, coating and fluid weight, without a central actuator. Enter the full span L, or use Find L to find the largest verified sampled span satisfying both the sag limit and the custom stress criterion. This is an exploratory result, not a certified global maximum.</P>
+      <P>One level span only: either both ends clamped against translation and rotation, or two simple supports with free rotation and axial sliding at one end. Simple supports require zero gauge pressure and zero extra axial force. No intermediate supports, overhangs or soil. A long continuous pipe is not automatically clamped.</P>
+      <FormulaBlock tex={String.raw`f_{\max}=\frac{5qL^4}{384EI},\qquad M_{\max}=\frac{qL^2}{8},\qquad R_A=R_B=\frac{qL}{2}`} label="Simple supports only: uniform load, free axial sliding, zero pressure."/>
+      <P>Empty pipe, no pressure selects custom fluid density and sets it and gauge pressure to zero. Steel and coating weight remain. Clamped thermal and extra axial forces also remain. Gas at zero gauge pressure has atmospheric density and is not automatically empty.</P>
+      <P>The sag limit is optional for fixed L and mandatory for Find L. Sag is positive downward from the line joining the supports. Mechanical and sag verdicts are separate. Two vertical static lifting forces may be idealized, but inclined slings, dynamic effects, local lifting stresses and equipment capacity are not assessed. The anchored CSA check does not apply to axially free simple supports.</P>
+    </HelpSection>
     <HelpSection id="service-scope" eyebrow="In-service Deflection" title="Operation and input model">
-      <P>This module is independent from Pipe Lowering. It represents a straight, uniform, elastic steel pipe with ideal clamps at both buried ends. The full excavated length is twice the entered half-length. Pressure and temperature remain constant during construction; permanent mode adds explicit future operating cases.</P>
+      <P>This module is independent from Pipe Lowering. For imposed displacement, it represents a straight, uniform, elastic steel pipe with ideal clamps at both buried ends. The full excavated length is twice the entered half-length. Pressure and temperature remain constant during construction; permanent mode adds explicit future operating cases.</P>
       <ScrollTable>
         <thead><tr><Th>Input group</Th><Th>What the model uses</Th></tr></thead>
         <tbody>

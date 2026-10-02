@@ -1,6 +1,6 @@
 /** Shared mathematical notation for screen (KaTeX) and vector PDF output. */
 export type MathPart =
-  | {text:string; sub?:string; greek?:'nu'|'alpha'; upright?:boolean}
+  | {text:string; sub?:string; sup?:string; greek?:'nu'|'alpha'; upright?:boolean}
   | {relation:'le'|'ge'}
   | {numerator:MathPart[]; denominator:MathPart[]};
 const t=(text:string,sub?:string):MathPart=>({text,sub});
@@ -24,6 +24,6 @@ export function formulaTex(parts:MathPart[]):string {
     if('relation' in p)return p.relation==='le'?'\\leq':'\\geq';
     if('numerator' in p)return `\\frac{${formulaTex(p.numerator)}}{${formulaTex(p.denominator)}}`;
     const text=p.greek?`\\${p.greek}`:atomTex(p.text);
-    return text+(p.sub?`_{${p.sub.length>1?`\\mathrm{${p.sub}}`:p.sub}}`:'');
+    return text+(p.sub?`_{${p.sub.length>1?`\\mathrm{${p.sub}}`:p.sub}}`:'')+(p.sup?`^{${p.sup}}`:'');
   }).join(' ');
 }

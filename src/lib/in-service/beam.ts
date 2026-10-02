@@ -111,7 +111,7 @@ export function recover(p:Section,D:number,n:number,pressure:number,q:number,b:B
     midZ:b.z.d[mid],midY:b.y.d[mid],forceZ:b.z.res[mid],forceY:b.y.res[mid],
     leftZ:b.z.res[0],rightZ:b.z.res[2*n],leftY:b.y.res[0],rightY:b.y.res[2*n],
     leftMz:b.z.res[1],rightMz:b.z.res[2*n+1],leftMy:b.y.res[1],rightMy:b.y.res[2*n+1],
-    maxSlope:0,residual:b.compatibility,shape:[],supports:b.z.contacts,contactIterations:b.z.contactIterations};
+    sagMax:0,sagX:0,maxSlope:0,residual:b.compatibility,shape:[],supports:b.z.contacts,contactIterations:b.z.contactIterations};
   for(let e=0;e<n;e++) {
     const l=mesh?mesh[e+1]-mesh[e]:D/n, x0=mesh?mesh[e]:e*l;
     const dz=b.z.d.slice(2*e,2*e+4),dy=b.y.d.slice(2*e,2*e+4);
@@ -120,6 +120,8 @@ export function recover(p:Section,D:number,n:number,pressure:number,q:number,b:B
     const moment=magnitudeMax(mz,my), shear=magnitudeMax(polyDeriv(mz).map(v=>v/l),polyDeriv(my).map(v=>v/l));
     const stress=stressBound(p,wall,moment.value,shear.value);
     if(stress.vm>=out.vm) Object.assign(out,{vm:stress.vm,normalVm:stress.normal,x:x0+moment.u*l,shearX:x0+shear.u*l,element:[x0,x0+l]});
+    const zCoeffs=hermiteCoeffs(l,dz);
+    for(const u of extremaCandidates(zCoeffs)){const sag=-polyEval(zCoeffs,u);if(sag>out.sagMax){out.sagMax=sag;out.sagX=x0+u*l;}}
     const sz=polyDeriv(hermiteCoeffs(l,dz)).map(v=>v/l),sy=polyDeriv(hermiteCoeffs(l,dy)).map(v=>v/l);
     out.maxSlope=Math.max(out.maxSlope,magnitudeMax(sz,sy).value);
     for(let j=0;j<2;j++) out.shape.push({x:x0+j*l/2,z:hermiteAt(l,dz,j/2).w,y:hermiteAt(l,dy,j/2).w});
