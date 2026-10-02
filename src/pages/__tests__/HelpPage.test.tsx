@@ -14,6 +14,8 @@ describe("HelpPage", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Pipe Lowering" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "In-service Deflection" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 3, name: "Getting started" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Recommended browsers" })).toBeInTheDocument();
+    expect(screen.getByText("iOS/iPadOS 16.4")).toBeInTheDocument();
   });
 
   it("maps every table-of-contents link to exactly one stable target", () => {

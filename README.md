@@ -37,6 +37,12 @@ Le build prérend les trois routes publiques et génère le sitemap depuis le
 registre SEO commun. Après publication, suivre la [liste de contrôle SEO](docs/seo-deployment.md)
 pour vérifier les réponses du CDN, la vraie 404 et les consoles Google/Bing.
 
+Navigateurs recommandés : Chrome/Chrome Android 120+, Edge 120+, Firefox 122+,
+Safari macOS 16.4+ et Safari iOS/iPadOS 16.4+. Sur iPhone et iPad, Chrome et
+Edge suivent le seuil WebKit d'iOS/iPadOS. Un avertissement non bloquant s'affiche
+si la version déclarée d'un navigateur reconnu est inférieure à ce seuil ;
+une identification masquée ou inconnue ne permet pas de conclure.
+
 `bun run test:watch` lance Vitest en mode interactif ; `bun run preview` sert le build.
 Le lint historique n'est pas entièrement propre : comparer avec la branche de départ
 et ne pas confondre ces diagnostics avec de nouvelles régressions.
