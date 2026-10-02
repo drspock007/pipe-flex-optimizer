@@ -1,5 +1,5 @@
 import {addSignature} from '../pdf/signature';
-import {appVersionFooter} from '../pdf/app-version-footer';
+import {finishPdfPages} from '../pdf/theme';
 import {createSagPdf} from './sag-report';
 import {createPermanentPdf} from './permanent/report';
 import {requireReportIdentity,type ReportIdentity} from '../pdf/identity';
@@ -152,6 +152,6 @@ export function createServicePdf(r:ServiceReport,system:UnitSystem,selected:Reco
   }
   if(r.samples.length)table('Exploratory search samples',['Half-length / amplitude / count','Status','Max utilization'],r.samples.map(s=>[i.mode==='supports'?`${s.value} supports`:i.mode==='length'?f(s.value/1000,'m'):f(s.value,'mm'),STATUS[s.status],s.maxUtilization===null?'-':`${(s.maxUtilization*100).toFixed(2)}%`]));
   addSignature(doc,y,palette);
- for(let k=1;k<=doc.getNumberOfPages();k++){doc.setPage(k);doc.setTextColor(...palette.muted);doc.setFontSize(8);appVersionFooter(doc,r.appVersion);doc.text('GMC | Temporary steel pipe deflection | Custom criterion only',16,12);doc.text(`${r.version} | ${k} / ${doc.getNumberOfPages()}`,16,288);}
+ finishPdfPages(doc,palette,r.appVersion,'GMC | Temporary steel pipe deflection | Custom criterion only','Complete');
   return doc;
 }

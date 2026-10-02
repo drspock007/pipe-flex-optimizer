@@ -42,3 +42,12 @@ Contraintes MPa pour (hl,n) : (0,0)=424.5523905204 ; (0,1)=256.1568476301 ;
 l'acier sous pression. Le contrat détaillé est dans [in-service-model.md](in-service-model.md).
 Ses entrées sont directement en mm/N/MPa/°C (contrairement à AppInputs ci-dessus).
 Le PEHD n'est pas pris en charge. Les modes existants et leurs seuils ne changent pas.
+
+### Shared PDF presentation
+
+All report modules use `src/lib/pdf/theme.ts` for app-token colors, A4 backgrounds,
+two 3 mm orange side bars, and consistent header/footer placement. Pipe lowering
+uses the same 16 mm horizontal margins and alternating card rows as in-service.
+`finishPdfPages` writes the calculation's captured app version and format/page
+number; it does not substitute the current release for a legacy snapshot.
+Signature and content pagination remain separate shared concerns.
