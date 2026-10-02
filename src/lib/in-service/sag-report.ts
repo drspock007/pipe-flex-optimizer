@@ -1,3 +1,4 @@
+import {appVersionFooter} from '../pdf/app-version-footer';
 import {SAG_FORMULAS} from './sag-formulas';
 import {drawFormula} from './csa-formulas-pdf';
 import {jsPDF} from 'jspdf';
@@ -76,6 +77,6 @@ export function createSagPdf(r:ServiceReport,system:UnitSystem,palette:PdfPalett
   doc.text('Signature',16,top);
   doc.rect(16,top+3,178,25);
  }
- const pages=doc.getNumberOfPages();for(let k=1;k<=pages;k++){doc.setPage(k);doc.setTextColor(...palette.muted);doc.setFontSize(8);doc.text('GMC | Sag only | Custom criterion, no installation approval',16,12);doc.text(`${complete?'Complete':'Summary'} | ${k} / ${pages}`,16,288);}
+ const pages=doc.getNumberOfPages();for(let k=1;k<=pages;k++){doc.setPage(k);doc.setTextColor(...palette.muted);doc.setFontSize(8);appVersionFooter(doc,r.appVersion);doc.text('GMC | Sag only | Custom criterion, no installation approval',16,12);doc.text(`${complete?'Complete':'Summary'} | ${k} / ${pages}`,16,288);}
  return doc;
 }

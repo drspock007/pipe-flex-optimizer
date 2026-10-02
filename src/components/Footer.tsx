@@ -1,3 +1,4 @@
+import {APP_VERSION} from '@/lib/app-version';
 import { Facebook, Linkedin, Phone } from "lucide-react";
 
 /** Site footer mirroring giovannimalagninoconsulting.com branding.
@@ -92,7 +93,7 @@ export const Footer = () => {
             </a>
             {" "}— Pipe Lowering — All rights reserved.
           </p>
-          <p className="text-[10px] text-muted-foreground">v202610021515</p>
+          <p className="text-[10px] text-muted-foreground">{APP_VERSION}</p>
         </div>
       </div>
     </footer>

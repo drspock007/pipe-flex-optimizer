@@ -1,3 +1,4 @@
+import {appVersionFooter} from './app-version-footer';
 import {requireReportIdentity} from './identity';
 // Modifié par Giovanni malagnino, 2026-09-25 01:43 CEST (Europe/Rome, UTC+2)
 // PDF report generation for pipe lowering analysis results.
@@ -80,6 +81,7 @@ export const createReportPdf = (
     const h = doc.internal.pageSize.getHeight();
     doc.setFontSize(7);
     doc.setTextColor(120, 120, 120);
+    appVersionFooter(doc,report.appVersion);
     doc.text(
       "Engineering disclaimer: results are indicative and must be verified by a qualified engineer.",
       14,
@@ -93,7 +95,7 @@ export const createReportPdf = (
 
 export const generateReportPdf = (report: V2Report, meta: ReportMeta): string => {
   const doc = createReportPdf(report, meta);
-  const fileName = buildPdfFileName(meta.projectName, meta.date);
+  const fileName = buildPdfFileName('pipe-lowering',meta.preparedBy,meta.date);
   doc.save(`${fileName}.pdf`);
   return fileName;
 };

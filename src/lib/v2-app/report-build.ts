@@ -16,5 +16,5 @@ export function buildReport(
   const d = solve.data;
   if (!key || solve.status !== "ready" || solve.refreshing || !d || d.key !== key || d.result.status !== "ok") return null;
   if (searchMode && (search.status !== "ready" || search.data?.key !== searchKey(inputs))) return null;
-  return { key, inputs: d.inputs, derived: d.derived, solution: d.result, ...extras };
+  return { appVersion:d.appVersion, key, inputs: d.inputs, derived: d.derived, solution: d.result, ...extras };
 }

@@ -23,6 +23,10 @@ const idle = initialChannel<SearchData>();
 const extras = { searchStatus: null, ranges: [] };
 
 describe("V2-3-R1 freshness", () => {
+  it("preserves the calculation app version rather than the export version",()=>{
+    const d={...solved(),appVersion:'v200001010101'};
+    expect(buildReport(DEFAULT_INPUTS,{L_mm:30000,numSupports:0},false,idle,ready(d),extras)?.appVersion).toBe('v200001010101');
+  });
   it("renders 0 as a visible label", () => {
     expect(countLabel(0)).toBe("0");
     expect(countLabel(0).length).toBeGreaterThan(0);

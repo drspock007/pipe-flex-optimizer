@@ -1,3 +1,4 @@
+import {APP_VERSION} from '../src/lib/app-version';
 // Reproduce the V2-13 report with the same engine, text builders and PDF renderer as the UI.
 // Run: bun run scripts/check-report.ts
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -24,7 +25,7 @@ mkdirSync('output/pdf', { recursive: true });
 for (const system of ['SI', 'Imperial'] as const) {
   const fmt = (mm: number) => `${toDisplay(mm / 1000, 'm', system).toFixed(3)} ${unitLabel('m', system)}`;
   const fmtS = (mpa: number) => `${toDisplay(mpa, 'MPa', system).toFixed(2)} ${unitLabel('MPa', system)}`;
-  const report: V2Report = { key: 'v2-13-reproduction', inputs, derived, solution, ranges: [],
+  const report: V2Report = { appVersion:APP_VERSION, key: 'v2-13-reproduction', inputs, derived, solution, ranges: [],
     searchStatus: describeGroundMin(result).title,
     searchNotes: [...groundMinRows(result, fmt, fmtS), ['Support-count search method and limits', GROUND_MIN_LIMITS],
       ...restrainedLengthRows(result.candidate.search as RestrainedLengthResult, fmt, fmtS).map(([a,b]) => [`Candidate length search: ${a}`, b] as [string,string]),
