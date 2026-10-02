@@ -1,5 +1,7 @@
 # Pipe Lowering
 
+The independent Astro corporate site is in [`gmc-website/`](gmc-website/README.md). It has its own dependencies, routes and static build; it does not replace or alter the calculator application.
+
 Application React/TypeScript de calcul de descente de conduite : Vite, Vitest,
 Tailwind/shadcn, Recharts, jsPDF et jsPDF-autotable. Le développement local
 conserve la connexion Lovable et l'hébergement existant.

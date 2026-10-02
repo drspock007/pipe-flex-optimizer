@@ -1,0 +1,4 @@
+RewriteEngine On
+RewriteRule ^$ /fr/ [R=301,L]
+RewriteRule ^en/accueil-english/?$ /en/ [R=301,L]
+RewriteRule ^it/accueil-italiano/?$ /it/ [R=301,L]

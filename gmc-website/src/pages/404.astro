@@ -1,0 +1,8 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { copy } from '../data/content';
+const t = copy.fr;
+---
+<SiteLayout locale="fr" page="notFound" title={`${t.notFoundTitle} | GMC`} noIndex>
+  <main id="main" class="not-found section-wrap"><p class="eyebrow">404</p><h1>{t.notFoundTitle}</h1><p>{t.notFoundText}</p><a class="button button-orange" href="/fr/">{t.backHome}<span aria-hidden="true">↗</span></a></main>
+</SiteLayout>
