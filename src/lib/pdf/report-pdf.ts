@@ -1,3 +1,4 @@
+import {addSignature} from './signature';
 import {appVersionFooter} from './app-version-footer';
 import {requireReportIdentity} from './identity';
 // Modifié par Giovanni malagnino, 2026-09-25 01:43 CEST (Europe/Rome, UTC+2)
@@ -73,6 +74,8 @@ export const createReportPdf = (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     cursorY = (doc as any).lastAutoTable.finalY + 6;
   }
+
+  addSignature(doc,cursorY,undefined,14);
 
   // Footer with disclaimer and page numbers
   const pageCount = doc.getNumberOfPages();

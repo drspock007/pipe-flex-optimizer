@@ -1,3 +1,4 @@
+import {addSignature} from '../../pdf/signature';
 import {appVersionFooter} from '../../pdf/app-version-footer';
 import {jsPDF} from 'jspdf';
 import autoTable,{type UserOptions} from 'jspdf-autotable';
@@ -50,5 +51,6 @@ export function createPermanentPdf(r:ServiceReport,units:UnitSystem,palette:PdfP
   }
   if(r.csa){line('CSA partial checks: '+r.csa.checks.map(c=>`${c.title}: ${CSA_STATUS[c.status]}`).join('; '));if(complete){line(CSA_SCOPE);for(const c of r.csa.checks){const equations=CSA_FORMULAS[c.id];if(equations){if(y+equations.length*28+35>270){doc.addPage();y=23;}line(`${c.title} - ${c.reference}`,11);for(const eq of equations){doc.setDrawColor(...palette.foreground);drawFormula(doc,eq.parts,22,y+7);y+=16;if(eq.note)line(eq.note.replace('≤','<='));}}table(['Partial CSA check','Value'],[['Reference / status',`${c.reference} / ${CSA_STATUS[c.status]}`],['Inputs and derived values',csaDetails(c,units)||'None'],...(c.demand===undefined?[]:[['Demand / limit',`${f(c.demand,c.unit)} / ${f(c.limit,c.unit)}`],['Utilization',`${(100*c.utilization).toFixed(3)}%`]]),['Scope / reason',c.reason]]);}}}line(PERMANENT_LIMITS,8);
  });
+ addSignature(doc,y,palette);
  for(let k=1;k<=doc.getNumberOfPages();k++){doc.setPage(k);doc.setTextColor(...palette.muted);doc.setFontSize(8);appVersionFooter(doc,r.appVersion);doc.text('GMC | Permanent elastic assessment',16,12);doc.text(`${k} / ${doc.getNumberOfPages()} | Partial checks; no installation approval`,16,288);}return doc;
 }

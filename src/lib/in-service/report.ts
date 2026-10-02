@@ -1,3 +1,4 @@
+import {addSignature} from '../pdf/signature';
 import {appVersionFooter} from '../pdf/app-version-footer';
 import {createSagPdf} from './sag-report';
 import {createPermanentPdf} from './permanent/report';
@@ -150,6 +151,7 @@ export function createServicePdf(r:ServiceReport,system:UnitSystem,selected:Reco
     }
   }
   if(r.samples.length)table('Exploratory search samples',['Half-length / amplitude / count','Status','Max utilization'],r.samples.map(s=>[i.mode==='supports'?`${s.value} supports`:i.mode==='length'?f(s.value/1000,'m'):f(s.value,'mm'),STATUS[s.status],s.maxUtilization===null?'-':`${(s.maxUtilization*100).toFixed(2)}%`]));
-  for(let k=1;k<=doc.getNumberOfPages();k++){doc.setPage(k);doc.setTextColor(...palette.muted);doc.setFontSize(8);appVersionFooter(doc,r.appVersion);doc.text('GMC | Temporary steel pipe deflection | Custom criterion only',16,12);doc.text(`${r.version} | ${k} / ${doc.getNumberOfPages()}`,16,288);}
+  addSignature(doc,y,palette);
+ for(let k=1;k<=doc.getNumberOfPages();k++){doc.setPage(k);doc.setTextColor(...palette.muted);doc.setFontSize(8);appVersionFooter(doc,r.appVersion);doc.text('GMC | Temporary steel pipe deflection | Custom criterion only',16,12);doc.text(`${r.version} | ${k} / ${doc.getNumberOfPages()}`,16,288);}
   return doc;
 }
