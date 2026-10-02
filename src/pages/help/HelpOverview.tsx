@@ -49,6 +49,21 @@ const HelpOverview = () => (
         <li>A PDF records the model calculation; it is not a sealed design document or normative certificate.</li>
       </Bullets>
     </HelpSection>
+
+    <HelpSection id="browser-compatibility" eyebrow="Getting started" title="Recommended browsers">
+      <P>For reliable calculations, charts and PDF exports, use a current version of a supported browser. The application checks the browser version when the page opens and shows a warning when a recognized version is below these recommendations.</P>
+      <ScrollTable>
+        <thead><tr><Th>Browser</Th><Th>Recommended minimum</Th></tr></thead>
+        <tbody>
+          <tr><Td>Chrome (desktop and Android)</Td><Td>120</Td></tr>
+          <tr><Td>Microsoft Edge</Td><Td>120</Td></tr>
+          <tr><Td>Firefox</Td><Td>122</Td></tr>
+          <tr><Td>Safari on macOS</Td><Td>16.4</Td></tr>
+          <tr><Td>Safari on iPhone or iPad</Td><Td>iOS/iPadOS 16.4</Td></tr>
+        </tbody>
+      </ScrollTable>
+      <P>Chrome, Edge and Firefox on iPhone or iPad use the iOS browser engine, so iOS/iPadOS 16.4 or newer is recommended for them too. Browser identification is based on the version reported by the browser; if that information is hidden or unrecognized, the check cannot establish compatibility. On mobile devices, long searches and PDF exports may take longer.</P>
+    </HelpSection>
   </div>
 );
 
