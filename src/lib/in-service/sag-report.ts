@@ -17,9 +17,9 @@ const clean=(s:string)=>s.replace(/—/g,'-').replace(/·/g,' ').replace(/⁻/g,
 export function createSagPdf(r:ServiceReport,system:UnitSystem,palette:PdfPalette,identity:ReportIdentity,complete:boolean):jsPDF {
  const meta=requireReportIdentity(identity),doc=new jsPDF();themePages(doc,palette);let y=24;
  const f=(v:number|undefined,u:Parameters<typeof format>[1])=>clean(format(v,u,system));
- const line=(s:string,size=9)=>{doc.setFontSize(size);doc.setTextColor(...palette.foreground);for(const l of doc.splitTextToSize(clean(s),178)){if(y>273){doc.addPage();y=22;}doc.text(l,16,y);y+=size*.45;}y+=2;};
+ const line=(s:string,size=9)=>{doc.setFontSize(size);doc.setTextColor(...palette.foreground);for(const l of doc.splitTextToSize(clean(s),178)){if(y>256){doc.addPage();y=22;}doc.text(l,16,y);y+=size*.45;}y+=complete?2:.8;};
  const table=(title:string,body:string[][],head=[title,'Value'])=>{
-  const opts:UserOptions={startY:y,columnStyles:head.length===2?{0:{cellWidth:65}}:undefined,head:[head.map(clean)],body:body.map(row=>row.map(clean)),margin:{top:22,bottom:22,left:16,right:16},styles:{fontSize:9,cellPadding:1.2,textColor:palette.foreground,fillColor:palette.background,lineColor:palette.border},headStyles:{fillColor:palette.primary,textColor:palette.primaryText},alternateRowStyles:{fillColor:palette.card},rowPageBreak:'avoid'};
+  const opts:UserOptions={startY:y,columnStyles:head.length===2?{0:{cellWidth:65}}:undefined,head:[head.map(clean)],body:body.map(row=>row.map(clean)),margin:{top:22,bottom:37,left:16,right:16},styles:{fontSize:9,cellPadding:complete?1.2:1,textColor:palette.foreground,fillColor:palette.background,lineColor:palette.border},headStyles:{fillColor:palette.primary,textColor:palette.primaryText},alternateRowStyles:{fillColor:palette.card},rowPageBreak:'avoid'};
   const plan=planTable(opts,22,3);if(plan.newPage)doc.addPage();plan.parts.forEach((part,k)=>{if(k)doc.addPage();autoTable(doc,part);});
   y=(doc as jsPDF & {lastAutoTable:{finalY:number}}).lastAutoTable.finalY+4;
  };
@@ -49,9 +49,9 @@ export function createSagPdf(r:ServiceReport,system:UnitSystem,palette:PdfPalett
   drawFormula(doc,[{text:'a',greek:'alpha'},{text:' = ',upright:true},{text:String(Number(((system==='SI'?r.input.alpha:r.input.alpha/1.8)*1e6).toPrecision(6))),upright:true},{text:' x 10',sup:'-6',upright:true},{text:system==='SI'?' / °C':' / °F',upright:true}],22,y+4);
   y+=10;
   line(r.input.sag?.boundary==='simple'?'Global bending and transverse-shear maxima, at different positions, are combined conservatively. Thermal expansion is free.':'Refinement: 16/32/64/128 elements and 4/8/16/32 load increments; two successive changes <= 0.5% with existing absolute floors. Sag comparison uncertainty = last sag change + 0.01 mm; stress uncertainty = last stress change + 0.01 MPa.');
-  if(r.input.sag?.boundary==='simple'){for(const formula of SAG_FORMULAS){if(y+20>274){doc.addPage();y=24;}doc.setDrawColor(...palette.foreground);drawFormula(doc,formula,22,y+8);y+=16;}}
+  if(r.input.sag?.boundary==='simple'){for(const formula of SAG_FORMULAS){if(y+20>260){doc.addPage();y=24;}doc.setDrawColor(...palette.foreground);drawFormula(doc,formula,22,y+8);y+=16;}}
   if(s?.target){
-   if(y+72>274){doc.addPage();y=24;}line('Vertical profile (deflection exaggerated)',11);
+   if(y+72>260){doc.addPage();y=24;}line('Vertical profile (deflection exaggerated)',11);
    const shape=s.target.shape,L=2*r.result.halfLength,depth=Math.max(s.sag?.value??0,1e-9),top=y;
    doc.setDrawColor(...palette.muted);doc.line(20,top,190,top);doc.setDrawColor(...PLOT_COLORS.excavated);doc.setLineWidth(.6);
    for(let k=1;k<shape.length;k++){const a=shape[k-1],b=shape[k];doc.line(20+170*a.x/L,top-42*a.z/depth,20+170*b.x/L,top-42*b.z/depth);}doc.setLineWidth(.2);

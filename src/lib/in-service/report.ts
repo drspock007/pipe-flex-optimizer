@@ -31,11 +31,11 @@ export function createServicePdf(r:ServiceReport,system:UnitSystem,selected:Reco
   const f=(v:number,u:Parameters<typeof format>[1],digits=3)=>ascii(format(v,u,system,digits));
   const text=(s:string,size=9)=>{
     doc.setFontSize(size);const lines=doc.splitTextToSize(ascii(s),178) as string[];
-    for(const line of lines){if(y>277){doc.addPage();y=22;}doc.text(line,16,y);y+=size*0.45;}
+    for(const line of lines){if(y>256){doc.addPage();y=22;}doc.text(line,16,y);y+=size*0.45;}
     y+=3;
   };
   const table=(title:string,head:string[],body:string[][])=>{
-    const opts:UserOptions={startY:y+8,head:[head.map(ascii)],body:body.map(row=>row.map(ascii)),margin:{left:16,right:16,top:22,bottom:18},styles:{fontSize:8,cellPadding:2.1,overflow:'linebreak',textColor:palette.foreground,fillColor:palette.background,lineColor:palette.border},alternateRowStyles:{fillColor:palette.card},headStyles:{fillColor:palette.primary,textColor:palette.primaryText},rowPageBreak:'avoid',showHead:'everyPage'};
+    const opts:UserOptions={startY:y+8,head:[head.map(ascii)],body:body.map(row=>row.map(ascii)),margin:{left:16,right:16,top:22,bottom:37},styles:{fontSize:8,cellPadding:2.1,overflow:'linebreak',textColor:palette.foreground,fillColor:palette.background,lineColor:palette.border},alternateRowStyles:{fillColor:palette.card},headStyles:{fillColor:palette.primary,textColor:palette.primaryText},rowPageBreak:'avoid',showHead:'everyPage'};
     if(y>255){doc.addPage();y=22;opts.startY=y+8;}
     const plan=planTable(opts,30,3);
     if(plan.newPage){doc.addPage();y=22;}
@@ -83,7 +83,7 @@ export function createServicePdf(r:ServiceReport,system:UnitSystem,selected:Reco
       if(equations){
         // Reserve heading, the complete equation group and the first detail row.
         const height=equations.reduce((sum,eq)=>sum+16+(eq.note?doc.splitTextToSize(ascii(eq.note),178).length*4.05+3:0),12);
-        if(y+height+24>277){doc.addPage();y=22;}
+        if(y+height+24>260){doc.addPage();y=22;}
         text(`${c.title} - ${c.reference}`,11);
         for(const eq of equations){
           doc.setDrawColor(...palette.foreground);drawFormula(doc,eq.parts,22,y+7);y+=16;
@@ -126,7 +126,7 @@ export function createServicePdf(r:ServiceReport,system:UnitSystem,selected:Reco
           ['Max slope / max axial residual over path',`${Math.max(...s.stages.map(v=>v.maxSlope)).toPrecision(5)} / ${f(Math.max(...s.stages.map(v=>v.residual)),'N')}`],
         ]);
         table('Intervention phase peaks',['Phase','VM beam bound','Effective force at peak','Middle vertical / lateral'],phasePeaks(s.stages).map(v=>[v.phase,f(v.vm,'MPa'),f(v.N,'N'),`${f(v.midZ,'mm')} / ${f(v.midY,'mm')}`]));
-        if(y>205){doc.addPage();y=24;}
+        if(y>196){doc.addPage();y=24;}
         text('Profiles: original (grey), excavated (blue), target (orange)'+(peaks.length?', selected support stage (green)':'')+'. Exaggerated deflection.');
         const shapes=[s.excavated.shape,t.shape,...(peaks.length?[chosen.shape]:[])],points=shapes.flat();
         for(const [index,axis] of (['z','y'] as const).entries()) {

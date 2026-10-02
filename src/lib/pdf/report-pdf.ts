@@ -22,7 +22,7 @@ export interface ReportMeta {
 const ORANGE: [number, number, number] = [255, 142, 4];
 
 /** Space reserved at the bottom of every page for the footer (mm). */
-const FOOTER_SPACE = 20;
+const FOOTER_SPACE = 37;
 const TOP_MARGIN = 20;
 /** Keep short sections together when their wrapped rows fit on a fresh page. */
 const KEEP_TOGETHER_ROWS = 8;
