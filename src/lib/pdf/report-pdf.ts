@@ -1,5 +1,5 @@
+import {currentPdfPalette, LIGHT_PDF, themePages, finishPdfPages, type PdfPalette} from './theme';
 import {addSignature} from './signature';
-import {appVersionFooter} from './app-version-footer';
 import {requireReportIdentity} from './identity';
 // Modifié par Giovanni malagnino, 2026-09-25 01:43 CEST (Europe/Rome, UTC+2)
 // PDF report generation for pipe lowering analysis results.
@@ -19,38 +19,34 @@ export interface ReportMeta {
   system: UnitSystem;
 }
 
-const ORANGE: [number, number, number] = [255, 142, 4];
 
 /** Space reserved at the bottom of every page for the footer (mm). */
 const FOOTER_SPACE = 37;
-const TOP_MARGIN = 20;
+const TOP_MARGIN = 22;
 /** Keep short sections together when their wrapped rows fit on a fresh page. */
 const KEEP_TOGETHER_ROWS = 8;
 
 export const createReportPdf = (
   report: V2Report,
   meta: ReportMeta,
+  palette: PdfPalette = LIGHT_PDF,
 ): jsPDF => {
   meta = {...meta,...requireReportIdentity(meta)};
   const doc = new jsPDF({ unit: "mm", format: "a4" });
-  const pageWidth = doc.internal.pageSize.getWidth();
 
-  // Header band
-  doc.setFillColor(...ORANGE);
-  doc.rect(0, 0, pageWidth, 18, "F");
-  doc.setTextColor(255, 255, 255);
+  themePages(doc, palette);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.text("Pipe Lowering Analysis Report", 14, 12);
+  doc.setFontSize(17);
+  doc.text("Pipe Lowering Analysis Report", 16, 26);
 
   // Meta block
-  doc.setTextColor(30, 30, 30);
+  doc.setTextColor(...palette.foreground);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  let cursorY = 27;
+  doc.setFontSize(9);
+  let cursorY = 34;
   for (const text of [`Project: ${meta.projectName}`, `Prepared by: ${meta.preparedBy}`, `Exported: ${meta.date.toLocaleString()} | ${Intl.DateTimeFormat().resolvedOptions().timeZone}`, `Unit system: ${meta.system === "SI" ? "SI (metric)" : "Imperial"}`]) {
-    const lines=doc.splitTextToSize(text,182);
-    doc.text(lines,14,cursorY);cursorY+=lines.length*5+1;
+    const lines=doc.splitTextToSize(text,178);
+    doc.text(lines,16,cursorY);cursorY+=lines.length*5+1;
   }
   cursorY+=1;
   for (const section of buildSections(report.inputs, report.derived, report, meta.system)) {
@@ -58,11 +54,12 @@ export const createReportPdf = (
       startY: cursorY,
       head: [[section.title, ""]],
       body: section.rows,
-      theme: "grid",
-      styles: { fontSize: 9, cellPadding: 1.8 },
-      headStyles: { fillColor: ORANGE, textColor: 255, fontStyle: "bold" },
+      theme: "plain",
+      styles: { fontSize: 9, cellPadding: 1.25, textColor: palette.foreground, fillColor: palette.background, lineColor: palette.border },
+      alternateRowStyles: { fillColor: palette.card },
+      headStyles: { fillColor: palette.primary, textColor: palette.primaryText, fontStyle: "bold" },
       columnStyles: { 0: { cellWidth: 90 }, 1: { halign: "right" } },
-      margin: { left: 14, right: 14, top: TOP_MARGIN, bottom: FOOTER_SPACE },
+      margin: { left: 16, right: 16, top: TOP_MARGIN, bottom: FOOTER_SPACE },
       rowPageBreak: "avoid",
     };
     const plan = planTable(opts, TOP_MARGIN, KEEP_TOGETHER_ROWS);
@@ -75,29 +72,16 @@ export const createReportPdf = (
     cursorY = (doc as any).lastAutoTable.finalY + 6;
   }
 
-  addSignature(doc,cursorY,undefined,14);
+  addSignature(doc,cursorY,palette);
 
-  // Footer with disclaimer and page numbers
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    const h = doc.internal.pageSize.getHeight();
-    doc.setFontSize(7);
-    doc.setTextColor(120, 120, 120);
-    appVersionFooter(doc,report.appVersion);
-    doc.text(
-      "Engineering disclaimer: results are indicative and must be verified by a qualified engineer.",
-      14,
-      h - 10,
-    );
-    doc.text(`Page ${i} / ${pageCount}`, pageWidth - 14, h - 10, { align: "right" });
-  }
+  finishPdfPages(doc,palette,report.appVersion,
+    'GMC | Pipe lowering | Qualified engineering verification required','Complete');
 
   return doc;
 };
 
 export const generateReportPdf = (report: V2Report, meta: ReportMeta): string => {
-  const doc = createReportPdf(report, meta);
+  const doc = createReportPdf(report, meta, currentPdfPalette());
   const fileName = buildPdfFileName('pipe-lowering',meta.preparedBy,meta.date);
   doc.save(`${fileName}.pdf`);
   return fileName;
