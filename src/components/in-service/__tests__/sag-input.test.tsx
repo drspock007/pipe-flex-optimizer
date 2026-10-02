@@ -12,11 +12,13 @@ it('exposes full spans, hides movement, empties gas explicitly and retains movem
  expect(screen.getByLabelText('Fluid')).toHaveValue('custom');expect(screen.getByLabelText('Fluid density at operating P/T (kg/m3)')).toHaveValue(0);expect(screen.getByLabelText('Internal gauge pressure (kPa)')).toHaveValue(0);
  fireEvent.change(screen.getByLabelText('Analysis type'),{target:{value:'sag'}});
  expect(screen.queryByLabelText('Target amplitude (mm)')).toBeNull();expect(screen.queryByLabelText('Support layout')).toBeNull();
+ expect(screen.getByRole('img',{name:/clamped ends, with horizontal end tangents/}).querySelector('path[stroke="#3b82f6"]')).toHaveAttribute('d','M20 25 C60 25 80 55 150 55 C220 55 240 25 280 25');
  expect(screen.getByLabelText('Full span L (m)')).toHaveValue(20);
  fireEvent.change(screen.getByLabelText('Full span L (m)'),{target:{value:'12'}});
  fireEvent.click(screen.getByLabelText('Sag boundary conditions confirmed'));
  fireEvent.change(screen.getByLabelText('Sag end conditions'),{target:{value:'simple'}});
  expect(screen.getByLabelText('Sag boundary conditions confirmed')).not.toBeChecked();
+ expect(screen.getByRole('img',{name:/simple supports, with free end rotations/}).querySelector('path[stroke="#3b82f6"]')).toHaveAttribute('d','M20 25 Q150 85 280 25');
  fireEvent.change(screen.getByLabelText('Sag calculation'),{target:{value:'length'}});
  expect(screen.getByLabelText('Maximum full span (m)')).toHaveValue(100);
  fireEvent.change(screen.getByLabelText('Analysis type'),{target:{value:'movement'}});
