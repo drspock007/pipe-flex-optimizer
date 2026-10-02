@@ -11,8 +11,6 @@ node_modules
 dist
 dist-ssr
 *.local
-gmc-website/.astro/
-gmc-website/dist/
 
 # Editor directories and files
 .vscode/*

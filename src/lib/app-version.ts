@@ -1,2 +1,2 @@
 /** Fixed release timestamp, Europe/Rome, without seconds. */
-export const APP_VERSION = 'v202610022019';
+export const APP_VERSION = 'v202610022103';
