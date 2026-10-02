@@ -262,3 +262,7 @@ The shared release constant is src/lib/app-version.ts.
 All PDF exports across both modules, including Summary and Complete, end with a
 blank Signature box. Shared filename and captured app-version rules apply to every
 export. The signature space does not imply approval of excluded checks.
+
+Signing space is a compact 80 × 12 mm box on the final content page. Report
+layout reserves the bottom signing area before pagination; adding the signature
+never creates a page on its own. Text sizes and diagnostic content are preserved.
