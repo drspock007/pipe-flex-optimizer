@@ -4,6 +4,7 @@ import { ServiceCsaInputs } from '@/components/in-service/ServiceCsa';
 import { useState } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import Disclaimer from '@/components/Disclaimer';
 import { UnitProvider,useUnits } from '@/contexts/UnitContext';
 import { Button } from '@/components/ui/button';
 import { DEFAULT_SERVICE,type ServiceInput } from '@/lib/in-service/types';
@@ -26,4 +27,4 @@ function Workspace(){
       </div></div>
     <ServicePresets input={input} onLoad={v=>{engine.invalidate();setInput(v);setInputRevision(n=>n+1);}}/></>;
 }
-export default function InServicePage(){return <UnitProvider><div className="min-h-screen grid-background"><Header/><main className="container px-4 py-8 space-y-6"><Workspace/></main><Footer/></div></UnitProvider>;}
+export default function InServicePage(){return <UnitProvider><div className="min-h-screen grid-background"><Header/><main className="container px-4 py-8 space-y-6"><Workspace/></main><div className="container px-4 pb-6"><Disclaimer/></div><Footer/></div></UnitProvider>;}

@@ -1,5 +1,6 @@
 import { AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ENGINEERING_DISCLAIMER_APPROVAL, ENGINEERING_DISCLAIMER_PRELIMINARY, ENGINEERING_DISCLAIMER_TITLE } from "@/lib/engineering-disclaimer";
 
 /** Engineering disclaimer card, mirrored from the shared GMC apps layout. */
 const Disclaimer = () => (
@@ -7,17 +8,15 @@ const Disclaimer = () => (
     <CardHeader>
       <CardTitle className="flex items-center gap-2 text-base text-destructive">
         <AlertTriangle className="w-5 h-5" />
-        Engineering Disclaimer
+        {ENGINEERING_DISCLAIMER_TITLE}
       </CardTitle>
     </CardHeader>
     <CardContent className="text-sm text-muted-foreground space-y-2">
       <p>
-        This calculator is provided as an engineering tool for preliminary analysis purposes.
-        Results should be independently verified by a qualified professional engineer.
+        {ENGINEERING_DISCLAIMER_PRELIMINARY}
       </p>
       <p className="font-medium text-foreground">
-        Do not use these calculations for final design or construction without proper
-        professional review and approval.
+        {ENGINEERING_DISCLAIMER_APPROVAL}
       </p>
     </CardContent>
   </Card>
