@@ -20,7 +20,7 @@ export function createSagPdf(r:ServiceReport,system:UnitSystem,palette:PdfPalett
  const f=(v:number|undefined,u:Parameters<typeof format>[1])=>clean(format(v,u,system));
  const line=(s:string,size=9)=>{doc.setFontSize(size);doc.setTextColor(...palette.foreground);for(const l of doc.splitTextToSize(clean(s),178)){if(y>256){doc.addPage();y=22;}doc.text(l,16,y);y+=size*.45;}y+=complete?2:.8;};
  const table=(title:string,body:string[][],head=[title,'Value'])=>{
-  const opts:UserOptions={startY:y,columnStyles:head.length===2?{0:{cellWidth:65}}:undefined,head:[head.map(clean)],body:body.map(row=>row.map(clean)),margin:{top:22,bottom:37,left:16,right:16},styles:{fontSize:9,cellPadding:complete?1.2:1,textColor:palette.foreground,fillColor:palette.background,lineColor:palette.border},headStyles:{fillColor:palette.primary,textColor:palette.primaryText},alternateRowStyles:{fillColor:palette.card},rowPageBreak:'avoid'};
+  const opts:UserOptions={startY:y,columnStyles:head.length===2?{0:{cellWidth:65}}:undefined,head:[head.map(clean)],body:body.map(row=>row.map(clean)),margin:{top:22,bottom:37,left:16,right:16},styles:{fontSize:9,cellPadding:complete?1.2:1,textColor:palette.foreground,fillColor:palette.background,lineColor:palette.border},headStyles:{fillColor:palette.tableHeader,textColor:palette.primaryText},alternateRowStyles:{fillColor:palette.card},rowPageBreak:'avoid'};
   const plan=planTable(opts,22,3);if(plan.newPage)doc.addPage();plan.parts.forEach((part,k)=>{if(k)doc.addPage();autoTable(doc,part);});
   y=(doc as jsPDF & {lastAutoTable:{finalY:number}}).lastAutoTable.finalY+4;
  };

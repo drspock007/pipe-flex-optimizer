@@ -36,7 +36,7 @@ export function createServicePdf(r:ServiceReport,system:UnitSystem,selected:Reco
     y+=3;
   };
   const table=(title:string,head:string[],body:string[][])=>{
-    const opts:UserOptions={startY:y+8,head:[head.map(ascii)],body:body.map(row=>row.map(ascii)),margin:{left:16,right:16,top:22,bottom:37},styles:{fontSize:8,cellPadding:2.1,overflow:'linebreak',textColor:palette.foreground,fillColor:palette.background,lineColor:palette.border},alternateRowStyles:{fillColor:palette.card},headStyles:{fillColor:palette.primary,textColor:palette.primaryText},rowPageBreak:'avoid',showHead:'everyPage'};
+    const opts:UserOptions={startY:y+8,head:[head.map(ascii)],body:body.map(row=>row.map(ascii)),margin:{left:16,right:16,top:22,bottom:37},styles:{fontSize:8,cellPadding:2.1,overflow:'linebreak',textColor:palette.foreground,fillColor:palette.background,lineColor:palette.border},alternateRowStyles:{fillColor:palette.card},headStyles:{fillColor:palette.tableHeader,textColor:palette.primaryText},rowPageBreak:'avoid',showHead:'everyPage'};
     if(y>255){doc.addPage();y=22;opts.startY=y+8;}
     const plan=planTable(opts,30,3);
     if(plan.newPage){doc.addPage();y=22;}

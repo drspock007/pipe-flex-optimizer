@@ -1,4 +1,4 @@
-import {currentPdfPalette, LIGHT_PDF, themePages, finishPdfPages, type PdfPalette} from './theme';
+import {printPdfPalette, LIGHT_PDF, themePages, finishPdfPages, type PdfPalette} from './theme';
 import {addSignature} from './signature';
 import {requireReportIdentity} from './identity';
 // Modifié par Giovanni malagnino, 2026-09-25 01:43 CEST (Europe/Rome, UTC+2)
@@ -57,7 +57,7 @@ export const createReportPdf = (
       theme: "plain",
       styles: { fontSize: 9, cellPadding: 1.25, textColor: palette.foreground, fillColor: palette.background, lineColor: palette.border },
       alternateRowStyles: { fillColor: palette.card },
-      headStyles: { fillColor: palette.primary, textColor: palette.primaryText, fontStyle: "bold" },
+      headStyles: { fillColor: palette.tableHeader, textColor: palette.primaryText, fontStyle: "bold" },
       columnStyles: { 0: { cellWidth: 90 }, 1: { halign: "right" } },
       margin: { left: 16, right: 16, top: TOP_MARGIN, bottom: FOOTER_SPACE },
       rowPageBreak: "avoid",
@@ -81,7 +81,7 @@ export const createReportPdf = (
 };
 
 export const generateReportPdf = (report: V2Report, meta: ReportMeta): string => {
-  const doc = createReportPdf(report, meta, currentPdfPalette());
+  const doc = createReportPdf(report, meta, printPdfPalette());
   const fileName = buildPdfFileName('pipe-lowering',meta.preparedBy,meta.date);
   doc.save(`${fileName}.pdf`);
   return fileName;

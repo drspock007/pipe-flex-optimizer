@@ -3,7 +3,7 @@ import SagResults from './SagResults';
 import PermanentResults from './PermanentResults';
 import type {IdentityFields} from '@/components/ReportIdentityFields';
 import { createServiceSummary } from '@/lib/in-service/report-summary';
-import { currentPdfPalette } from '@/lib/in-service/pdf-theme';
+import { printPdfPalette } from '@/lib/in-service/pdf-theme';
 import { ServiceCsaResults } from './ServiceCsa';
 import SupportResults from './SupportResults';
 import {selectedStage} from '@/lib/in-service/supports';
@@ -37,8 +37,8 @@ export default function ServiceResults({report:r,identity}:{report:ServiceReport
   const c=r.result;
   return <div className="space-y-4">
     <section className="border rounded-lg p-4 bg-card space-y-3"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold text-lg">Results</h2>
-      {c&&<div className="flex flex-wrap gap-2">{(['Summary','Complete'] as const).map(kind=><Button key={kind} disabled={!identity.preparedBy.trim()||!identity.projectName.trim()} variant={kind==='Summary'?'default':'outline'} onClick={()=>{try{if(!identity.preparedBy.trim()||!identity.projectName.trim())return;const meta={...identity,date:new Date()},palette=currentPdfPalette();(kind==='Summary'?createServiceSummary(r,system,palette,meta):createServicePdf(r,system,selected,palette,meta)).save(buildPdfFileName('in-serv-defl',meta.preparedBy,meta.date,kind.toLowerCase())+'.pdf');setExportError('');}catch(e){setExportError(e instanceof Error?e.message:String(e));}}}>{kind} PDF · {system}</Button>)}</div>}</div>
-      <p className="text-xs text-muted-foreground">Summary: conditions and essential results, usually one page per scenario. Complete: equations, profiles and diagnostics. Both use the current app theme.</p>
+      {c&&<div className="flex flex-wrap gap-2">{(['Summary','Complete'] as const).map(kind=><Button key={kind} disabled={!identity.preparedBy.trim()||!identity.projectName.trim()} variant={kind==='Summary'?'default':'outline'} onClick={()=>{try{if(!identity.preparedBy.trim()||!identity.projectName.trim())return;const meta={...identity,date:new Date()},palette=printPdfPalette();(kind==='Summary'?createServiceSummary(r,system,palette,meta):createServicePdf(r,system,selected,palette,meta)).save(buildPdfFileName('in-serv-defl',meta.preparedBy,meta.date,kind.toLowerCase())+'.pdf');setExportError('');}catch(e){setExportError(e instanceof Error?e.message:String(e));}}}>{kind} PDF · {system}</Button>)}</div>}</div>
+      <p className="text-xs text-muted-foreground">Summary: conditions and essential results, usually one page per scenario. Complete: equations, profiles and diagnostics. Both use a fixed, print-friendly palette regardless of the app theme.</p>
       <p>{r.message}</p>{exportError&&<p role="alert">{exportError}</p>}
       {r.errors.map(e=><p key={e} role="alert" className="text-destructive">{e}</p>)}
       {c&&<><p className="text-sm">Displayed case: <strong>{f(c.halfLength/1000,'m')} each side</strong> · total {f(c.halfLength/500,'m')} · target amplitude {f(c.displacement,'mm')} · {c.supportPositions?.length??0} supports.</p>

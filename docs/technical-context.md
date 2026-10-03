@@ -45,9 +45,12 @@ Le PEHD n'est pas pris en charge. Les modes existants et leurs seuils ne changen
 
 ### Shared PDF presentation
 
-All report modules use `src/lib/pdf/theme.ts` for app-token colors, A4 backgrounds,
-two 3 mm orange side bars, and consistent header/footer placement. Pipe lowering
-uses the same 16 mm horizontal margins and alternating card rows as in-service.
+All report modules use `src/lib/pdf/theme.ts` for one fixed, print-friendly palette
+independent of the app's light/dark mode: white page backgrounds, dark text, very
+light neutral table fills, pale orange table headings, and orange accents. PDFs use
+A4 backgrounds, two 3 mm orange side bars, and consistent header/footer placement.
+Pipe lowering uses the same 16 mm horizontal margins and alternating card rows as
+in-service.
 `finishPdfPages` writes the calculation's captured app version and format/page
 number; it does not substitute the current release for a legacy snapshot.
 Signature and content pagination remain separate shared concerns.
