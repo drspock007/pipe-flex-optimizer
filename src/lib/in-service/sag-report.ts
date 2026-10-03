@@ -13,6 +13,7 @@ import {SAG_SCOPE} from './sag-profile';
 import {CSA_STATUS,CSA_SCOPE,csaDetails} from './csa';
 import type {ServiceReport} from './types';
 import type {UnitSystem} from '../unit-conversions';
+import {ENGINEERING_DISCLAIMER_APPROVAL,ENGINEERING_DISCLAIMER_PRELIMINARY,ENGINEERING_DISCLAIMER_TITLE} from '../engineering-disclaimer';
 const clean=(s:string)=>s.replace(/—/g,'-').replace(/·/g,' ').replace(/⁻/g,'-').replace(/⁶/g,'6').replace(/³/g,'3').replace(/²/g,'2');
 export function createSagPdf(r:ServiceReport,system:UnitSystem,palette:PdfPalette,identity:ReportIdentity,complete:boolean):jsPDF {
  const meta=requireReportIdentity(identity),doc=new jsPDF();themePages(doc,palette);let y=24;
@@ -41,6 +42,7 @@ export function createSagPdf(r:ServiceReport,system:UnitSystem,palette:PdfPalett
   line('Sag is positive downward; support reactions are forces ON the pipe, positive upward. Stress is a conservative von Mises beam bound, not a local contact stress.',8);
   line(SAG_SCOPE,8);
   if(r.csa){line(CSA_SCOPE,8);line('Verifications partielles ; levage non evalue selon CSA.',8);line(r.csa.checks.map(c=>`${c.reference}: ${CSA_STATUS[c.status]}`).join('; '),8);}
+  line(ENGINEERING_DISCLAIMER_TITLE,10);line(ENGINEERING_DISCLAIMER_PRELIMINARY,8);line(ENGINEERING_DISCLAIMER_APPROVAL,8);
   if(!complete)continue;
   doc.addPage();y=24;line('Model and numerical evidence',14);
   line(r.input.sag?.boundary==='simple'?'Analytical Euler-Bernoulli solution under uniformly distributed weight. Axial force and end moments are zero. No mesh-convergence claim.':'Coupled clamped elastic beam: progressive soil release only. No centre constraint, imposed movement or return. N = N0 + EA/(2L) integral(z\'^2 + y\'^2) dx; wall force = N + P Ai. Sag maximum recovered from stationary points of element polynomials.');
@@ -69,6 +71,6 @@ export function createSagPdf(r:ServiceReport,system:UnitSystem,palette:PdfPalett
   table('Search samples',r.samples.map(v=>[f(v.value/500,'m'),v.status,v.maxUtilization===null?'-':`${(v.maxUtilization*100).toFixed(2)}%`]),['Full span L','Joint stress/sag status','Stress utilization']);
  }
  if(complete&&r.csa){doc.addPage();y=24;line('CSA targeted checks - separate assessment',14);line(CSA_SCOPE);for(const c of r.csa.checks)table(c.title,[['Reference',c.reference],['Status',CSA_STATUS[c.status]],['Data',csaDetails(c,system)],['Scope / reason',c.reason],...(c.demand===undefined?[]:[['Demand / limit',`${f(c.demand,c.unit)} / ${f(c.limit,c.unit)}`]])]);}
- addSignature(doc,y,palette);finishPdfPages(doc,palette,r.appVersion,'GMC | Sag only | Custom criterion, no installation approval',complete?'Complete':'Summary');
+ addSignature(doc,y,palette);finishPdfPages(doc,palette,r.appVersion,'GMC | Sag only | Qualified engineering verification required',complete?'Complete':'Summary');
  return doc;
 }

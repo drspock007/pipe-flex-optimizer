@@ -12,6 +12,7 @@ import { section,type ServiceReport } from './types';
 import type { UnitSystem } from '../unit-conversions';
 import { LIGHT_PDF,themePages,type PdfPalette } from './pdf-theme';
 import { supportPeaks } from './supports';
+import { ENGINEERING_DISCLAIMER_APPROVAL, ENGINEERING_DISCLAIMER_PRELIMINARY, ENGINEERING_DISCLAIMER_TITLE } from '../engineering-disclaimer';
 /** One readable sheet per scenario in the usual case; long content flows without truncation. */
 export function createServiceSummary(r:ServiceReport,system:UnitSystem,palette:PdfPalette=LIGHT_PDF,identity?:ReportIdentity):jsPDF {
   const meta=requireReportIdentity(identity);
@@ -76,8 +77,9 @@ export function createServiceSummary(r:ServiceReport,system:UnitSystem,palette:P
       line('CSA partial checks: '+r.csa.checks.map(v=>`${names[v.id]??v.title}: ${CSA_STATUS[v.status]}${v.utilization===undefined?'':` (${(v.utilization*100).toFixed(1)}%)`}`).join('; ')+'.',8);
     }
     line('Scope: symmetric elastic steel span, ideal clamps, constant pressure/temperature; frictionless upward-only supports. No lifting or support-capacity approval. CSA checks are partial. Full assumptions and diagnostics: complete report.',8);
+    line(`${ENGINEERING_DISCLAIMER_TITLE}: ${ENGINEERING_DISCLAIMER_PRELIMINARY} ${ENGINEERING_DISCLAIMER_APPROVAL}`,8);
   }
   addSignature(doc,y,palette);
-  finishPdfPages(doc,palette,r.appVersion,'GMC | Conditions & results | Custom criterion only','Summary');
+  finishPdfPages(doc,palette,r.appVersion,'GMC | Conditions & results | Qualified engineering verification required','Summary');
   return doc;
 }

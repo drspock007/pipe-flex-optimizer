@@ -16,6 +16,7 @@ import { format, STATUS } from './display';
 import { COATING_LABELS } from '../coating-presets';
 import { section, serviceCoating, type ServiceReport, type Stage } from './types';
 import type { UnitSystem } from '../unit-conversions';
+import { ENGINEERING_DISCLAIMER_APPROVAL, ENGINEERING_DISCLAIMER_PRELIMINARY, ENGINEERING_DISCLAIMER_TITLE } from '../engineering-disclaimer';
 const ascii=(s:string)=>s.replace(/—/g,'-').replace(/·/g,' ').replace(/⁻/g,'-').replace(/⁶/g,'6').replace(/³/g,'3').replace(/²/g,'2').replace(/⁴/g,'4');
 export const LIMITS='Steel only; temporary, symmetric excavation, ideal clamps, no ground contact. Elastic small-strain/moderate-rotation beam; uniform pressure and temperature. Conservative Von Mises beam bound, not local sling/contact stress. No assessment of support capacity, local bearing, settlement, ovalization, defects, weld concentrations, fatigue or soil failure. No normative compliance verdict. Model scope: full length / OD >= 10, resultant slope <= 0.1.';
 export function phasePeaks(stages:Stage[]) {
@@ -151,7 +152,8 @@ export function createServicePdf(r:ServiceReport,system:UnitSystem,selected:Reco
     }
   }
   if(r.samples.length)table('Exploratory search samples',['Half-length / amplitude / count','Status','Max utilization'],r.samples.map(s=>[i.mode==='supports'?`${s.value} supports`:i.mode==='length'?f(s.value/1000,'m'):f(s.value,'mm'),STATUS[s.status],s.maxUtilization===null?'-':`${(s.maxUtilization*100).toFixed(2)}%`]));
+  text(ENGINEERING_DISCLAIMER_TITLE,10);text(ENGINEERING_DISCLAIMER_PRELIMINARY,8);text(ENGINEERING_DISCLAIMER_APPROVAL,8);
   addSignature(doc,y,palette);
- finishPdfPages(doc,palette,r.appVersion,'GMC | Temporary steel pipe deflection | Custom criterion only','Complete');
+ finishPdfPages(doc,palette,r.appVersion,'GMC | Temporary steel pipe deflection | Qualified engineering verification required','Complete');
   return doc;
 }
